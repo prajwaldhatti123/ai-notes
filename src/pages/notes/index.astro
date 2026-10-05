@@ -1,0 +1,27 @@
+---
+import Base from '../../layouts/Base.astro';
+import PhaseNotes from '../../components/PhaseNotes.astro';
+import { phases, totalNotes } from '../../data/roadmap';
+
+const ready = phases.flatMap((p) => p.notes).filter((n) => n.ready).length;
+---
+
+<Base title="Notes">
+  <div class="prose">
+    <p class="eyebrow">{ready} of {totalNotes} written</p>
+    <h1>Notes</h1>
+    <p class="lede">Every note in study order. Work through them top to bottom.</p>
+    {
+      phases.map((phase) => (
+        <section class="phase" id={phase.id}>
+          <div class="phase-head">
+            <span class="phase-number">{phase.number}</span>
+            <h2>{phase.title}</h2>
+            <span class="phase-weeks">{phase.weeks}</span>
+          </div>
+          <PhaseNotes phase={phase} />
+        </section>
+      ))
+    }
+  </div>
+</Base>

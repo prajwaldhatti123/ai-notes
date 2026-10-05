@@ -1,6 +1,6 @@
 ---
-import { Code } from 'astro:components';
 import Note from '../../../layouts/Note.astro';
+import CodeBlock from '../../../components/CodeBlock.astro';
 import Callout from '../../../components/Callout.astro';
 import QA from '../../../components/QA.astro';
 import Figure from '../../../components/Figure.astro';
@@ -281,9 +281,9 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
 
   <h2 id="code">Math and code</h2>
   <p>One neuron with plain NumPy, matching Fig. 1:</p>
-  <Code code={numpyCode} lang="python" theme="vitesse-light" />
+  <CodeBlock code={numpyCode} />
   <p>The network from Fig. 3 in PyTorch:</p>
-  <Code code={torchCode} lang="python" theme="vitesse-light" />
+  <CodeBlock code={torchCode} />
   <p>
     <code>nn.Linear(3, 4)</code> stores a weight matrix of shape <code>(4, 3)</code> and a bias of shape
     <code>(4,)</code>, and computes <Math tex="W\mathbf{x} + \mathbf{b}" />. The weights start as small random numbers,

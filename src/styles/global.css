@@ -46,6 +46,35 @@
   --space-5: 5rem;
 
   --radius: 3px;
+
+  --header-h: 3.5rem;
+  --sidebar-w: 18rem;
+
+  color-scheme: light;
+}
+
+/* Night reading: warm dark paper, cream ink. Same tokens, so nothing else changes. */
+:root[data-theme='dark'] {
+  --paper: #1d1a16;
+  --paper-raised: #26221d;
+  --paper-shade: #322c25;
+  --rule: #453c31;
+  --ink: #e9e0cf;
+  --ink-soft: #bdb19c;
+  --ink-faint: #8f8370;
+
+  --red: #e59080;
+  --blue: #93b7e4;
+  --green: #a6c48f;
+  --gold: #dcb75f;
+  --highlight: #6a5514;
+
+  --red-wash: #38231f;
+  --blue-wash: #1f2937;
+  --green-wash: #252e1f;
+  --gold-wash: #352e18;
+
+  color-scheme: dark;
 }
 
 *,
@@ -56,7 +85,7 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: var(--space-3);
+  scroll-padding-top: calc(var(--header-h) + var(--space-2));
 }
 
 body {
@@ -72,20 +101,23 @@ body {
   font-feature-settings: 'onum', 'pnum';
 }
 
-/* ---------- Page frame ---------- */
+/* ---------- Page frame ----------
+   The header and sidebar stay put; only the content scrolls. On screens narrower
+   than 64rem (phones, iPad portrait) the sidebar becomes a slide-in drawer. */
 
 .site-header {
-  border-bottom: 1px solid var(--rule);
-}
-
-.site-header nav {
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: var(--space-2);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: var(--header-h);
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1) var(--space-3);
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  padding-left: max(var(--space-2), env(safe-area-inset-left));
+  padding-right: max(var(--space-2), env(safe-area-inset-right));
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
 }
 
 .site-title {
@@ -95,9 +127,16 @@ body {
   color: var(--ink);
   text-decoration: none;
   margin-right: auto;
+  white-space: nowrap;
 }
 
-.site-header a.nav-link {
+.top-links {
+  display: none;
+  gap: var(--space-3);
+  margin-right: var(--space-2);
+}
+
+.nav-link {
   font-size: var(--text-small);
   font-variant-caps: all-small-caps;
   letter-spacing: 0.08em;
@@ -105,18 +144,189 @@ body {
   text-decoration: none;
 }
 
-.site-header a.nav-link:hover,
-.site-header a.nav-link[aria-current='page'] {
+.nav-link:hover,
+.nav-link[aria-current='page'] {
   color: var(--red);
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  color: var(--red);
+  background: var(--paper-shade);
+}
+
+.icon-btn svg {
+  width: 1.35rem;
+  height: 1.35rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.menu-btn {
+  margin-left: -0.5rem;
+}
+
+.theme-btn .moon,
+:root[data-theme='dark'] .theme-btn .sun {
+  display: none;
+}
+:root[data-theme='dark'] .theme-btn .moon {
+  display: block;
+}
+
+.sidebar {
+  position: fixed;
+  top: var(--header-h);
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  width: min(var(--sidebar-w), 86vw);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--space-2);
+  padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+  background: var(--paper);
+  border-right: 1px solid var(--rule);
+  font-size: 0.92rem;
+  line-height: 1.4;
+  transform: translateX(-100%);
+  visibility: hidden;
+  transition: transform 0.2s ease, visibility 0.2s;
+}
+
+:root[data-nav-open] .sidebar {
+  transform: none;
+  visibility: visible;
+  box-shadow: 6px 0 24px rgb(0 0 0 / 0.25);
+}
+
+.backdrop {
+  position: fixed;
+  inset: var(--header-h) 0 0 0;
+  z-index: 10;
+  background: rgb(0 0 0 / 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+:root[data-nav-open] .backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sidebar a,
+.sidebar .pending {
+  display: block;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius);
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.sidebar a:hover {
+  color: var(--red);
+  background: var(--paper-shade);
+}
+
+.sidebar a[aria-current='page'] {
+  color: var(--ink);
+  font-weight: 600;
+  background: var(--gold-wash);
+  box-shadow: inset 3px 0 0 var(--gold);
+}
+
+.sidebar .pending {
+  color: var(--ink-faint);
+}
+
+.sidebar-main {
+  padding-bottom: var(--space-1);
+  margin-bottom: var(--space-1);
+  border-bottom: 1px solid var(--rule);
+}
+
+.sidebar-main a {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.sidebar details {
+  border-bottom: 1px dotted var(--rule);
+}
+
+.sidebar summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.6rem 0.6rem;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.sidebar summary::-webkit-details-marker {
+  display: none;
+}
+
+.sidebar summary b {
+  font-family: var(--hand);
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--red);
+}
+
+.sidebar summary::after {
+  content: '+';
+  margin-left: auto;
+  font-family: var(--mono);
+  color: var(--ink-faint);
+}
+
+.sidebar details[open] summary::after {
+  content: '−';
+}
+
+.sidebar ol {
+  list-style: none;
+  margin: 0 0 var(--space-1);
+  padding: 0;
+}
+
+.sidebar li {
+  margin: 0;
 }
 
 .page {
   max-width: 72rem;
   margin: 0 auto;
-  padding: var(--space-4) var(--space-2) var(--space-5);
+  padding: var(--space-3) var(--space-2) var(--space-4);
+  padding-left: max(var(--space-2), env(safe-area-inset-left));
+  padding-right: max(var(--space-2), env(safe-area-inset-right));
 }
 
 .prose {
+  /* Explicit width: as a grid item with auto margins it would otherwise size to its
+     widest child and overflow small screens. */
+  width: 100%;
+  min-width: 0;
   max-width: var(--measure);
   margin: 0 auto;
 }
@@ -127,6 +337,52 @@ body {
   text-align: center;
   font-size: var(--text-small);
   color: var(--ink-faint);
+}
+
+@media (min-width: 48rem) {
+  .top-links {
+    display: flex;
+  }
+  .page {
+    padding: var(--space-4) var(--space-3) var(--space-5);
+  }
+}
+
+@media (min-width: 64rem) {
+  .menu-btn,
+  .backdrop {
+    display: none;
+  }
+  .sidebar {
+    transform: none;
+    visibility: visible;
+    box-shadow: none;
+    transition: none;
+  }
+  .site-main {
+    margin-left: var(--sidebar-w);
+  }
+}
+
+/* Phones: slightly smaller text and tighter boxes so lines are not cramped. */
+@media (max-width: 40rem) {
+  :root {
+    --text: 1.0625rem;
+    --leading: 1.65;
+  }
+  h2 {
+    font-size: 1.4rem;
+    margin-top: var(--space-3);
+  }
+  .callout {
+    padding: var(--space-2);
+  }
+  figure.figure {
+    padding: var(--space-1);
+  }
+  .lede {
+    font-size: 1.15rem;
+  }
 }
 
 /* ---------- Type ---------- */
@@ -243,6 +499,12 @@ pre.astro-code {
   border-radius: var(--radius);
   background-color: var(--paper-raised) !important;
   overflow-x: auto;
+}
+
+/* Shiki ships both themes as CSS variables; pick the dark one at night. */
+:root[data-theme='dark'] pre.astro-code,
+:root[data-theme='dark'] pre.astro-code span {
+  color: var(--shiki-dark) !important;
 }
 
 pre.astro-code code {
@@ -405,9 +667,16 @@ figure.figure {
   border-radius: var(--radius);
 }
 
+figure.figure {
+  overflow-x: auto;
+}
+
+/* Below this width the handwritten labels get too small to read, so on phones
+   a diagram pans sideways instead of shrinking further. */
 figure.figure svg {
   display: block;
   width: 100%;
+  min-width: 30rem;
   height: auto;
 }
 
@@ -490,7 +759,7 @@ svg text.mono {
   display: none;
 }
 
-@media (min-width: 70rem) {
+@media (min-width: 88rem) {
   .note-layout {
     grid-template-columns: minmax(0, 1fr) 15rem;
   }
@@ -500,8 +769,10 @@ svg text.mono {
   .note-toc {
     display: block;
     position: sticky;
-    top: var(--space-3);
+    top: calc(var(--header-h) + var(--space-3));
     align-self: start;
+    max-height: calc(100vh - var(--header-h) - var(--space-4));
+    overflow-y: auto;
     font-size: 0.9rem;
     line-height: 1.4;
     border-left: 1px solid var(--rule);
@@ -613,41 +884,20 @@ svg text.mono {
   font-weight: 600;
 }
 
-.swatches {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
-  gap: var(--space-2);
-  margin-bottom: var(--space-3);
-}
-
-.swatch {
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  overflow: hidden;
-  font-size: 0.8rem;
-  line-height: 1.4;
-  background: var(--paper-raised);
-}
-
-.swatch i {
-  display: block;
-  height: 3.5rem;
-}
-
-.swatch span {
-  display: block;
-  padding: 0.4rem 0.6rem;
-}
-
 @media print {
   .site-header,
   .site-footer,
+  .sidebar,
+  .backdrop,
   .note-toc,
   .note-pager {
     display: none;
   }
   body {
     background: none;
+  }
+  .site-main {
+    margin-left: 0;
   }
   .qa-answer {
     display: block;

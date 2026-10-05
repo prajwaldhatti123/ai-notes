@@ -1,7 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
 import Timeline from '../components/Timeline.astro';
-import PhaseNotes from '../components/PhaseNotes.astro';
 import { phases, totalNotes } from '../data/roadmap';
 
 const ready = phases.flatMap((p) => p.notes).filter((n) => n.ready).length;
@@ -23,23 +22,34 @@ const ready = phases.flatMap((p) => p.notes).filter((n) => n.ready).length;
     </p>
     <p>
       Start with the <a href="/roadmap/">roadmap</a> to see what to study each week, then check the
-      <a href="/projects/">projects</a> you will build alongside. {ready} of {totalNotes} notes are written so far.
+      <a href="/projects/">projects</a> you will build alongside. {ready} of {totalNotes}
+      <a href="/notes/">notes</a> are written so far.
     </p>
 
     <Timeline />
 
-    <h2>All notes</h2>
-    {
-      phases.map((phase) => (
-        <section class="phase">
-          <div class="phase-head">
-            <span class="phase-number">{phase.number}</span>
-            <h3>{phase.title}</h3>
-            <span class="phase-weeks">{phase.weeks}</span>
-          </div>
-          <PhaseNotes phase={phase} />
-        </section>
-      ))
-    }
+    <h2>The seven phases</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Phase</th><th>When</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          {
+            phases.map((phase) => (
+              <tr>
+                <td>
+                  <a href={`/notes/#${phase.id}`}>
+                    {phase.number}. {phase.title}
+                  </a>
+                </td>
+                <td>{phase.weeks}</td>
+                <td>{phase.notes.length}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
   </div>
 </Base>

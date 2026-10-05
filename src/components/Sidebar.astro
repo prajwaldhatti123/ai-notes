@@ -1,0 +1,44 @@
+---
+// Site-wide navigation: main pages, then every note grouped by phase.
+// The phase holding the current page starts open.
+import { phases, noteHref } from '../data/roadmap';
+
+const path = Astro.url.pathname;
+const current = (href: string) => (path === href ? 'page' : undefined);
+const activePhase = phases.find((p) => path.startsWith(`/notes/${p.id}/`))?.id ?? phases[0].id;
+const main = [
+  { href: '/', label: 'Home' },
+  { href: '/notes/', label: 'All notes' },
+  { href: '/roadmap/', label: 'Roadmap' },
+  { href: '/projects/', label: 'Projects' },
+];
+---
+
+<aside id="sidebar" class="sidebar" aria-label="Notes navigation">
+  <div class="sidebar-main">
+    {main.map((l) => <a href={l.href} aria-current={current(l.href)}>{l.label}</a>)}
+  </div>
+  {
+    phases.map((phase) => (
+      <details open={phase.id === activePhase}>
+        <summary>
+          <b>{phase.number}</b>
+          <span>{phase.title}</span>
+        </summary>
+        <ol>
+          {phase.notes.map((note) => (
+            <li>
+              {note.ready ? (
+                <a href={noteHref(phase, note)} aria-current={current(noteHref(phase, note))}>
+                  {note.title}
+                </a>
+              ) : (
+                <span class="pending">{note.title}</span>
+              )}
+            </li>
+          ))}
+        </ol>
+      </details>
+    ))
+  }
+</aside>

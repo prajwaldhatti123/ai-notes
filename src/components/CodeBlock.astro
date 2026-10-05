@@ -1,0 +1,13 @@
+---
+// Syntax-highlighted code with a light and a dark theme; global.css switches between them.
+import { Code } from 'astro:components';
+
+interface Props {
+  code: string;
+  lang?: string;
+}
+
+const { code, lang = 'python' } = Astro.props;
+---
+
+<Code code={code} lang={lang as any} themes={{ light: 'vitesse-light', dark: 'vitesse-dark' }} />

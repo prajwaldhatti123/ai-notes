@@ -18,9 +18,8 @@ npm run build    # static site in dist/
 |---|---|
 | `src/data/roadmap.ts` | The learning path: phases, sources and the list of notes. Home, roadmap and note navigation are generated from it. |
 | `src/pages/notes/<phase>/<slug>.astro` | One file per note. Set `ready: true` for it in `roadmap.ts` to link it. |
-| `src/components/` | Building blocks: `Callout`, `QA`, `Figure`, `Math`. |
-| `src/styles/global.css` | The design system. All colours, fonts and spacing are tokens at the top. |
-| `/style-guide/` | Live reference for every block and the writing rules. |
+| `src/components/` | Building blocks: `Callout`, `QA`, `Figure`, `Math`, `CodeBlock`, plus the `Sidebar`. |
+| `src/styles/global.css` | The design system. All colours, fonts and spacing are tokens at the top, with a dark set under `[data-theme='dark']`. |
 
 ## Deploy
 
