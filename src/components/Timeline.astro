@@ -1,0 +1,59 @@
+---
+// Twelve-week plan drawn from the roadmap data: phases on top, projects below.
+import Figure from './Figure.astro';
+
+const x = (week: number) => 40 + (week - 1) * 74;
+const span = (from: number, to: number) => ({ x: x(from) + 4, width: (to - from + 1) * 74 - 8 });
+
+const phaseBars = [
+  { from: 1, to: 1, label: '1 Basics', fill: 'fill-gold' },
+  { from: 2, to: 4, label: '2 LLM internals', fill: 'fill-green' },
+  { from: 5, to: 5, label: '3 Modern', fill: 'fill-gold' },
+  { from: 6, to: 7, label: '4 RAG', fill: 'fill-blue' },
+  { from: 8, to: 9, label: '5 Agents', fill: 'fill-green' },
+  { from: 10, to: 10, label: '6 Prod', fill: 'fill-red' },
+  { from: 11, to: 12, label: '7 Interview drill', fill: 'fill-blue' },
+];
+
+const projectBars = [
+  { from: 2, to: 4, label: 'P1 GPT from scratch' },
+  { from: 5, to: 5, label: 'P2 LoRA' },
+  { from: 6, to: 7, label: 'P3 RAG + evals' },
+  { from: 8, to: 10, label: 'P4 Agent + MCP, production layer' },
+  { from: 11, to: 12, label: 'Polish + resume' },
+];
+---
+
+<Figure n={1} caption="The twelve weeks at a glance: what you study (top) and what you build (bottom)." wide>
+  <svg viewBox="0 0 968 230" role="img" aria-label="Twelve-week timeline of study phases and projects">
+    {
+      Array.from({ length: 12 }, (_, i) => (
+        <text class="small" x={x(i + 1) + 37} y="28" text-anchor="middle">
+          W{i + 1}
+        </text>
+      ))
+    }
+    <text class="small label-red" x="40" y="62">study</text>
+    <g class="sketch">
+      {phaseBars.map((b) => <rect class={`stroke ${b.fill}`} {...span(b.from, b.to)} y="72" height="46" rx="5" />)}
+    </g>
+    {
+      phaseBars.map((b) => (
+        <text x={span(b.from, b.to).x + span(b.from, b.to).width / 2} y="102" text-anchor="middle" font-size="19">
+          {b.label}
+        </text>
+      ))
+    }
+    <text class="small label-red" x="40" y="150">build</text>
+    <g class="sketch">
+      {projectBars.map((b) => <rect class="stroke fill-paper" {...span(b.from, b.to)} y="160" height="46" rx="5" stroke-dasharray="7 5" />)}
+    </g>
+    {
+      projectBars.map((b) => (
+        <text x={span(b.from, b.to).x + span(b.from, b.to).width / 2} y="190" text-anchor="middle" font-size="19">
+          {b.label}
+        </text>
+      ))
+    }
+  </svg>
+</Figure>

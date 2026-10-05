@@ -1,0 +1,45 @@
+---
+import Base from '../layouts/Base.astro';
+import Timeline from '../components/Timeline.astro';
+import PhaseNotes from '../components/PhaseNotes.astro';
+import { phases, totalNotes } from '../data/roadmap';
+
+const ready = phases.flatMap((p) => p.notes).filter((n) => n.ready).length;
+---
+
+<Base title="Home">
+  <div class="prose">
+    <p class="eyebrow">A twelve-week path · {totalNotes} notes · 4 projects</p>
+    <h1>AI Engineer Notes</h1>
+    <p class="lede">
+      From “what is a neural network?” to designing LLM systems in an interview. Every idea is explained simply first,
+      then precisely, then in words you can say out loud.
+    </p>
+
+    <p>
+      These notes assume no AI background. Each one starts with an everyday explanation, shows the idea as a picture,
+      then gives the exact technical terms, the math and the code. It ends with a model interview answer, practice
+      questions and a revision card.
+    </p>
+    <p>
+      Start with the <a href="/roadmap/">roadmap</a> to see what to study each week, then check the
+      <a href="/projects/">projects</a> you will build alongside. {ready} of {totalNotes} notes are written so far.
+    </p>
+
+    <Timeline />
+
+    <h2>All notes</h2>
+    {
+      phases.map((phase) => (
+        <section class="phase">
+          <div class="phase-head">
+            <span class="phase-number">{phase.number}</span>
+            <h3>{phase.title}</h3>
+            <span class="phase-weeks">{phase.weeks}</span>
+          </div>
+          <PhaseNotes phase={phase} />
+        </section>
+      ))
+    }
+  </div>
+</Base>

@@ -1,0 +1,19 @@
+---
+// Renders LaTeX at build time, so pages ship no math JavaScript.
+import katex from 'katex';
+
+interface Props {
+  tex: string;
+  block?: boolean;
+}
+
+const { tex, block = false } = Astro.props;
+
+// Astro unescapes string attributes, so tex="\times" arrives as TAB + "imes".
+// Control characters never belong in LaTeX, so turn each one back into its command prefix.
+const restore: Record<string, string> = { '\t': '\\t', '\f': '\\f', '\n': '\\n', '\r': '\\r', '\v': '\\v', '\b': '\\b' };
+const source = tex.replace(/[\t\f\n\r\v\b]/g, (c) => restore[c]);
+const html = katex.renderToString(source, { displayMode: block, throwOnError: true });
+---
+
+{block ? <div class="math-block" set:html={html} /> : <span set:html={html} />}

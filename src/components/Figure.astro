@@ -1,0 +1,14 @@
+---
+interface Props {
+  n: number;
+  caption: string;
+  wide?: boolean;
+}
+
+const { n, caption, wide = false } = Astro.props;
+---
+
+<figure class:list={['figure', { wide }]}>
+  <slot />
+  <figcaption>Fig. {n}. {caption}</figcaption>
+</figure>

@@ -1,0 +1,663 @@
+/* Paperback design system. Every colour, font and spacing value used on the
+   site is a token defined here; pages and components never hard-code them. */
+
+@import '@fontsource-variable/literata';
+@import '@fontsource-variable/literata/wght-italic.css';
+@import '@fontsource-variable/jetbrains-mono';
+@import '@fontsource/caveat/500.css';
+@import '@fontsource/caveat/700.css';
+
+:root {
+  /* Paper and ink */
+  --paper: #f5eedc;
+  --paper-raised: #faf5e6;
+  --paper-shade: #ece2c9;
+  --rule: #d8cbab;
+  --ink: #2a2520;
+  --ink-soft: #5d5346;
+  --ink-faint: #8a7d6a;
+
+  /* Pens: each has one job */
+  --red: #a3392b; /* headings accents, mistakes */
+  --blue: #2c4d7c; /* links, interview answers */
+  --green: #46663a; /* plain-words explanations */
+  --gold: #8a6412; /* revision cards */
+  --highlight: #f6de7e; /* technical terms */
+
+  --red-wash: #f3ddd2;
+  --blue-wash: #dfe6ea;
+  --green-wash: #e3e8cf;
+  --gold-wash: #f3e5b8;
+
+  /* Type */
+  --serif: 'Literata Variable', Georgia, 'Times New Roman', serif;
+  --hand: 'Caveat', 'Segoe Print', cursive;
+  --mono: 'JetBrains Mono Variable', ui-monospace, Menlo, Consolas, monospace;
+
+  --text: 1.125rem;
+  --text-small: 0.95rem;
+  --leading: 1.7;
+  --measure: 68ch;
+
+  --space-1: 0.5rem;
+  --space-2: 1rem;
+  --space-3: 1.75rem;
+  --space-4: 3rem;
+  --space-5: 5rem;
+
+  --radius: 3px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: var(--space-3);
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background-color: var(--paper);
+  /* Paper grain: fine noise laid over the flat cream colour. */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.27 0 0 0 0 0.16 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+  font-family: var(--serif);
+  font-size: var(--text);
+  line-height: var(--leading);
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'onum', 'pnum';
+}
+
+/* ---------- Page frame ---------- */
+
+.site-header {
+  border-bottom: 1px solid var(--rule);
+}
+
+.site-header nav {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+}
+
+.site-title {
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  text-decoration: none;
+  margin-right: auto;
+}
+
+.site-header a.nav-link {
+  font-size: var(--text-small);
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.site-header a.nav-link:hover,
+.site-header a.nav-link[aria-current='page'] {
+  color: var(--red);
+}
+
+.page {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-2) var(--space-5);
+}
+
+.prose {
+  max-width: var(--measure);
+  margin: 0 auto;
+}
+
+.site-footer {
+  border-top: 1px solid var(--rule);
+  padding: var(--space-3) var(--space-2);
+  text-align: center;
+  font-size: var(--text-small);
+  color: var(--ink-faint);
+}
+
+/* ---------- Type ---------- */
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+  font-weight: 650;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: clamp(2rem, 5vw, 2.9rem);
+  margin: 0 0 var(--space-2);
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: 1.6rem;
+  margin: var(--space-4) 0 var(--space-2);
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+h3 {
+  font-size: 1.2rem;
+  margin: var(--space-3) 0 var(--space-1);
+}
+
+p,
+ul,
+ol {
+  margin: 0 0 var(--space-2);
+}
+
+li {
+  margin-bottom: 0.35rem;
+}
+
+a {
+  color: var(--blue);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+a:hover {
+  color: var(--red);
+}
+
+hr {
+  border: 0;
+  text-align: center;
+  margin: var(--space-4) 0;
+}
+
+hr::before {
+  content: '❦';
+  color: var(--ink-faint);
+  font-size: 1.3rem;
+}
+
+/* The eyebrow line above a title: "Phase 1 · Week 1" */
+.eyebrow {
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.1em;
+  font-size: var(--text-small);
+  color: var(--red);
+  margin-bottom: var(--space-1);
+}
+
+.lede {
+  font-size: 1.25rem;
+  font-style: italic;
+  color: var(--ink-soft);
+  margin-bottom: var(--space-3);
+}
+
+/* A technical term the reader must be able to say out loud. */
+.term {
+  font-weight: 600;
+  background: linear-gradient(transparent 58%, var(--highlight) 58%, var(--highlight) 92%, transparent 92%);
+  padding: 0 0.1em;
+}
+
+/* Handwritten margin remark, used sparingly. */
+.scribble {
+  font-family: var(--hand);
+  font-size: 1.45rem;
+  line-height: 1.25;
+  color: var(--blue);
+  transform: rotate(-1deg);
+  margin: var(--space-2) 0;
+}
+
+/* ---------- Code and math ---------- */
+
+code {
+  font-family: var(--mono);
+  font-size: 0.86em;
+  background: var(--paper-shade);
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius);
+}
+
+pre.astro-code {
+  font-family: var(--mono);
+  font-size: 0.86rem;
+  line-height: 1.6;
+  padding: var(--space-2);
+  margin: 0 0 var(--space-3);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--ink-soft);
+  border-radius: var(--radius);
+  background-color: var(--paper-raised) !important;
+  overflow-x: auto;
+}
+
+pre.astro-code code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+.math-block {
+  margin: var(--space-3) 0;
+  overflow-x: auto;
+  text-align: center;
+  font-size: 1.1rem;
+}
+
+/* ---------- Tables ---------- */
+
+.table-wrap {
+  overflow-x: auto;
+  margin: 0 0 var(--space-3);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-small);
+  line-height: 1.5;
+}
+
+th,
+td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+thead th {
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  border-bottom: 2px solid var(--ink-soft);
+}
+
+/* ---------- Callouts ---------- */
+
+.callout {
+  position: relative;
+  margin: var(--space-3) 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-left-width: 4px;
+}
+
+.callout > :last-child {
+  margin-bottom: 0;
+}
+
+.callout-label {
+  display: block;
+  font-family: var(--hand);
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1.1;
+  margin-bottom: var(--space-1);
+}
+
+.callout.plain {
+  background: var(--green-wash);
+  border-color: var(--green);
+}
+.callout.plain .callout-label {
+  color: var(--green);
+}
+
+.callout.interview {
+  background: var(--blue-wash);
+  border-color: var(--blue);
+}
+.callout.interview .callout-label {
+  color: var(--blue);
+}
+
+.callout.pitfall {
+  background: var(--red-wash);
+  border-color: var(--red);
+}
+.callout.pitfall .callout-label {
+  color: var(--red);
+}
+
+.callout.note {
+  border-color: var(--ink-faint);
+}
+.callout.note .callout-label {
+  color: var(--ink-soft);
+}
+
+/* The revision card looks like an index card taped to the page. */
+.callout.revision {
+  background: var(--gold-wash);
+  border: 1px solid var(--gold);
+  box-shadow: 3px 4px 0 rgb(42 37 32 / 0.12);
+  transform: rotate(-0.4deg);
+  margin-top: var(--space-4);
+}
+.callout.revision .callout-label {
+  color: var(--gold);
+}
+
+/* ---------- Questions and answers ---------- */
+
+.qa {
+  border-bottom: 1px solid var(--rule);
+}
+
+.qa summary {
+  cursor: pointer;
+  padding: 0.8rem 0;
+  font-weight: 600;
+  list-style: none;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.qa summary::-webkit-details-marker {
+  display: none;
+}
+
+.qa summary::before {
+  content: 'Q';
+  font-family: var(--hand);
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1.1;
+  color: var(--red);
+}
+
+.qa[open] summary {
+  color: var(--red);
+}
+
+.qa-answer {
+  padding: 0 0 var(--space-2) 1.9rem;
+}
+
+.qa-answer > :last-child {
+  margin-bottom: 0;
+}
+
+/* ---------- Figures ---------- */
+
+figure.figure {
+  margin: var(--space-3) 0;
+  padding: var(--space-2);
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+figure.figure svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+figure.figure figcaption {
+  margin-top: var(--space-1);
+  font-size: var(--text-small);
+  font-style: italic;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+/* Diagram ink. Shapes inside .sketch get a slightly wobbly, hand-drawn edge;
+   labels stay outside that group so text remains crisp. */
+svg .sketch {
+  filter: url(#sketch);
+}
+svg .stroke {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+svg .stroke-soft {
+  fill: none;
+  stroke: var(--ink-faint);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+svg .fill-paper {
+  fill: var(--paper);
+}
+svg .fill-green {
+  fill: var(--green-wash);
+}
+svg .fill-blue {
+  fill: var(--blue-wash);
+}
+svg .fill-red {
+  fill: var(--red-wash);
+}
+svg .fill-gold {
+  fill: var(--gold-wash);
+}
+svg .ink-red {
+  stroke: var(--red);
+}
+svg .ink-blue {
+  stroke: var(--blue);
+}
+svg text {
+  font-family: var(--hand);
+  font-size: 22px;
+  fill: var(--ink);
+}
+svg text.small {
+  font-size: 18px;
+  fill: var(--ink-soft);
+}
+svg text.label-red {
+  fill: var(--red);
+}
+svg text.label-blue {
+  fill: var(--blue);
+}
+svg text.mono {
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+/* ---------- Note layout ---------- */
+
+.note-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+.note-toc {
+  display: none;
+}
+
+@media (min-width: 70rem) {
+  .note-layout {
+    grid-template-columns: minmax(0, 1fr) 15rem;
+  }
+  .note-layout .prose {
+    margin: 0 0 0 auto;
+  }
+  .note-toc {
+    display: block;
+    position: sticky;
+    top: var(--space-3);
+    align-self: start;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    border-left: 1px solid var(--rule);
+    padding-left: var(--space-2);
+  }
+  .note-toc strong {
+    display: block;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.1em;
+    color: var(--ink-faint);
+    margin-bottom: var(--space-1);
+  }
+  .note-toc a {
+    display: block;
+    padding: 0.25rem 0;
+    color: var(--ink-soft);
+    text-decoration: none;
+  }
+  .note-toc a:hover {
+    color: var(--red);
+  }
+}
+
+.note-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--rule);
+  font-size: var(--text-small);
+}
+
+/* ---------- Roadmap and lists of notes ---------- */
+
+.phase {
+  margin-bottom: var(--space-4);
+}
+
+.phase-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: var(--space-2);
+}
+
+.phase-head h2 {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.phase-number {
+  font-family: var(--hand);
+  font-weight: 700;
+  font-size: 2.4rem;
+  line-height: 1;
+  color: var(--red);
+}
+
+.phase-weeks {
+  margin-left: auto;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.1em;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.note-list {
+  list-style: none;
+  padding: 0;
+  counter-reset: note;
+}
+
+.note-list li {
+  counter-increment: note;
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px dotted var(--rule);
+  margin: 0;
+}
+
+.note-list li::before {
+  content: counter(note, decimal-leading-zero);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+  padding-top: 0.3rem;
+}
+
+.note-list .pending {
+  color: var(--ink-faint);
+}
+
+.badge {
+  margin-left: auto;
+  white-space: nowrap;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.08em;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+}
+
+.badge.ready {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.swatch {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  overflow: hidden;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  background: var(--paper-raised);
+}
+
+.swatch i {
+  display: block;
+  height: 3.5rem;
+}
+
+.swatch span {
+  display: block;
+  padding: 0.4rem 0.6rem;
+}
+
+@media print {
+  .site-header,
+  .site-footer,
+  .note-toc,
+  .note-pager {
+    display: none;
+  }
+  body {
+    background: none;
+  }
+  .qa-answer {
+    display: block;
+  }
+}
+
+/* Wide diagrams scroll sideways on small screens instead of shrinking to unreadable. */
+figure.figure.wide {
+  overflow-x: auto;
+}
+figure.figure.wide svg {
+  min-width: 36rem;
+}

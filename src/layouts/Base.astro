@@ -1,0 +1,62 @@
+---
+import '../styles/global.css';
+import 'katex/dist/katex.min.css';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'Interview-ready notes for AI engineering, explained simply and precisely.' } = Astro.props;
+const path = Astro.url.pathname;
+const links = [
+  { href: '/roadmap/', label: 'Roadmap' },
+  { href: '/projects/', label: 'Projects' },
+  { href: '/style-guide/', label: 'Style guide' },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title} · AI Engineer Notes</title>
+  </head>
+  <body>
+    <!-- Shared filter that gives diagram shapes a hand-drawn wobble. -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" style="fill: var(--ink)"></path>
+        </marker>
+      </defs>
+      <!-- userSpaceOnUse so straight lines (zero-height boxes) are not clipped away. -->
+      <filter id="sketch" filterUnits="userSpaceOnUse" x="-50" y="-50" width="2000" height="2000">
+        <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="4" result="noise"></feTurbulence>
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.5"></feDisplacementMap>
+      </filter>
+    </svg>
+
+    <header class="site-header">
+      <nav aria-label="Main">
+        <a class="site-title" href="/">AI Engineer Notes</a>
+        {
+          links.map((l) => (
+            <a class="nav-link" href={l.href} aria-current={path.startsWith(l.href) ? 'page' : undefined}>
+              {l.label}
+            </a>
+          ))
+        }
+      </nav>
+    </header>
+
+    <main class="page">
+      <slot />
+    </main>
+
+    <footer class="site-footer">Simple first, precise second, spoken out loud third.</footer>
+  </body>
+</html>

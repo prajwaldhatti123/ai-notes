@@ -1,0 +1,22 @@
+---
+// The five boxed blocks used in every note. `kind` picks the colour and the default label.
+interface Props {
+  kind: 'plain' | 'interview' | 'pitfall' | 'revision' | 'note';
+  label?: string;
+}
+
+const defaults = {
+  plain: 'In plain words',
+  interview: 'Say it in the interview',
+  pitfall: 'Common mistake',
+  revision: 'One-minute revision',
+  note: 'Note',
+};
+
+const { kind, label = defaults[kind] } = Astro.props;
+---
+
+<aside class={`callout ${kind}`}>
+  <span class="callout-label">{label}</span>
+  <slot />
+</aside>

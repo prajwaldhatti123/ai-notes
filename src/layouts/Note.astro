@@ -1,0 +1,44 @@
+---
+import Base from './Base.astro';
+import { phases, noteHref } from '../data/roadmap';
+
+interface Props {
+  phase: string;
+  slug: string;
+  lede: string;
+  sections: { id: string; label: string }[];
+}
+
+const { phase: phaseId, slug, lede, sections } = Astro.props;
+
+const flat = phases.flatMap((p) => p.notes.map((n) => ({ phase: p, note: n })));
+const index = flat.findIndex((e) => e.phase.id === phaseId && e.note.slug === slug);
+if (index === -1) throw new Error(`Note ${phaseId}/${slug} is not listed in src/data/roadmap.ts`);
+
+const { phase, note } = flat[index];
+const position = phase.notes.indexOf(note) + 1;
+const prev = flat.slice(0, index).findLast((e) => e.note.ready);
+const next = flat.slice(index + 1).find((e) => e.note.ready);
+---
+
+<Base title={note.title} description={lede}>
+  <div class="note-layout">
+    <article class="prose">
+      <p class="eyebrow">Phase {phase.number} · {phase.weeks} · Note {position} of {phase.notes.length}</p>
+      <h1>{note.title}</h1>
+      <p class="lede">{lede}</p>
+
+      <slot />
+
+      <nav class="note-pager" aria-label="Notes">
+        <span>{prev && <a href={noteHref(prev.phase, prev.note)}>← {prev.note.title}</a>}</span>
+        <span>{next && <a href={noteHref(next.phase, next.note)}>{next.note.title} →</a>}</span>
+      </nav>
+    </article>
+
+    <aside class="note-toc" aria-label="On this page">
+      <strong>On this page</strong>
+      {sections.map((s) => <a href={`#${s.id}`}>{s.label}</a>)}
+    </aside>
+  </div>
+</Base>

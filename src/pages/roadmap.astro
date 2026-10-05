@@ -1,0 +1,94 @@
+---
+import Base from '../layouts/Base.astro';
+import Timeline from '../components/Timeline.astro';
+import PhaseNotes from '../components/PhaseNotes.astro';
+import Callout from '../components/Callout.astro';
+import { phases } from '../data/roadmap';
+---
+
+<Base title="Roadmap">
+  <div class="prose">
+    <p class="eyebrow">The learning path</p>
+    <h1>Roadmap</h1>
+    <p class="lede">Twelve weeks, seven phases, four projects. Internals first, then building real systems on top.</p>
+
+    <Callout kind="plain">
+      <p>
+        An AI engineer is someone who builds products on top of language models. To do that well you need two things:
+        you must know how the engine works inside (phases 1–3), and you must know how to build a reliable car around it
+        (phases 4–6). The last phase is practice at explaining both out loud.
+      </p>
+    </Callout>
+
+    <Timeline />
+
+    <h2>How to study each day</h2>
+    <p>The order matters. Meeting an idea three times, in three forms, is what makes it stick.</p>
+    <ol>
+      <li><strong>Watch or read the source</strong> for the topic (course lecture or book chapter listed under the phase).</li>
+      <li><strong>Read our note</strong> on the same topic. Redraw its main diagram on paper from memory.</li>
+      <li><strong>Type the code yourself.</strong> Do not paste. Change one thing and predict what happens before you run it.</li>
+      <li><strong>Say the interview answer out loud</strong> without looking. If you get stuck, that is the part to reread.</li>
+      <li><strong>Answer the practice questions</strong> before opening them.</li>
+    </ol>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Day</th><th>What to do</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Monday to Friday</td><td>One or two notes a day, following the five steps above.</td></tr>
+          <tr><td>Saturday</td><td>Project work only. Build the milestone for that week.</td></tr>
+          <tr><td>Sunday</td><td>Revision cards and practice questions for the whole week, then rest.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <Callout kind="note" label="No GPU needed">
+      <p>
+        Everything here runs on a normal laptop, on the free GPU hours from Google Colab or Kaggle, or through hosted
+        model APIs that cost a few dollars in total. Each project page says which one it uses.
+      </p>
+    </Callout>
+
+    <h2>The seven phases</h2>
+    {
+      phases.map((phase) => (
+        <section class="phase" id={phase.id}>
+          <div class="phase-head">
+            <span class="phase-number">{phase.number}</span>
+            <h3>{phase.title}</h3>
+            <span class="phase-weeks">{phase.weeks}</span>
+          </div>
+          <p>
+            <strong>Goal.</strong> {phase.goal}
+          </p>
+          {phase.project && (
+            <p>
+              <strong>Build.</strong> <a href="/projects/">{phase.project}</a>
+            </p>
+          )}
+          <p>
+            <strong>Study from.</strong>
+          </p>
+          <ul>
+            {phase.sources.map((s) => <li>{s}</li>)}
+          </ul>
+          <p>
+            <strong>Notes.</strong>
+          </p>
+          <PhaseNotes phase={phase} />
+        </section>
+      ))
+    }
+
+    <h2>How you know a phase is done</h2>
+    <ul>
+      <li>You can redraw every main diagram of the phase on a blank page.</li>
+      <li>You can give each note’s interview answer in under two minutes, without notes.</li>
+      <li>You can answer at least four in five practice questions correctly.</li>
+      <li>The project milestone for the phase runs, and its README explains what you measured.</li>
+    </ul>
+  </div>
+</Base>

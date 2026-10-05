@@ -1,0 +1,430 @@
+---
+import { Code } from 'astro:components';
+import Note from '../../../layouts/Note.astro';
+import Callout from '../../../components/Callout.astro';
+import QA from '../../../components/QA.astro';
+import Figure from '../../../components/Figure.astro';
+import Math from '../../../components/Math.astro';
+
+const sections = [
+  { id: 'plain', label: 'In plain words' },
+  { id: 'neuron', label: 'One neuron' },
+  { id: 'activation', label: 'Why the bend matters' },
+  { id: 'network', label: 'From neuron to network' },
+  { id: 'code', label: 'Math and code' },
+  { id: 'llm', label: 'Where this lives in an LLM' },
+  { id: 'interview', label: 'Say it in the interview' },
+  { id: 'questions', label: 'Practice questions' },
+  { id: 'mistakes', label: 'Common mistakes' },
+  { id: 'sources', label: 'Sources' },
+  { id: 'revision', label: 'One-minute revision' },
+];
+
+// Fig. 3: a 3-4-2 network. Node positions per layer, then every connection between neighbours.
+const layers = [
+  { x: 120, ys: [70, 150, 230], fill: 'fill-gold' },
+  { x: 360, ys: [50, 117, 183, 250], fill: 'fill-green' },
+  { x: 600, ys: [110, 190], fill: 'fill-blue' },
+];
+const edges = layers.slice(0, -1).flatMap((from, i) =>
+  from.ys.flatMap((y1) => layers[i + 1].ys.map((y2) => ({ x1: from.x + 22, y1, x2: layers[i + 1].x - 22, y2 })))
+);
+
+// Fig. 2: activation curves, sampled into SVG paths. 20px per unit on x.
+const erf = (x: number) => {
+  const t = 1 / (1 + 0.3275911 * Math_.abs(x));
+  const y = 1 - ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math_.exp(-x * x);
+  return x >= 0 ? y : -y;
+};
+const Math_ = globalThis.Math;
+const curve = (cx: number, cy: number, yScale: number, f: (x: number) => number) =>
+  Array.from({ length: 81 }, (_, i) => {
+    const x = -4 + i * 0.1;
+    return `${i === 0 ? 'M' : 'L'}${(cx + x * 20).toFixed(1)} ${(cy - f(x) * yScale).toFixed(1)}`;
+  }).join(' ');
+const plots = [
+  { cx: 120, name: 'ReLU', formula: 'max(0, z)', d: curve(120, 150, 20, (x) => Math_.max(0, x)) },
+  { cx: 360, name: 'Sigmoid', formula: 'squashes into 0…1', d: curve(360, 150, 80, (x) => 1 / (1 + Math_.exp(-x))) },
+  { cx: 600, name: 'GELU', formula: 'a smooth ReLU (used in GPT)', d: curve(600, 150, 20, (x) => (x * (1 + erf(x / Math_.SQRT2))) / 2) },
+];
+
+const numpyCode = `import numpy as np
+
+x = np.array([1.0, 2.0, 3.0])        # three inputs
+w = np.array([0.5, -1.0, 2.0])       # one weight per input
+b = 0.1                              # bias
+
+z = np.dot(w, x) + b                 # weighted sum: 0.5 - 2.0 + 6.0 + 0.1 = 4.6
+a = max(0.0, z)                      # ReLU activation: 4.6
+print(z, a)`;
+
+const torchCode = `import torch
+import torch.nn as nn
+
+model = nn.Sequential(
+    nn.Linear(3, 4),   # 3 inputs -> 4 hidden neurons: 3*4 weights + 4 biases = 16
+    nn.ReLU(),         # the bend; has no parameters
+    nn.Linear(4, 2),   # 4 hidden -> 2 outputs:        4*2 weights + 2 biases = 10
+)
+
+x = torch.tensor([[1.0, 2.0, 3.0]])   # shape (1, 3): a batch of one example
+y = model(x)                          # the forward pass
+print(y.shape)                        # torch.Size([1, 2])
+
+print(sum(p.numel() for p in model.parameters()))   # 26`;
+---
+
+<Note
+  phase="foundations"
+  slug="what-is-a-neural-network"
+  lede="A neural network is a big adjustable formula. This note explains its smallest part, the neuron, and how stacking neurons makes something that can learn almost any pattern."
+  sections={sections}
+>
+  <h2 id="plain">In plain words</h2>
+  <Callout kind="plain">
+    <p>
+      Imagine deciding whether to go for a walk. You look at a few things: is it sunny, is it cold, are you tired? Each
+      one matters a different amount. Sunshine pushes you towards “yes” strongly, tiredness pushes towards “no”. You
+      add up all the pushes, and if the total is high enough, you go.
+    </p>
+    <p>
+      A neuron does exactly this with numbers. A neural network is thousands or billions of these tiny deciders wired
+      together, where the “how much each thing matters” numbers are not set by a person. The network finds them itself
+      by looking at examples.
+    </p>
+  </Callout>
+  <p>
+    The technical names: the things you look at are <span class="term">inputs</span> (or features), how much each
+    matters is a <span class="term">weight</span>, your general willingness to say yes is the
+    <span class="term">bias</span>, and the “is the total high enough?” step is the
+    <span class="term">activation function</span>. Weights and biases together are the model’s
+    <span class="term">parameters</span>. Finding good values for them from examples is called
+    <span class="term">training</span>.
+  </p>
+
+  <h2 id="neuron">One neuron</h2>
+  <Figure n={1} caption="A single neuron: multiply each input by its weight, add them up with the bias, then pass the total through an activation function.">
+    <svg viewBox="0 0 720 300" role="img" aria-label="Diagram of one neuron with three weighted inputs, a sum and an activation function">
+      <g class="sketch">
+        <path class="stroke" d="M95 70 L288 135" marker-end="url(#arrow)"></path>
+        <path class="stroke" d="M95 150 L280 150" marker-end="url(#arrow)"></path>
+        <path class="stroke" d="M95 230 L288 165" marker-end="url(#arrow)"></path>
+        <circle class="stroke fill-green" cx="340" cy="150" r="55"></circle>
+        <path class="stroke" d="M395 150 H462" marker-end="url(#arrow)"></path>
+        <rect class="stroke fill-gold" x="470" y="112" width="96" height="76" rx="6"></rect>
+        <path class="stroke ink-red" d="M488 170 H518 L548 128"></path>
+        <path class="stroke" d="M566 150 H632" marker-end="url(#arrow)"></path>
+        <path class="stroke-soft" d="M340 50 V88" marker-end="url(#arrow)"></path>
+      </g>
+      <text x="70" y="77" text-anchor="middle">x₁</text>
+      <text x="70" y="157" text-anchor="middle">x₂</text>
+      <text x="70" y="237" text-anchor="middle">x₃</text>
+      <text class="label-blue" x="180" y="88">w₁</text>
+      <text class="label-blue" x="180" y="142">w₂</text>
+      <text class="label-blue" x="180" y="222">w₃</text>
+      <text x="340" y="146" text-anchor="middle">w·x + b</text>
+      <text class="small" x="340" y="170" text-anchor="middle">= z</text>
+      <text class="label-blue" x="340" y="40" text-anchor="middle">bias b</text>
+      <text x="660" y="157" text-anchor="middle">a</text>
+      <text class="small" x="340" y="240" text-anchor="middle">weighted sum</text>
+      <text class="small" x="518" y="216" text-anchor="middle">activation f</text>
+      <text class="small" x="660" y="182" text-anchor="middle">output</text>
+      <text class="small label-red" x="340" y="280" text-anchor="middle">blue = learned during training</text>
+    </svg>
+  </Figure>
+
+  <p>A neuron does two steps.</p>
+  <ol>
+    <li>
+      <strong>Weighted sum.</strong> Multiply every input by its weight, add the results, add the bias. The total is
+      called the <span class="term">pre-activation</span>, written <Math tex="z" />.
+    </li>
+    <li>
+      <strong>Activation.</strong> Pass <Math tex="z" /> through a simple fixed function <Math tex="f" /> that bends it.
+      The result <Math tex="a" /> is the neuron’s output.
+    </li>
+  </ol>
+  <Math block tex="z = w_1x_1 + w_2x_2 + \dots + w_nx_n + b = \mathbf{w}\cdot\mathbf{x} + b \qquad a = f(z)" />
+  <p>
+    A large positive weight means “this input pushes the output up a lot”. A negative weight means it pushes the output
+    down. A weight near zero means the neuron ignores that input. The bias shifts the whole sum up or down, so the
+    neuron can be easy or hard to switch on regardless of the inputs.
+  </p>
+
+  <h2 id="activation">Why the bend matters</h2>
+  <Callout kind="plain">
+    <p>
+      With only straight rulers you can draw only straight lines, no matter how many rulers you join end to end. To
+      draw a curve you need something that bends. The activation function is the bend.
+    </p>
+  </Callout>
+  <p>
+    The weighted sum is a <span class="term">linear</span> operation. If you stack linear operations with nothing in
+    between, the result is still one linear operation. Two layers without activations,
+  </p>
+  <Math block tex="W_2(W_1\mathbf{x} + \mathbf{b}_1) + \mathbf{b}_2 = (W_2W_1)\,\mathbf{x} + (W_2\mathbf{b}_1 + \mathbf{b}_2)," />
+  <p>
+    collapse into a single layer with weights <Math tex="W_2W_1" />. So a hundred-layer network without activations is
+    no more powerful than one layer. The activation function adds <span class="term">non-linearity</span>, and that is
+    what lets depth build complicated shapes out of simple pieces.
+  </p>
+
+  <Figure n={2} caption="Three common activation functions. Each takes the weighted sum z on the horizontal axis and returns the neuron’s output." wide>
+    <svg viewBox="0 0 720 260" role="img" aria-label="Plots of ReLU, sigmoid and GELU activation functions">
+      {
+        plots.map((p) => (
+          <>
+            <g class="sketch">
+              <path class="stroke-soft" d={`M${p.cx - 85} 150 H${p.cx + 85} M${p.cx} 60 V190`} />
+              <path class="stroke ink-red" d={p.d} stroke-width="3" />
+            </g>
+            <text x={p.cx} y="38" text-anchor="middle">
+              {p.name}
+            </text>
+            <text class="small" x={p.cx} y="230" text-anchor="middle">
+              {p.formula}
+            </text>
+          </>
+        ))
+      }
+    </svg>
+  </Figure>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Activation</th><th>Formula</th><th>Where you meet it</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>ReLU</td>
+          <td><Math tex="\max(0, z)" /></td>
+          <td>The default for most networks: cheap, and its slope is 1 for positive inputs.</td>
+        </tr>
+        <tr>
+          <td>Sigmoid</td>
+          <td><Math tex="\dfrac{1}{1 + e^{-z}}" /></td>
+          <td>Output layers that need a probability between 0 and 1. Rare in hidden layers today.</td>
+        </tr>
+        <tr>
+          <td>Tanh</td>
+          <td><Math tex="\tanh(z)" /></td>
+          <td>Like sigmoid but from −1 to 1. Common in older recurrent networks.</td>
+        </tr>
+        <tr>
+          <td>GELU</td>
+          <td><Math tex="z\,\Phi(z)" /></td>
+          <td>GPT-2, BERT and many transformers. A smooth version of ReLU.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="network">From neuron to network</h2>
+  <p>
+    Put several neurons side by side, all reading the same inputs, and you have a <span class="term">layer</span>.
+    Feed one layer’s outputs into the next and you have a network. When every neuron connects to every output of the
+    layer before it, the layer is called <span class="term">fully connected</span> (also “dense” or “linear”), and the
+    whole thing is a <span class="term">multilayer perceptron (MLP)</span> or
+    <span class="term">feed-forward network</span>.
+  </p>
+
+  <Figure n={3} caption="A small network with 3 inputs, one hidden layer of 4 neurons and 2 outputs. Every line is one weight.">
+    <svg viewBox="0 0 720 340" role="img" aria-label="Fully connected network with layers of 3, 4 and 2 nodes">
+      <g class="sketch">
+        {edges.map((e) => <line class="stroke-soft" {...e} />)}
+        {layers.map((l) => l.ys.map((y) => <circle class={`stroke ${l.fill}`} cx={l.x} cy={y} r="22" />))}
+      </g>
+      <text x="120" y="300" text-anchor="middle">input layer</text>
+      <text x="360" y="300" text-anchor="middle">hidden layer</text>
+      <text x="600" y="300" text-anchor="middle">output layer</text>
+      <text class="small" x="120" y="324" text-anchor="middle">3 numbers in</text>
+      <text class="small" x="360" y="324" text-anchor="middle">4 neurons</text>
+      <text class="small" x="600" y="324" text-anchor="middle">2 numbers out</text>
+      <text class="small label-red" x="240" y="26" text-anchor="middle">3 × 4 = 12 weights</text>
+      <text class="small label-red" x="480" y="26" text-anchor="middle">4 × 2 = 8 weights</text>
+    </svg>
+  </Figure>
+
+  <ul>
+    <li>
+      The <strong>input layer</strong> is just the data, written as a list of numbers (a
+      <span class="term">vector</span>). It does no computing.
+    </li>
+    <li>
+      <strong>Hidden layers</strong> sit in the middle. Early ones pick up simple patterns, later ones combine them
+      into more abstract ones. “Deep” learning means many hidden layers.
+    </li>
+    <li>The <strong>output layer</strong> gives the answer, for example one score per possible class.</li>
+  </ul>
+  <p>
+    Running data through the network from input to output is called the <span class="term">forward pass</span>. Because
+    a whole layer does the same thing for each of its neurons, we write it with a
+    <span class="term">weight matrix</span> <Math tex="W" /> (one row per neuron) and a bias vector:
+  </p>
+  <Math block tex="\mathbf{a} = f(W\mathbf{x} + \mathbf{b})" />
+  <p>
+    This is why deep learning runs on matrix multiplication, and why GPUs, which are built to multiply matrices fast,
+    matter so much.
+  </p>
+
+  <h3>Counting parameters</h3>
+  <p>
+    A fully connected layer with <Math tex="n" /> inputs and <Math tex="m" /> neurons has
+    <Math tex="m \times n" /> weights and <Math tex="m" /> biases. For the network in Fig. 3:
+  </p>
+  <Math block tex="\underbrace{(3\times4 + 4)}_{\text{hidden: }16} + \underbrace{(4\times2 + 2)}_{\text{output: }10} = 26 \text{ parameters}" />
+  <p>
+    When people say GPT-2 small has 124 million parameters, they mean the same thing: 124 million individual numbers
+    like these, all adjusted during training.
+  </p>
+
+  <h2 id="code">Math and code</h2>
+  <p>One neuron with plain NumPy, matching Fig. 1:</p>
+  <Code code={numpyCode} lang="python" theme="vitesse-light" />
+  <p>The network from Fig. 3 in PyTorch:</p>
+  <Code code={torchCode} lang="python" theme="vitesse-light" />
+  <p>
+    <code>nn.Linear(3, 4)</code> stores a weight matrix of shape <code>(4, 3)</code> and a bias of shape
+    <code>(4,)</code>, and computes <Math tex="W\mathbf{x} + \mathbf{b}" />. The weights start as small random numbers,
+    so the output is meaningless until the network is trained. Training is the subject of the next two notes.
+  </p>
+
+  <h2 id="llm">Where this lives in an LLM</h2>
+  <p>
+    This is not only history. Every transformer block inside GPT contains a two-layer feed-forward network of exactly
+    this kind: a linear layer, a GELU activation, and another linear layer. In GPT-2 small the first of those layers
+    goes from 768 numbers to 3,072, which is
+    <Math tex="768 \times 3072 + 3072 = 2{,}362{,}368" /> parameters in one layer. About two thirds of a GPT model’s
+    parameters sit in these feed-forward layers. Attention, which you will meet in Phase 2, is the other third.
+  </p>
+
+  <h2 id="interview">Say it in the interview</h2>
+  <Callout kind="interview">
+    <p>
+      “A neural network is a parameterized function built from layers. Each layer computes a linear transformation of
+      its input, a weight matrix times the input plus a bias, and then applies a non-linear activation function such as
+      ReLU or GELU. The weights and biases are the learnable parameters; they start random and are adjusted during
+      training to minimize a loss.
+    </p>
+    <p>
+      The non-linearity is essential: without it, any stack of layers collapses into a single linear transformation, so
+      depth would add nothing. With it, the network can approximate very complex functions, with early layers learning
+      simple features and later layers composing them. The same building block appears in transformers as the
+      feed-forward sub-layer of every block.”
+    </p>
+  </Callout>
+
+  <h2 id="questions">Practice questions</h2>
+  <p>Answer each one out loud before opening it.</p>
+
+  <QA q="Why do neural networks need activation functions?">
+    <p>
+      To introduce non-linearity. A composition of linear functions is itself linear, so without activations a deep
+      network is equivalent to a single linear layer and can only model straight-line relationships. Non-linear
+      activations let stacked layers represent curved, complex decision boundaries.
+    </p>
+  </QA>
+  <QA q="What is the difference between a weight and a bias?">
+    <p>
+      A weight scales one input and controls how strongly that input influences the neuron. The bias is a constant
+      added to the weighted sum that does not depend on any input; it shifts the activation threshold. Without a bias,
+      the neuron’s output for an all-zero input would be fixed, and the function it draws would be forced through the
+      origin.
+    </p>
+  </QA>
+  <QA q="What is the difference between a parameter and a hyperparameter?">
+    <p>
+      Parameters are learned from data during training: the weights and biases. Hyperparameters are chosen by the
+      engineer before training and are not learned: the number of layers, the layer width, the learning rate, the batch
+      size, the choice of activation.
+    </p>
+  </QA>
+  <QA q="How many parameters does a linear layer from 768 to 3,072 units have?">
+    <p>
+      Weights: 768 × 3,072 = 2,359,296. Biases: 3,072. Total: 2,362,368. The general rule is inputs × outputs + outputs.
+      This particular layer is the first half of the feed-forward block in GPT-2 small.
+    </p>
+  </QA>
+  <QA q="Why is ReLU usually preferred to sigmoid in hidden layers?">
+    <p>
+      Sigmoid saturates: for large positive or negative inputs its slope is almost zero, and its slope is never more
+      than 0.25. During backpropagation those small slopes multiply across layers and the gradient shrinks towards
+      zero, the <strong>vanishing gradient</strong> problem, so early layers stop learning. ReLU has a slope of exactly
+      1 for positive inputs, which keeps gradients alive, and it is cheaper to compute. Its weakness is “dying ReLU”: a
+      neuron whose input is always negative outputs zero and gets no gradient. Variants such as Leaky ReLU and GELU
+      address this.
+    </p>
+  </QA>
+  <QA q="What does the universal approximation theorem say, and what does it not say?">
+    <p>
+      It says a feed-forward network with a single hidden layer and a suitable non-linear activation can approximate
+      any continuous function on a bounded input region as closely as you like, given enough hidden neurons. It does
+      not say how many neurons are needed (possibly an impractical number), nor that training will actually find the
+      right weights, nor that the result will generalize to new data.
+    </p>
+  </QA>
+  <QA q="If one wide layer is enough in theory, why do we use deep networks?">
+    <p>
+      Depth is far more parameter-efficient. Deep networks build features in a hierarchy, reusing simple features to
+      form complex ones, so they can represent with a modest number of parameters what a shallow network would need
+      exponentially many neurons for. In practice deep networks also generalize better on structured data such as
+      images and language.
+    </p>
+  </QA>
+  <QA q="What is a forward pass?">
+    <p>
+      Computing the network’s output for a given input by applying each layer in order, from the input layer to the
+      output layer. It is what happens at inference time, and it is the first half of every training step; the second
+      half is the backward pass, which computes gradients.
+    </p>
+  </QA>
+
+  <h2 id="mistakes">Common mistakes</h2>
+  <Callout kind="pitfall">
+    <p>
+      <strong>“The activation function is what the network learns.”</strong> No. The activation is a fixed function
+      with nothing to learn. The network learns the weights and biases.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Counting the input layer as a layer of neurons.</strong> The input layer holds data and has no
+      parameters. The network in Fig. 3 has two layers of weights, and is usually called a two-layer network.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Forgetting the biases when counting parameters.</strong> It is inputs × outputs, plus one bias per
+      output.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Saying networks “work like the brain”.</strong> The name is a loose historical analogy. In an interview,
+      describe a network as a parameterized function trained by gradient descent.
+    </p>
+  </Callout>
+
+  <h2 id="sources">Sources</h2>
+  <ul>
+    <li>3Blue1Brown, <em>Neural Networks</em>, chapter 1: “But what is a neural network?” (video).</li>
+    <li>Andrej Karpathy, <em>The spelled-out intro to neural networks and backpropagation: building micrograd</em> (video).</li>
+    <li>Sebastian Raschka, <em>Build a Large Language Model (From Scratch)</em>, Appendix A, and chapter 4 for the feed-forward block and GELU.</li>
+    <li>Goodfellow, Bengio and Courville, <em>Deep Learning</em>, chapter 6: “Deep Feedforward Networks”.</li>
+    <li>Hendrycks and Gimpel, “Gaussian Error Linear Units (GELUs)”, 2016.</li>
+  </ul>
+
+  <h2 id="revision">One-minute revision</h2>
+  <Callout kind="revision">
+    <ul>
+      <li>Neuron: <Math tex="a = f(\mathbf{w}\cdot\mathbf{x} + b)" />. Weighted sum, then activation.</li>
+      <li>Layer: <Math tex="\mathbf{a} = f(W\mathbf{x} + \mathbf{b})" />. Parameters = inputs × outputs + outputs.</li>
+      <li>Parameters (weights, biases) are learned. Hyperparameters (depth, width, learning rate) are chosen.</li>
+      <li>No activation → the whole stack collapses to one linear layer.</li>
+      <li>ReLU is the default; sigmoid saturates and causes vanishing gradients; GELU is used in GPT.</li>
+      <li>Universal approximation: one hidden layer can represent anything, but depth is what makes it practical.</li>
+      <li>Every transformer block contains this MLP: Linear → GELU → Linear.</li>
+    </ul>
+  </Callout>
+</Note>

@@ -1,0 +1,194 @@
+---
+import Base from '../layouts/Base.astro';
+import Callout from '../components/Callout.astro';
+
+const projects = [
+  {
+    id: 'gpt-from-scratch',
+    number: 1,
+    title: 'GPT from scratch',
+    weeks: 'Weeks 2–4',
+    pitch: 'Write a GPT-style language model yourself, train it, then make it faster and more modern than the textbook version.',
+    proves: 'You understand the model itself, not only how to call it.',
+    compute:
+      'A 10–30 million parameter model trains on a laptop CPU in hours, or on a free Colab or Kaggle GPU in minutes. The real GPT-2 (124M) weights are only loaded and fine-tuned, which a free GPU handles.',
+    milestones: [
+      'Byte-pair encoding tokenizer written by hand, checked against the tiktoken library on the same text.',
+      'Data loader that produces input and target pairs with a sliding window.',
+      'Multi-head causal self-attention, transformer block and full GPT model in PyTorch, with a test that counts parameters.',
+      'Training loop with a learning-rate warmup and cosine decay, gradient clipping and loss curves; train on the TinyStories dataset.',
+      'Text generation with temperature, top-k and top-p sampling.',
+      'Load OpenAI’s GPT-2 weights into your own model and confirm it generates sensible text.',
+      'Fine-tune it twice: once as a spam classifier, once to follow instructions.',
+    ],
+    stretch: [
+      'Add a KV cache and measure the speed-up in tokens per second.',
+      'Replace learned position embeddings with rotary embeddings (RoPE) and compare the loss.',
+      'Swap LayerNorm and GELU for RMSNorm and SwiGLU, as modern models do.',
+    ],
+    questions: [
+      'Walk me through what happens to a sentence from text to next-token probabilities.',
+      'Why does your attention use a mask? What breaks without it?',
+      'How did you check that your implementation is correct?',
+    ],
+  },
+  {
+    id: 'qlora-finetune',
+    number: 2,
+    title: 'Fine-tune, quantize and run a model locally',
+    weeks: 'Week 5',
+    pitch: 'Teach a small open model one real task with QLoRA, prove it improved, then shrink it so it runs on your own laptop.',
+    proves: 'You can adapt a model cheaply and measure whether the adaptation worked.',
+    compute:
+      'Training uses a free Kaggle or Colab T4 GPU with a model of roughly 0.5–1.5 billion parameters loaded in 4-bit. Inference runs on your CPU through llama.cpp.',
+    milestones: [
+      'Pick a narrow task with a public dataset, for example turning plain English into SQL or extracting structured fields from messy text.',
+      'Build a held-out test set and an automatic scoring script before any training.',
+      'Record the baseline: the untouched model, then the untouched model with a good prompt.',
+      'Fine-tune with QLoRA using Hugging Face PEFT; log the loss.',
+      'Score the fine-tuned model on the same test set and report the change.',
+      'Merge the adapter, convert to GGUF, quantize to 4-bit and run it locally.',
+    ],
+    stretch: [
+      'Study how LoRA rank and which layers you adapt change the result.',
+      'Compare quality and speed at 8-bit, 5-bit and 4-bit quantization.',
+      'Write LoRA from scratch for your Project 1 model.',
+    ],
+    questions: [
+      'Why fine-tune here instead of prompting or RAG?',
+      'What does LoRA actually train, and why is that enough?',
+      'How do you know the model did not just memorize the training set?',
+    ],
+  },
+  {
+    id: 'production-rag',
+    number: 3,
+    title: 'Production RAG with evals',
+    weeks: 'Weeks 6–7',
+    pitch: 'A question-answering system over a large real document set, where every design choice is backed by a measured number.',
+    proves: 'You can build the most common LLM product in industry and defend each decision in it.',
+    compute: 'Hosted embedding and chat model APIs. The vector database runs locally in Docker. No GPU at any step.',
+    milestones: [
+      'Ingest a real corpus of at least a few thousand documents, for example research papers or a large open-source project’s docs.',
+      'Write a golden set of 100 or more questions with the passages that answer them.',
+      'Baseline: fixed-size chunks and dense retrieval only. Measure recall@k and MRR.',
+      'Add BM25 and combine with reciprocal rank fusion; measure again.',
+      'Add a cross-encoder reranker; measure again.',
+      'Generate answers with citations; score faithfulness and answer quality with an LLM judge that you validated against your own labels.',
+      'Serve it behind an API with streaming, and write up the results table.',
+    ],
+    stretch: [
+      'Query rewriting and HyDE for vague questions.',
+      'Contextual chunk enrichment before embedding.',
+      'Access control: users only retrieve documents they are allowed to see.',
+      'Incremental re-indexing when documents change.',
+    ],
+    questions: [
+      'How did you choose the chunk size?',
+      'Retrieval returns the right passage but the answer is still wrong. How do you debug that?',
+      'How would this change for ten million documents?',
+    ],
+  },
+  {
+    id: 'agent-mcp',
+    number: 4,
+    title: 'An agent with your own MCP server, run like a production service',
+    weeks: 'Weeks 8–10',
+    pitch: 'An agent that completes multi-step tasks with tools you wrote, plus everything needed to trust it: evals, tracing, guardrails and a cost report.',
+    proves: 'You can ship an agent and show, with data, how often it succeeds, what it costs and how it fails.',
+    compute: 'Hosted model APIs only.',
+    milestones: [
+      'Pick a real job, for example an agent that investigates a failing test in a repository, or one that answers questions over a database.',
+      'Write the agent loop yourself first, with no framework: model call, tool call, result, repeat.',
+      'Build an MCP server that exposes your tools, and connect the agent to it.',
+      'Create 30 or more test tasks with checkable outcomes; report the success rate.',
+      'Add tracing so every step, token count and tool call of a run can be inspected.',
+      'Add guardrails: input checks, tool permission limits, a step budget and defence against prompt injection in tool results.',
+      'Cut cost and latency with prompt caching and a cheaper model for easy steps; report before and after.',
+    ],
+    stretch: [
+      'Long-running tasks with context compaction and memory.',
+      'Compare a single agent against an orchestrator with sub-agents on the same test tasks.',
+      'Human approval step for risky actions.',
+    ],
+    questions: [
+      'When would you use a fixed workflow instead of an agent?',
+      'Your agent succeeds 70% of the time. How do you find out why it fails the rest?',
+      'How do you stop a malicious document from hijacking the agent?',
+    ],
+  },
+];
+---
+
+<Base title="Projects">
+  <div class="prose">
+    <p class="eyebrow">What you build</p>
+    <h1>Projects</h1>
+    <p class="lede">Four projects, each harder than the tutorial version, each runnable without owning a GPU.</p>
+
+    <Callout kind="plain">
+      <p>
+        Reading about swimming does not teach you to swim. Notes give you the words; projects give you the stories.
+        When an interviewer asks “tell me about a time your retrieval was bad”, you can only answer if it happened to
+        you.
+      </p>
+    </Callout>
+
+    <p>
+      Each project lives in its own GitHub repository, separate from these notes. Three rules apply to all four:
+    </p>
+    <ol>
+      <li><strong>Measure before you improve.</strong> Build the test set first, record a baseline, then change one thing at a time.</li>
+      <li><strong>Write the hard part yourself.</strong> Use frameworks only after you have built the core once by hand.</li>
+      <li><strong>The README is part of the project.</strong> It states the problem, the design, a results table and what you would do next.</li>
+    </ol>
+
+    {
+      projects.map((p) => (
+        <section class="phase" id={p.id}>
+          <div class="phase-head">
+            <span class="phase-number">{p.number}</span>
+            <h2>{p.title}</h2>
+            <span class="phase-weeks">{p.weeks}</span>
+          </div>
+          <p class="lede">{p.pitch}</p>
+          <p>
+            <strong>What it proves.</strong> {p.proves}
+          </p>
+          <p>
+            <strong>Without a GPU.</strong> {p.compute}
+          </p>
+          <h3>Milestones</h3>
+          <ol>
+            {p.milestones.map((m) => <li>{m}</li>)}
+          </ol>
+          <h3>Stretch goals</h3>
+          <ul>
+            {p.stretch.map((s) => <li>{s}</li>)}
+          </ul>
+          <h3>Questions an interviewer will ask about it</h3>
+          <ul>
+            {p.questions.map((q) => <li>{q}</li>)}
+          </ul>
+        </section>
+      ))
+    }
+
+    <h2>Putting them on a resume</h2>
+    <p>
+      A project line has three parts: what you built, the hard technical choice, and a number you measured yourself.
+    </p>
+    <Callout kind="note" label="Pattern">
+      <p>
+        Built <em>[system]</em> using <em>[the key technique]</em>; improved <em>[metric]</em> from
+        <em>[baseline]</em> to <em>[result]</em> on a <em>[size]</em> test set.
+      </p>
+    </Callout>
+    <Callout kind="pitfall">
+      <p>
+        Never write a number you did not measure. Interviewers ask how you got it, and “I estimated” ends the
+        conversation. This is why every project starts with a test set.
+      </p>
+    </Callout>
+  </div>
+</Base>

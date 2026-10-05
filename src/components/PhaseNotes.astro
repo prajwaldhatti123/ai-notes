@@ -1,0 +1,27 @@
+---
+import { noteHref, type Phase } from '../data/roadmap';
+
+interface Props {
+  phase: Phase;
+}
+
+const { phase } = Astro.props;
+---
+
+<ol class="note-list">
+  {
+    phase.notes.map((note) =>
+      note.ready ? (
+        <li>
+          <a href={noteHref(phase, note)}>{note.title}</a>
+          <span class="badge ready">ready</span>
+        </li>
+      ) : (
+        <li class="pending">
+          <span>{note.title}</span>
+          <span class="badge">to be written</span>
+        </li>
+      )
+    )
+  }
+</ol>
