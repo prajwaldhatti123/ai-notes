@@ -1,0 +1,21 @@
+---
+// A link to a video, article, paper or tool, placed at the point in a note where it helps most.
+interface Props {
+  kind: 'watch' | 'read' | 'paper' | 'code' | 'try';
+  href: string;
+  title: string;
+  meta?: string;
+}
+
+const labels = { watch: 'Watch', read: 'Read', paper: 'Paper', code: 'Code', try: 'Try it' };
+const { kind, href, title, meta } = Astro.props;
+---
+
+<a class={`source ${kind}`} href={href} target="_blank" rel="noopener noreferrer">
+  <span class="source-kind">{labels[kind]}</span>
+  <span class="source-body">
+    <strong>{title}</strong>
+    {meta && <span>{meta}</span>}
+  </span>
+  <span class="source-arrow" aria-hidden="true">↗</span>
+</a>

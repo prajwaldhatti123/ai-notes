@@ -253,7 +253,18 @@ body {
 }
 
 .sidebar .pending {
-  color: var(--ink-faint);
+  color: var(--ink-faint);  cursor: default;
+}
+
+.sidebar .pending small {
+  margin-left: 0.25rem;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 0 0.4rem;
+  white-space: nowrap;
 }
 
 .sidebar-main {
@@ -598,6 +609,22 @@ thead th {
   color: var(--red);
 }
 
+/* The short interview line: blue pen in the margin, no box. */
+.callout.say {
+  background: none;
+  border: 0;
+  border-left: 4px solid var(--blue);
+  border-radius: 0;
+  padding: 0.25rem 0 0.25rem var(--space-2);
+}
+.callout.say .callout-label {
+  color: var(--blue);
+  font-size: 1.35rem;
+}
+.callout.say p {
+  font-style: italic;
+}
+
 .callout.note {
   border-color: var(--ink-faint);
 }
@@ -615,6 +642,58 @@ thead th {
 }
 .callout.revision .callout-label {
   color: var(--gold);
+}
+
+/* ---------- Source links ---------- */
+
+.source {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+  padding: 0.7rem var(--space-2);
+  border: 1px dashed var(--ink-faint);
+  border-radius: var(--radius);
+  background: var(--paper-raised);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: var(--text-small);
+  line-height: 1.45;
+}
+
+.source:hover {
+  border-style: solid;
+  border-color: var(--red);
+  color: var(--ink);
+}
+
+.source-kind {
+  flex: none;
+  min-width: 3.6rem;
+  font-family: var(--hand);
+  font-weight: 700;
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--red);
+}
+
+.source-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.source-body strong,
+.source-body span {
+  display: block;
+}
+
+.source-body span {
+  color: var(--ink-soft);
+}
+
+.source-arrow {
+  flex: none;
+  color: var(--ink-faint);
 }
 
 /* ---------- Questions and answers ---------- */

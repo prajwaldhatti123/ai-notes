@@ -1,13 +1,15 @@
 ---
-// The five boxed blocks used in every note. `kind` picks the colour and the default label.
+// The boxed blocks used in every note. `say` is the short interview line placed inside a section;
+// `interview` is the full spoken answer near the end. `kind` picks the colour and the default label.
 interface Props {
-  kind: 'plain' | 'interview' | 'pitfall' | 'revision' | 'note';
+  kind: 'plain' | 'say' | 'interview' | 'pitfall' | 'revision' | 'note';
   label?: string;
 }
 
 const defaults = {
   plain: 'In plain words',
-  interview: 'Say it in the interview',
+  say: 'Say this in the interview',
+  interview: 'The full interview answer',
   pitfall: 'Common mistake',
   revision: 'One-minute revision',
   note: 'Note',

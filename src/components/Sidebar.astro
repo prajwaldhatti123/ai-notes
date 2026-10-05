@@ -33,7 +33,9 @@ const main = [
                   {note.title}
                 </a>
               ) : (
-                <span class="pending">{note.title}</span>
+                <span class="pending" title="Not written yet">
+                  {note.title} <small>soon</small>
+                </span>
               )}
             </li>
           ))}
