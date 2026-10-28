@@ -9,6 +9,7 @@ interface Props {
 
 const { tex, block = false } = Astro.props;
 
+// For formulas that need a double backslash (matrix rows), pass tex={String.raw`...`}: expressions are not unescaped.
 // Astro unescapes string attributes, so tex="\times" arrives as TAB + "imes".
 // Control characters never belong in LaTeX, so turn each one back into its command prefix.
 const restore: Record<string, string> = { '\t': '\\t', '\f': '\\f', '\n': '\\n', '\r': '\\r', '\v': '\\v', '\b': '\\b' };

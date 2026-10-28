@@ -265,16 +265,66 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
   </Callout>
 
   <h2 id="boundary">What one neuron can and cannot do</h2>
+  <Callout kind="plain">
+    <p>
+      The walk neuron has one rule: add up the pushes, and go if the total is above zero. Think of it as a bar. Every
+      day lands either above the bar (go) or below it (stay). One bar, two sides. That is the whole power of a single
+      neuron: it can split the world into two halves with <em>one straight cut</em>, and nothing more.
+    </p>
+    <p>
+      That is enough for many decisions and useless for others. This section shows one decision a single neuron can
+      make and one it can never make, no matter which weights you give it.
+    </p>
+  </Callout>
   <p>
-    Look again at the rule “go if <Math tex="\mathbf{w}\cdot\mathbf{x} + b > 0" />”. The points where the sum is
-    exactly zero form a straight line when there are two inputs, a flat plane with three, and a
-    <span class="term">hyperplane</span> in general. Everything on one side gets “yes”, everything on the other side
-    gets “no”. This dividing surface is the <span class="term">decision boundary</span>.
+    To draw this, use just two yes/no inputs, so that every possible situation fits on a flat chart. Put the first
+    input along the bottom and the second up the side. There are only four situations: (0,0), (0,1), (1,0) and (1,1).
+    Those are the four dots in each half of Fig. 2.
   </p>
   <p>
-    So a single neuron can only separate things that one straight cut can separate. Data like that is called
-    <span class="term">linearly separable</span>. The weights set the tilt of the line and the bias slides it sideways.
+    <strong>A decision one neuron can make: “both must be yes”.</strong> Say you only go walking when it is sunny
+    <em>and</em> you have a friend free. Give both inputs a weight of 1 and set the bias to −1.5:
   </p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Sunny</th><th>Friend free</th><th>Total <Math tex="z = 1\cdot x_1 + 1\cdot x_2 - 1.5" /></th><th>Above zero?</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>0</td><td>0</td><td>−1.5</td><td>no → stay</td></tr>
+        <tr><td>0</td><td>1</td><td>−0.5</td><td>no → stay</td></tr>
+        <tr><td>1</td><td>0</td><td>−0.5</td><td>no → stay</td></tr>
+        <tr><td>1</td><td>1</td><td>+0.5</td><td>yes → go</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    It works. Now look at <em>where</em> the total is exactly zero: every point with
+    <Math tex="x_1 + x_2 = 1.5" />. On the chart those points form one straight line, the red line on the left of
+    Fig. 2. Everything above and to the right of that line totals more than zero (go); everything below and to the
+    left totals less (stay). The neuron has drawn a line and said “this side yes, that side no”.
+  </p>
+  <p>Now the names for what you just saw:</p>
+  <ul>
+    <li>
+      This logic rule, “yes only when both are yes”, is called <span class="term">AND</span>. Programmers know it as
+      the <code>&amp;&amp;</code> operator.
+    </li>
+    <li>
+      The dividing line is the <span class="term">decision boundary</span>. The weights set its tilt, and the bias
+      slides it without tilting it. Try bias −0.5 instead of −1.5 and the line moves so that three dots are “go”:
+      that is the OR rule.
+    </li>
+    <li>
+      Data that one straight line can split correctly is called <span class="term">linearly separable</span>.
+      “Linear” here just means “straight”.
+    </li>
+    <li>
+      With three inputs the chart is 3-D and the boundary becomes a flat sheet, called a plane. With more inputs you
+      cannot draw it, but the idea is identical, and the general name is a <span class="term">hyperplane</span>.
+      “Hyper” means nothing scary: it is “the same flat cut, in more dimensions”.
+    </li>
+  </ul>
 
   <Figure n={2} caption="Each dot is one possible input (x₁, x₂). Filled dots should output 1. One straight line separates AND, but no single line can separate XOR.">
     <svg viewBox="0 0 720 290" role="img" aria-label="Two plots: AND is separable by one line, XOR is not">
@@ -310,14 +360,36 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
   </Figure>
 
   <p>
-    The classic example of what one neuron cannot do is <span class="term">XOR</span> (“exclusive or”): output 1 when
-    exactly one of two inputs is 1. In Fig. 2 the two “yes” dots sit on opposite corners, and no single straight line
-    puts them on one side and the two “no” dots on the other.
+    <strong>A decision one neuron can never make: “exactly one of the two”.</strong> Picture a staircase light with
+    a switch at the top and a switch at the bottom. The light is on when exactly one switch is up. Both down: off.
+    Both up: off. This rule is called <span class="term">XOR</span>, short for “exclusive or”.
   </p>
   <p>
-    This is not a trivia point. In 1969 Marvin Minsky and Seymour Papert showed this limitation in their book
+    Look at the right half of Fig. 2. The two “on” dots sit on opposite corners, (0,1) and (1,0), and the two “off”
+    dots sit on the other two corners. Try to draw one straight line with both filled dots on one side and both empty
+    dots on the other. You cannot. The dashed lines show two attempts; each one puts a dot on the wrong side.
+  </p>
+  <p>
+    You do not have to trust the picture. Here is the same thing with arithmetic. Suppose some weights
+    <Math tex="w_1, w_2" /> and bias <Math tex="b" /> did solve XOR. Then four things would have to be true at once:
+  </p>
+  <ol>
+    <li>Both off, (0,0): the total is just <Math tex="b" />, and it must be <em>at or below</em> zero.</li>
+    <li>Only the second on, (0,1): <Math tex="w_2 + b" /> must be <em>above</em> zero.</li>
+    <li>Only the first on, (1,0): <Math tex="w_1 + b" /> must be <em>above</em> zero.</li>
+    <li>Both on, (1,1): <Math tex="w_1 + w_2 + b" /> must be <em>at or below</em> zero.</li>
+  </ol>
+  <p>
+    Add lines 2 and 3 together: <Math tex="w_1 + w_2 + 2b" /> is above zero. But line 4 says
+    <Math tex="w_1 + w_2 + b" /> is at or below zero, and line 1 says <Math tex="b" /> is at or below zero, so their sum
+    <Math tex="w_1 + w_2 + 2b" /> is also at or below zero. The same number cannot be both. So no weights exist.
+    One straight cut cannot do “exactly one”.
+  </p>
+  <p>
+    This is not a trivia point. In 1969 Marvin Minsky and Seymour Papert made exactly this argument in their book
     <em>Perceptrons</em>, and interest in neural networks collapsed for years. The way out, which you will see
-    <a href="#xor">worked through below</a>, is to stack neurons in layers with a non-linear activation between them.
+    <a href="#xor">worked through with numbers below</a>, is to use more than one neuron, arranged in layers, with a
+    bend between the layers. The next two sections explain what that bend is and why it is needed.
   </p>
   <Source
     kind="read"
@@ -331,6 +403,10 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
       separable problems. XOR is the standard counter-example, and it is why we need hidden layers with
       non-linearities.”
     </p>
+    <p>
+      In plain terms, that sentence says: one neuron draws one straight cut; “exactly one of two” needs more than a
+      straight cut; so we stack neurons and put a bend between them.
+    </p>
   </Callout>
 
   <h2 id="activation">Why the bend matters</h2>
@@ -339,32 +415,71 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
       With only straight rulers you can draw only straight lines, no matter how many rulers you join end to end. To
       draw a curve you need something that bends. The activation function is the bend.
     </p>
+    <p>
+      The obvious idea for beating XOR is “use two neurons, one after the other”. The surprise is that this does
+      nothing on its own. Two straight rules in a row are still one straight rule. This section shows that with
+      numbers, then names the idea.
+    </p>
   </Callout>
   <p>
-    The weighted sum is a <span class="term">linear</span> operation. If you stack linear operations with nothing in
-    between, the result is still one linear operation. Take two layers with no activation and substitute the first
-    into the second:
+    Take two tiny neurons with one input each and <em>no</em> activation function, so each one just outputs its
+    total. The first has weight 2 and bias 1. The second reads the first one’s output, with weight 3 and bias −4:
+  </p>
+  <Math block tex="\text{first: } z_1 = 2x + 1 \qquad \text{second: } y = 3z_1 - 4" />
+  <p>Now feed the first into the second and simplify:</p>
+  <Math block tex="y = 3(2x + 1) - 4 = 6x + 3 - 4 = 6x - 1" />
+  <p>
+    The chain of two neurons is exactly the same as <em>one</em> neuron with weight 6 and bias −1. Check it: for
+    <Math tex="x = 2" />, the first neuron gives 5, the second gives 11, and the single neuron gives
+    <Math tex="6 \cdot 2 - 1 = 11" />. Two layers of “multiply and add” always squash down into one layer of
+    “multiply and add”. Add a third layer and it squashes again. A hundred such layers are still one straight cut, and
+    still cannot do XOR.
+  </p>
+  <p>
+    Here is the name for this. A rule where the output changes in steady proportion to the input, so that its graph is
+    a straight line, is called <span class="term">linear</span>. The weighted sum is linear. Chaining linear rules
+    gives a linear rule, which is the squashing you just saw. Anything that bends the graph is
+    <span class="term">non-linear</span>, and the activation function is where the network gets its bend. Once each
+    layer bends its output, the next layer combines bent pieces instead of straight ones, and bent pieces can be put
+    together into any shape.
+  </p>
+  <p>
+    For whole layers, where each neuron has many inputs, the same substitution is written with the weight tables
+    you will meet in the <a href="#shapes">shapes section</a>. You can skip past this line for now and come back
+    after that section; it says nothing the number example did not:
   </p>
   <Math block tex="W_2(W_1\mathbf{x} + \mathbf{b}_1) + \mathbf{b}_2 = (W_2W_1)\,\mathbf{x} + (W_2\mathbf{b}_1 + \mathbf{b}_2)" />
   <p>
-    The right-hand side has the form “one matrix times <Math tex="\mathbf{x}" />, plus one vector”. That is a single
-    layer with weights <Math tex="W_2W_1" /> and bias <Math tex="W_2\mathbf{b}_1 + \mathbf{b}_2" />. The same argument
-    repeats for any number of layers, so a hundred-layer network without activations is exactly as powerful as one
-    layer, and still cannot solve XOR.
-  </p>
-  <p>
-    The activation function adds <span class="term">non-linearity</span>. Once each layer bends its output, the next
-    layer is combining bent pieces, and stacking them builds shapes of any complexity. This is the single most common
-    “why” question about neural networks, so learn the collapse argument well enough to write it on a whiteboard.
+    Read it as: “layer two applied to layer one” equals “one layer with weights <Math tex="W_2W_1" /> and bias
+    <Math tex="W_2\mathbf{b}_1 + \mathbf{b}_2" />”. Same squash, bigger numbers. This is the single most common “why”
+    question about neural networks, so learn the small example well enough to write it on a whiteboard.
   </p>
   <Callout kind="say">
     <p>
       “Without a non-linear activation, a stack of layers collapses algebraically into one linear layer, because a
       composition of linear maps is linear. The non-linearity is what makes depth useful.”
     </p>
+    <p>
+      “Composition of linear maps” is the interviewer’s phrase for “chaining multiply-and-add rules”. If asked to
+      show it, write the two-neuron example above.
+    </p>
   </Callout>
 
   <h2 id="activations">The activation functions to know</h2>
+  <Callout kind="plain">
+    <p>
+      The activation function is the “is the total high enough?” rule from the walk example, drawn as a graph: the
+      total goes in along the bottom, the neuron’s answer comes out up the side. In the walk example that graph was a
+      cliff: 0 all the way, then suddenly 1 at zero. Every modern activation replaces the cliff with some kind of
+      ramp. The pictures in Fig. 3 are those ramps.
+    </p>
+    <p>
+      Why a ramp? Training works by nudging a weight a tiny bit and checking whether the answer got a tiny bit better.
+      On a cliff a tiny nudge changes nothing, so there is no feedback. On a ramp every nudge moves the answer a
+      little, so there is always a signal. The steepness of the ramp at a point is its <em>slope</em>. Later notes
+      call the same thing the <em>gradient</em>; it is the number training relies on.
+    </p>
+  </Callout>
   <Figure n={3} caption="Three common activation functions. Each takes the weighted sum z on the horizontal axis and returns the neuron’s output." wide>
     <svg viewBox="0 0 720 260" role="img" aria-label="Plots of ReLU, sigmoid and GELU activation functions">
       {
@@ -386,51 +501,75 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
     </svg>
   </Figure>
 
+  <p>Read the three pictures left to right:</p>
+  <ul>
+    <li>
+      <strong>ReLU</strong> (“rectified linear unit”, said “rell-you”) is the simplest ramp: if the total is negative,
+      output 0; if it is positive, pass it through unchanged. In the walk example: “a bad day counts as zero, a good
+      day counts as exactly how good it is”. Its formula <Math tex="\max(0, z)" /> means “the bigger of 0 and
+      <Math tex="z" />”.
+    </li>
+    <li>
+      <strong>Sigmoid</strong> is an S-shaped ramp that squeezes any total into a number between 0 and 1. A total of
+      0 gives 0.5, a big positive total gives nearly 1, a big negative total gives nearly 0. Because the output looks
+      like a probability (“70% sure it is a yes”), it is used when the network must answer a yes/no question with a
+      confidence.
+    </li>
+    <li>
+      <strong>GELU</strong> is ReLU with the corner rounded off. For clearly positive totals it is the same as ReLU;
+      near zero it dips slightly below zero and curves smoothly instead of bending sharply. It is what GPT uses.
+    </li>
+  </ul>
   <p>
-    You should be able to name each of these, sketch its shape, and state one strength and one weakness. The “slope”
-    column matters because training multiplies slopes together across layers; you will see why in the backpropagation
-    note.
+    You should be able to name each function in the table below, sketch its shape, and state one strength and one
+    weakness. The “slope” column matters because training multiplies slopes together across layers; the
+    backpropagation note shows why.
   </p>
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>Name</th><th>Formula</th><th>Output range</th><th>Slope</th><th>Where it is used</th><th>Weakness</th></tr>
+        <tr><th>Name</th><th>In words</th><th>Formula</th><th>Output range</th><th>Slope</th><th>Where it is used</th><th>Weakness</th></tr>
       </thead>
       <tbody>
         <tr>
           <td>Step</td>
+          <td>A cliff: 0, then 1.</td>
           <td>1 if <Math tex="z>0" />, else 0</td>
           <td>0 or 1</td>
           <td>0 everywhere</td>
           <td>The 1958 perceptron</td>
-          <td>No slope, so it cannot be trained with gradients.</td>
+          <td>No slope, so training gets no signal.</td>
         </tr>
         <tr>
           <td>Sigmoid</td>
+          <td>An S-curve squeezing anything into 0…1.</td>
           <td><Math tex="\dfrac{1}{1 + e^{-z}}" /></td>
           <td>0 to 1</td>
           <td>At most 0.25</td>
-          <td>Output layer for yes/no probability; gates inside LSTMs</td>
-          <td>Flat at both ends (it <em>saturates</em>), which causes vanishing gradients.</td>
+          <td>Output layer for a yes/no probability; gates inside LSTMs</td>
+          <td>Flat at both ends, so the signal fades (see below).</td>
         </tr>
         <tr>
           <td>Tanh</td>
+          <td>The same S-curve, stretched to −1…1.</td>
           <td><Math tex="\tanh(z)" /></td>
           <td>−1 to 1</td>
           <td>At most 1</td>
           <td>Older recurrent networks</td>
-          <td>Still saturates at both ends.</td>
+          <td>Still flat at both ends.</td>
         </tr>
         <tr>
           <td>ReLU</td>
+          <td>Negative becomes 0, positive passes through.</td>
           <td><Math tex="\max(0, z)" /></td>
           <td>0 to ∞</td>
           <td>0 or exactly 1</td>
           <td>Default for most networks</td>
-          <td>“Dying ReLU”: a neuron stuck below zero outputs 0 and stops learning.</td>
+          <td>A neuron stuck on the flat side outputs 0 forever (see below).</td>
         </tr>
         <tr>
           <td>GELU</td>
+          <td>ReLU with a rounded corner.</td>
           <td><Math tex="z\,\Phi(z)" /></td>
           <td>about −0.17 to ∞</td>
           <td>Smooth, near 1 for large z</td>
@@ -439,6 +578,7 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
         </tr>
         <tr>
           <td>SiLU / Swish</td>
+          <td>Another rounded ReLU, very close to GELU.</td>
           <td><Math tex="z\,\sigma(z)" /></td>
           <td>about −0.28 to ∞</td>
           <td>Smooth, near 1 for large z</td>
@@ -448,23 +588,42 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
       </tbody>
     </table>
   </div>
+  <p>Three words in that table come up in interviews, so here is what each means in plain terms:</p>
+  <ul>
+    <li>
+      <span class="term">Saturation.</span> Look at the sigmoid picture: for totals beyond about ±4 the curve goes
+      flat. A neuron out there is “saturated”: nudging its total changes its output by almost nothing, so training gets
+      almost no signal from it.
+    </li>
+    <li>
+      <span class="term">Vanishing gradients.</span> Training passes the signal backwards through every layer,
+      multiplying slopes as it goes. Sigmoid’s slope is at most 0.25, so after ten layers the signal is at most
+      <Math tex="0.25^{10}" />, which is about one millionth. The early layers barely learn. ReLU’s slope of exactly 1
+      on the positive side is why it replaced sigmoid inside networks.
+    </li>
+    <li>
+      <span class="term">Dying ReLU.</span> ReLU’s flat side has slope 0. If a neuron’s weights drift so that its total
+      is negative for every input, its output is always 0 and its slope is always 0, so no training signal ever reaches
+      it again. It is dead. GELU and SiLU avoid this by keeping a tiny slope on the negative side.
+    </li>
+  </ul>
   <p>
-    In the GELU row, <Math tex="\Phi(z)" /> is the standard normal cumulative distribution: the probability that a
-    standard bell-curve value is below <Math tex="z" />. You can read GELU as “multiply <Math tex="z" /> by how
-    confident we are that it is large”. For big positive <Math tex="z" /> it behaves like ReLU; near zero it curves
-    gently instead of making a sharp corner.
+    In the GELU formula, <Math tex="\Phi(z)" /> is the chance that a value from a standard bell curve lands below
+    <Math tex="z" />. For a big positive <Math tex="z" /> that chance is nearly 1, so GELU returns nearly
+    <Math tex="z" />, like ReLU. For a big negative <Math tex="z" /> it is nearly 0, so GELU returns nearly 0, also
+    like ReLU. In between it blends smoothly. That is the whole trick: ReLU without the sharp corner.
   </p>
   <Source
     kind="paper"
     href="https://arxiv.org/abs/1606.08415"
     title="Hendrycks and Gimpel: Gaussian Error Linear Units (GELUs), 2016"
-    meta="Short paper. Read section 2 for the definition and Figure 1 for the comparison with ReLU."
+    meta="Short paper. Read section 2 for the definition and Figure 1 for the comparison with ReLU. Skip the rest for now."
   />
   <p>
     One more activation deserves a mention here, although it gets its own note:
     <span class="term">softmax</span>. It is used on the <em>output</em> layer when the network must choose among many
-    options, and it turns a list of scores into probabilities that add up to 1. An LLM’s final step is a softmax over
-    every token in its vocabulary.
+    options, and it turns a list of scores into percentages that add up to 100%. An LLM’s final step is a softmax over
+    every word-piece in its vocabulary: “the next token is ‘the’ with 31%, ‘a’ with 12%, …”.
   </p>
   <Callout kind="say">
     <p>
@@ -475,14 +634,34 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
   </Callout>
 
   <h2 id="network">From neuron to network</h2>
-  <p>
-    Put several neurons side by side, all reading the same inputs, and you have a <span class="term">layer</span>.
-    Feed one layer’s outputs into the next and you have a network. When every neuron connects to every output of the
-    layer before it, the layer is called <span class="term">fully connected</span> (also “dense” or “linear”), and the
-    whole thing is a <span class="term">multilayer perceptron (MLP)</span> or
-    <span class="term">feed-forward network</span>. “Feed-forward” means data flows one way, from input to output,
-    with no loops.
-  </p>
+  <Callout kind="plain">
+    <p>
+      One neuron is one person making one yes/no call. Now put a row of people side by side. They all see the same
+      facts about the day, but each has their own weights, so each asks a different question. One might be asking
+      “is the weather good?” and so cares about sunny and cold. Another might be asking “do I have the energy?” and
+      cares about tired. Then a final person listens only to that row’s answers and makes the real decision: “good
+      weather and enough energy, so go”.
+    </p>
+    <p>
+      That is a neural network: rows of neurons, each row reading the row before it. The clever part is that nobody
+      tells the middle row which questions to ask. Training finds questions that happen to make the final decision
+      accurate.
+    </p>
+  </Callout>
+  <p>Now the vocabulary, one word at a time:</p>
+  <ul>
+    <li>A row of neurons that all read the same inputs is a <span class="term">layer</span>.</li>
+    <li>
+      When every neuron in a layer is connected to every output of the layer before it, the layer is
+      <span class="term">fully connected</span>. You will also see it called a “dense” layer or, in PyTorch, a
+      “linear” layer. All three mean the same thing.
+    </li>
+    <li>
+      A stack of fully connected layers is a <span class="term">multilayer perceptron (MLP)</span>, also called a
+      <span class="term">feed-forward network</span>. “Feed-forward” means the numbers flow one way, from input to
+      output, with no loops back.
+    </li>
+  </ul>
 
   <Figure n={4} caption="A small network with 3 inputs, one hidden layer of 4 neurons and 2 outputs. Every line is one weight.">
     <svg viewBox="0 0 720 340" role="img" aria-label="Fully connected network with layers of 3, 4 and 2 nodes">
@@ -501,51 +680,78 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
     </svg>
   </Figure>
 
+  <p>Fig. 4 has three columns of circles. Each column has a name:</p>
   <ul>
     <li>
-      The <strong>input layer</strong> is just the data, written as a list of numbers (a
-      <span class="term">vector</span>). It does no computing and has no parameters.
+      The <strong>input layer</strong> on the left is just the facts about the day, written as a list of numbers. A
+      list of numbers is called a <span class="term">vector</span>. This layer does no computing and has nothing to
+      learn; it is only where the data enters.
     </li>
     <li>
-      <strong>Hidden layers</strong> sit in the middle. They are “hidden” because their values are neither the input
-      you provide nor the output you read; the network decides for itself what they should represent.
+      <strong>Hidden layers</strong> are the rows in the middle. They are called “hidden” because their values are
+      neither the input you provide nor the answer you read out. You never look at them directly.
     </li>
     <li>
-      The <strong>output layer</strong> gives the answer, for example one score per possible class. The number of
-      neurons in a layer is its <span class="term">width</span>; the number of layers is the network’s
-      <span class="term">depth</span>.
+      The <strong>output layer</strong> on the right gives the answer, for example one score per possible choice.
     </li>
   </ul>
   <p>
-    Running data through the network from input to output is the <span class="term">forward pass</span>. It is what
-    happens every time you use a trained model (called <span class="term">inference</span>), and it is also the first
-    half of every training step.
+    Two more words. The number of neurons in a layer is its <span class="term">width</span> (Fig. 4’s hidden layer
+    has width 4). The number of layers is the network’s <span class="term">depth</span>. “Deep learning” just means
+    networks with many layers.
   </p>
   <p>
-    What do hidden neurons end up representing? Nobody assigns them a job. During training each one drifts towards
-    detecting some pattern that helps reduce the error. In an image network, first-layer neurons typically respond to
-    edges, later ones to textures and shapes, and the last ones to whole objects. Learning these intermediate
-    descriptions automatically is called <span class="term">representation learning</span>, and it is the main reason
-    deep learning replaced hand-written features.
+    Pushing one day’s numbers through the network from left to right, layer by layer, is called the
+    <span class="term">forward pass</span>. It is what happens every time you use a trained model, which is called
+    <span class="term">inference</span>, and it is also the first half of every training step.
+  </p>
+  <p>
+    What do the hidden neurons end up asking? Nobody assigns them a question. During training each one drifts towards
+    detecting whatever pattern helps reduce the error. In a network that looks at photos, first-layer neurons usually
+    end up responding to edges, later ones to textures and shapes, and the last ones to whole objects such as “a cat’s
+    ear”. Learning these in-between descriptions automatically is called
+    <span class="term">representation learning</span>. Before deep learning, people wrote those descriptions by hand,
+    and it was the slowest, hardest part of the job. This is the main reason deep learning took over.
   </p>
   <Source
     kind="try"
     href="https://playground.tensorflow.org/"
     title="TensorFlow Playground"
-    meta="Pick the circle dataset. Train with zero hidden layers and watch it fail, then add one hidden layer of 3 neurons. Hover over each neuron to see what it learned. Ten minutes here is worth an hour of reading."
+    meta="Pick the circle dataset. Train with zero hidden layers and watch it fail, then add one hidden layer of 3 neurons. Hover over each neuron to see what question it learned to ask. Ten minutes here is worth an hour of reading."
   />
+  <Callout kind="say">
+    <p>
+      “A feed-forward network is a stack of fully connected layers with a non-linearity after each hidden layer. The
+      hidden layers learn intermediate representations automatically; that is what representation learning means.”
+    </p>
+  </Callout>
 
   <h2 id="xor">A hidden layer solves XOR</h2>
+  <Callout kind="plain">
+    <p>
+      Back to the staircase light, which one neuron could not handle. Here is how two helpers plus a boss manage it.
+      Helper 1 counts how many switches are up (0, 1 or 2). Helper 2 only speaks up when <em>both</em> switches are up.
+      The boss takes helper 1’s count and subtracts twice whatever helper 2 says. One switch up: count 1, helper 2
+      silent, light on. Both up: count 2, helper 2 says 1, and 2 − 2 = 0, light off.
+    </p>
+    <p>
+      The bend is what keeps helper 2 silent. Without it, helper 2 would say “−1” when both switches are down, and the
+      trick would fall apart. Watch for that in the table.
+    </p>
+  </Callout>
   <p>
-    Here is the promised proof that layers plus a bend beat a single neuron. This tiny network has two inputs, two
-    hidden neurons with ReLU, and one output:
+    Here is that story as a tiny network: two inputs, two hidden neurons using ReLU (negative becomes 0), and one
+    output neuron with no activation:
   </p>
   <Math block tex="h_1 = \text{ReLU}(x_1 + x_2) \qquad h_2 = \text{ReLU}(x_1 + x_2 - 1) \qquad y = h_1 - 2h_2" />
-  <p>Run all four inputs through it by hand:</p>
+  <p>
+    So helper 1 has weights 1 and 1 with bias 0. Helper 2 has weights 1 and 1 with bias −1. The boss has weights 1 and
+    −2. Run all four inputs through it by hand:
+  </p>
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th><Math tex="x_1" /></th><th><Math tex="x_2" /></th><th><Math tex="h_1" /></th><th><Math tex="h_2" /></th><th><Math tex="y = h_1 - 2h_2" /></th><th>XOR</th></tr>
+        <tr><th><Math tex="x_1" /></th><th><Math tex="x_2" /></th><th><Math tex="h_1" /> (the count)</th><th><Math tex="h_2" /> (both on?)</th><th><Math tex="y = h_1 - 2h_2" /></th><th>XOR</th></tr>
       </thead>
       <tbody>
         <tr><td>0</td><td>0</td><td>ReLU(0) = 0</td><td>ReLU(−1) = 0</td><td>0</td><td>0 ✓</td></tr>
@@ -556,41 +762,79 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
     </table>
   </div>
   <p>
-    How it works: <Math tex="h_1" /> counts how many inputs are on. <Math tex="h_2" /> stays at zero until
-    <em>both</em> are on, and that is only possible because ReLU cuts off the negative value in the first row. The
-    output then subtracts twice <Math tex="h_2" /> to cancel the “both on” case. Remove the ReLU and
-    <Math tex="h_2" /> would be −1, 0, 0, 1, the trick disappears, and you are back to a single straight line.
+    All four rows are right. Look at the first row: helper 2’s total is −1, and ReLU turns that into 0. That is the
+    bend doing its job. Remove the ReLU and helper 2 would give −1, 0, 0, 1 down the column, the output column would
+    become 2, 1, 1, 0, and the network would be back to being one straight cut that gets the first row wrong.
   </p>
   <p>
-    The hidden layer has changed the problem. In the original inputs the four points could not be separated by a
-    line. In the new coordinates <Math tex="(h_1, h_2)" /> they can. That is the general picture of what every hidden
-    layer does: it re-describes the data so that the next layer’s job is easier.
+    There is a second way to see what happened, and it is the way to think about every hidden layer from now on. The
+    hidden layer <em>re-described</em> each day using two new numbers, <Math tex="(h_1, h_2)" />, instead of the
+    original <Math tex="(x_1, x_2)" />. In the original numbers, the four dots could not be split by a line. In the new
+    numbers they can: the boss is a single neuron, which means a single straight cut, and it works. A hidden layer
+    turns a problem that is not linearly separable into one that is. That is the job of every hidden layer: re-describe
+    the data so that the next layer’s job becomes easy.
   </p>
+  <Callout kind="say">
+    <p>
+      “A hidden layer with a non-linearity maps the inputs into a new feature space where the classes become linearly
+      separable. For XOR, two ReLU units are enough.”
+    </p>
+  </Callout>
 
   <h2 id="shapes">Matrices and shapes</h2>
+  <Callout kind="plain">
+    <p>
+      A <em>matrix</em> is nothing more than a table of numbers with rows and columns. Each neuron in a layer has its
+      own row of weights. Write all those rows one under another and you have the layer’s weight table. The reason
+      to do this is speed: a computer can multiply one table by one list of inputs in a single operation, which
+      computes every neuron in the layer at once instead of one at a time.
+    </p>
+    <p>
+      Everything in this section is bookkeeping: which numbers go in which row, and how big each table is. The word
+      for “how many rows and columns” is the table’s <em>shape</em>. Most bugs in deep learning code are shape bugs,
+      which is why interviewers ask about it.
+    </p>
+  </Callout>
   <p>
-    Writing each neuron separately does not scale, so a whole layer is written as one matrix operation. Stack each
-    neuron’s weights as one row of a <span class="term">weight matrix</span> <Math tex="W" />, and collect the biases
-    into a vector <Math tex="\mathbf{b}" />:
+    Start small. Suppose a hidden layer has two neurons, both reading the three walk inputs (sunny, cold, tired).
+    Neuron 1 is the walk neuron from the worked example, weights (3, −2, −4). Neuron 2 asks “is the weather good?”
+    with weights (1, −1, 0). Stack the two rows into a table and put the inputs in a column:
   </p>
+  <Math block tex={String.raw`W = \begin{pmatrix} 3 & -2 & -4 \\ 1 & -1 & 0 \end{pmatrix} \qquad \mathbf{x} = \begin{pmatrix} 1 \\ 0 \\ 1 \end{pmatrix} \qquad \mathbf{b} = \begin{pmatrix} -1 \\ 0 \end{pmatrix}`} />
+  <p>
+    The input column says: sunny, not cold, tired. “Multiply the table by the column” means: take each row, multiply
+    it against the column item by item, and add up. Row 1 gives <Math tex="3\cdot1 + (-2)\cdot0 + (-4)\cdot1 = -1" />;
+    row 2 gives <Math tex="1\cdot1 + (-1)\cdot0 + 0\cdot1 = 1" />. Add the biases and you get the two totals
+    <Math tex="(-2, 1)" />. Row 1 is exactly the walk neuron’s calculation from before; row 2 is the second neuron’s.
+    One table multiplication did both.
+  </p>
+  <p>Written generally, a whole layer is this one line, where <Math tex="f" /> is the activation applied to each total separately:</p>
   <Math block tex="\mathbf{a} = f(W\mathbf{x} + \mathbf{b})" />
-  <p>For the hidden layer of Fig. 4, with 3 inputs and 4 neurons, the pieces have these shapes:</p>
+  <p>Now the shapes. For the hidden layer of Fig. 4, with 3 inputs and 4 neurons:</p>
   <Math block tex="\underbrace{W}_{4\times3}\;\underbrace{\mathbf{x}}_{3} + \underbrace{\mathbf{b}}_{4} = \underbrace{\mathbf{z}}_{4}" />
   <p>
-    Row <Math tex="i" /> of <Math tex="W" /> holds the weights of neuron <Math tex="i" />, so the matrix has one row
-    per output and one column per input: shape <code>(out_features, in_features)</code>. The activation is then
-    applied to each of the four numbers separately (<span class="term">element-wise</span>).
+    The table has one row per neuron (4) and one column per input (3), so its shape is “4 by 3”. In code that is
+    written <code>(out_features, in_features)</code>: outputs first, inputs second. The bias has one number per
+    neuron, and so does the result. Applying the activation to each of the four totals separately is called applying
+    it <span class="term">element-wise</span>.
   </p>
   <p>
-    In practice we never process one example at a time. We stack many examples into a
-    <span class="term">batch</span>, giving the input a shape of <code>(batch_size, in_features)</code>, and the layer
-    processes all rows at once. The output has shape <code>(batch_size, out_features)</code>. A linear layer only ever
-    changes the <em>last</em> dimension. This is true in a transformer too, where the input is
-    <code>(batch, sequence_length, embedding_size)</code> and a linear layer transforms just the final number.
+    One more layer of bookkeeping, and then you are done. In practice a network never processes one day at a time. It
+    takes a stack of days, say 32 of them, and processes all 32 together. That stack is a
+    <span class="term">batch</span>. The input then becomes a table with one row per day and one column per input, so
+    its shape is <code>(batch_size, in_features)</code>, here 32 by 3. The layer turns it into a table of shape
+    <code>(batch_size, out_features)</code>, 32 by 4: one row of four answers for each day.
   </p>
   <p>
-    This is also why deep learning needs GPUs. The work is almost entirely multiplying big matrices, which is
-    thousands of independent multiply-and-add operations, and a GPU is hardware built to do those in parallel.
+    The rule to remember: <strong>a linear layer only ever changes the last number in the shape</strong>, the one
+    that counts features. Everything in front of it, like the batch, passes through untouched. You will meet this again
+    in a transformer, where the input shape is <code>(batch, sequence_length, embedding_size)</code>, three numbers
+    instead of two, and a linear layer still changes only the last one.
+  </p>
+  <p>
+    This is also why deep learning needs GPUs. The work is almost entirely multiplying big tables of numbers, which
+    breaks into thousands of small, independent multiply-and-add steps. A GPU is a chip built to do thousands of
+    small steps at the same time.
   </p>
   <Source
     kind="read"
@@ -606,45 +850,77 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
   </Callout>
 
   <h2 id="parameters">Counting parameters</h2>
+  <Callout kind="plain">
+    <p>
+      “Parameters” is the word for every adjustable number in the network: every weight and every bias. When someone
+      says a model “has 7 billion parameters”, they mean 7 billion of these numbers, each one nudged during training.
+      Counting them is simple arithmetic, and being able to do it fast is a real interview skill.
+    </p>
+  </Callout>
   <p>
-    A fully connected layer with <Math tex="n" /> inputs and <Math tex="m" /> neurons has
-    <Math tex="m \times n" /> weights and <Math tex="m" /> biases. Activation functions such as ReLU and GELU have no
-    parameters. For the network in Fig. 4:
+    Count Fig. 4 by hand. Every line between two circles is one weight. The hidden layer has 4 neurons each reading 3
+    inputs, which is 3 × 4 = 12 lines, plus one bias per neuron, 4 more: 16 numbers. The output layer has 2 neurons
+    each reading 4 hidden values, 4 × 2 = 8 lines, plus 2 biases: 10 numbers. The activation functions have no
+    adjustable numbers at all; ReLU is the same rule forever.
   </p>
   <Math block tex="\underbrace{(3\times4 + 4)}_{\text{hidden: }16} + \underbrace{(4\times2 + 2)}_{\text{output: }10} = 26 \text{ parameters}" />
   <p>
-    When people say GPT-2 small has 124 million parameters, they mean the same thing: 124 million individual numbers
-    like these, all adjusted during training. Being able to do this count quickly is a real interview skill. It shows
-    up as “how big is this layer?”, “how much memory does this model need?” and, later, “how many parameters does LoRA
-    train?”
+    In general a fully connected layer with <Math tex="n" /> inputs and <Math tex="m" /> neurons has
+    <Math tex="m \times n" /> weights and <Math tex="m" /> biases. Same arithmetic, bigger numbers. GPT-2 small has
+    124 million parameters, counted exactly this way across all its layers. The count shows up in interviews as “how
+    big is this layer?”, “how much memory does this model need?” and, later, “how many parameters does LoRA train?”.
   </p>
   <p>
-    A useful conversion: each parameter stored as a 32-bit float takes 4 bytes, so a model’s size in memory is roughly
-    4 bytes × the parameter count. For 124 million parameters that is about 0.5 GB; at 16-bit precision, half that.
+    The memory question has a one-line answer. Each parameter stored as a standard 32-bit number takes 4 bytes, so a
+    model’s size in memory is roughly 4 bytes × the parameter count. For 124 million parameters that is about 0.5 GB.
+    Store each number in 16 bits instead and it is half that. Your laptop can hold GPT-2 small easily; a 70-billion
+    parameter model at 16 bits needs 140 GB, which is why it does not fit on one consumer GPU.
   </p>
   <p>
-    Do not confuse parameters with <span class="term">hyperparameters</span>. Parameters are learned from data.
-    Hyperparameters are choices you make before training: how many layers, how wide, which activation, what learning
-    rate.
+    Do not confuse parameters with <span class="term">hyperparameters</span>. Parameters are the numbers the network
+    learns from data. Hyperparameters are the choices <em>you</em> make before training starts: how many layers, how
+    wide, which activation, how big a step to take when nudging weights. A handy test: if training changes it, it is a
+    parameter; if you set it in the config, it is a hyperparameter.
   </p>
+  <Callout kind="say">
+    <p>
+      “A dense layer has in-features times out-features weights plus out-features biases. Activations have no
+      parameters. At 32-bit precision each parameter costs 4 bytes, so parameter count times 4 is the rough memory
+      footprint.”
+    </p>
+  </Callout>
 
   <h2 id="depth">Why deep, not just wide</h2>
+  <Callout kind="plain">
+    <p>
+      “Wide” means many neurons in one row. “Deep” means many rows. There is a famous result that says a single row,
+      made wide enough, can imitate any smooth rule you like. So why does everyone build deep networks instead?
+    </p>
+    <p>
+      Think of Lego. You can build any model out of 1×1 bricks alone, if you have enough of them. That is true and
+      useless: a model that takes 50 ordinary bricks would take thousands of 1×1 bricks. Depth is the ordinary-bricks
+      version. Early layers build small reusable pieces, later layers snap those pieces together, and the whole thing
+      needs far fewer parts.
+    </p>
+  </Callout>
   <p>
-    A famous result, the <span class="term">universal approximation theorem</span>, says that a network with just
-    <em>one</em> hidden layer and a suitable non-linear activation can approximate any continuous function on a
-    bounded region as closely as you like, provided the hidden layer is wide enough.
+    The famous result is the <span class="term">universal approximation theorem</span>. It says: a network with just
+    <em>one</em> hidden layer and a bending activation can get as close as you like to any continuous function, over
+    any limited range of inputs, provided the hidden layer is wide enough. “Continuous” means no sudden jumps, and
+    “as close as you like” means you pick the allowed error and the theorem promises a width that achieves it.
   </p>
   <p>That sounds as if depth is unnecessary. It is not, because of what the theorem leaves out:</p>
   <ul>
-    <li>It does not say how many neurons “enough” is. For many functions the number is impractically huge.</li>
-    <li>It says such weights <em>exist</em>, not that training will find them.</li>
-    <li>It says nothing about performing well on new data the network has not seen.</li>
+    <li>It does not say how many neurons “wide enough” is. For many functions the number is impractically huge.</li>
+    <li>It says that good weights <em>exist</em>. It does not say that training will ever find them.</li>
+    <li>It says nothing about doing well on new data the network has not seen, which is the thing you actually want.</li>
   </ul>
   <p>
-    Depth solves the first problem. A deep network builds features in a hierarchy, reusing simple features to make
-    complex ones, the way words are reused to build many sentences. For some functions a shallow network needs
-    exponentially more neurons than a deep one to do the same job. In practice, deep networks also train to better
-    solutions on structured data such as images and language.
+    Depth fixes the first problem. A deep network builds features in a hierarchy, reusing simple features to make
+    complex ones, the way a few hundred words are reused to build millions of sentences. For some functions a one-row
+    network needs exponentially more neurons than a deep one to do the same job. In practice deep networks also train
+    to better answers on structured data such as images and language. That is the empirical reason: people tried
+    both, and deep won.
   </p>
   <Source
     kind="read"
@@ -661,21 +937,33 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
   </Callout>
 
   <h2 id="init">How the weights start</h2>
+  <Callout kind="plain">
+    <p>
+      Before training can nudge the weights, they need starting values. The rule is: start every weight at a small
+      random number. Both words matter.
+    </p>
+    <p>
+      <em>Random</em>, because of a twin problem. If every neuron in a row starts with identical weights, they all
+      give identical answers, so training gives them all the identical correction, so they stay identical forever. You
+      paid for a hundred neurons and got one. Tiny random differences at the start let each neuron grow into its own
+      question.
+    </p>
+    <p>
+      <em>Small</em>, because of a whisper-and-shout problem. Each layer multiplies the numbers passing through it by
+      its weights. Weights that are too big make the numbers grow layer after layer until they overflow (a shout
+      that becomes a roar). Weights that are too small make them shrink to nothing (a whisper that fades). You want
+      the numbers to come out of each layer about as big as they went in.
+    </p>
+  </Callout>
   <p>
-    Before training, the weights have to be set to something. This is <span class="term">initialization</span>, and
-    there is one rule you must know: <strong>never start all weights at the same value</strong>, including zero.
+    Now the names. Setting the starting values is <span class="term">initialization</span>. The twin problem is why
+    you <strong>never start all weights at the same value</strong>, including zero. Using random starts to avoid it is
+    called <span class="term">symmetry breaking</span>: “symmetry” here just means “all the neurons look the same”.
   </p>
   <p>
-    Suppose every weight in a layer is zero. Every neuron in that layer then computes exactly the same output for any
-    input. When training asks “how should each neuron change?”, the answer is identical for all of them, so they all
-    change by the same amount and remain identical forever. You have paid for a hundred neurons and got one. Starting
-    with small <em>random</em> values makes each neuron slightly different so they can learn different things. This is
-    called <span class="term">symmetry breaking</span>.
-  </p>
-  <p>
-    The size of the random values matters too. Too large, and signals grow layer after layer until they overflow. Too
-    small, and they shrink to nothing. Two standard recipes pick the scale from the layer’s size so that signals keep
-    roughly the same spread from layer to layer:
+    The whisper-and-shout problem is handled by picking the <em>size</em> of the random numbers from the layer’s size.
+    A neuron with 1,000 inputs adds up 1,000 products, so its weights must be smaller than those of a neuron with 10
+    inputs, or its totals will be far bigger. Two standard recipes do this arithmetic for you:
   </p>
   <ul>
     <li>
@@ -683,19 +971,26 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
       <a href="https://proceedings.mlr.press/v9/glorot10a.html" target="_blank" rel="noopener noreferrer">Paper: Glorot and Bengio, 2010</a>.
     </li>
     <li>
-      <span class="term">He (Kaiming) initialization</span>, designed for ReLU.
+      <span class="term">He (Kaiming) initialization</span>, designed for ReLU, which zeroes half its inputs and so
+      needs weights about 1.4 times larger to compensate.
       <a href="https://arxiv.org/abs/1502.01852" target="_blank" rel="noopener noreferrer">Paper: He et al., 2015</a>.
     </li>
   </ul>
   <p>
-    Biases are normally started at zero, which is fine because the random weights already break the symmetry. GPT-2
-    initializes its weights from a normal distribution with a standard deviation of 0.02.
+    You do not need the formulas yet; PyTorch applies a sensible default when you create a layer. What you need is the
+    idea: random to break the twins, scaled to the layer size to keep the signal steady. Biases are normally started at
+    zero, which is fine because the random weights already make the neurons different. GPT-2 starts its weights from a
+    bell curve centred on zero with a spread (standard deviation) of 0.02.
   </p>
   <Callout kind="say">
     <p>
       “Weights are initialized randomly to break symmetry; with identical weights every neuron in a layer receives the
       same gradient and they never differentiate. The scale is chosen, with Xavier or He initialization, to keep the
       variance of activations stable across layers.”
+    </p>
+    <p>
+      “Variance of activations stable” is the formal way of saying “the numbers neither blow up nor fade as they pass
+      through the layers”.
     </p>
   </Callout>
 
