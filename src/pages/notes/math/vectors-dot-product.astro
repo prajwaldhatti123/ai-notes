@@ -1,0 +1,1078 @@
+---
+import Note from '../../../layouts/Note.astro';
+import CodeBlock from '../../../components/CodeBlock.astro';
+import Callout from '../../../components/Callout.astro';
+import QA from '../../../components/QA.astro';
+import Figure from '../../../components/Figure.astro';
+import Math from '../../../components/Math.astro';
+import Source from '../../../components/Source.astro';
+
+const sections = [
+  { id: 'why', label: 'Why this note matters' },
+  { id: 'plain', label: 'In plain words' },
+  { id: 'vector', label: 'What a vector is' },
+  { id: 'operations', label: 'Adding and scaling vectors' },
+  { id: 'dot', label: 'The dot product' },
+  { id: 'geometry', label: 'What the dot product measures' },
+  { id: 'length', label: 'Length, unit vectors and projection' },
+  { id: 'everywhere', label: 'Why the dot product is everywhere in ML' },
+  { id: 'embeddings', label: 'Vectors that mean something: embeddings' },
+  { id: 'many', label: 'Many dot products at once' },
+  { id: 'code', label: 'Code' },
+  { id: 'llm', label: 'Where this lives in an LLM' },
+  { id: 'interview', label: 'The full interview answer' },
+  { id: 'questions', label: 'Practice questions' },
+  { id: 'practice', label: 'Practice problems' },
+  { id: 'mistakes', label: 'Common mistakes' },
+  { id: 'sources', label: 'All sources' },
+  { id: 'revision', label: 'One-minute revision' },
+];
+
+// Plotting helpers: a panel maps math coordinates to SVG coordinates.
+const M = globalThis.Math;
+interface Panel { x: number; y: number; w: number; h: number; xr: [number, number]; yr: [number, number] }
+const sx = (p: Panel, vx: number) => p.x + ((vx - p.xr[0]) / (p.xr[1] - p.xr[0])) * p.w;
+const sy = (p: Panel, vy: number) => p.y + p.h - ((vy - p.yr[0]) / (p.yr[1] - p.yr[0])) * p.h;
+const axes = (p: Panel) => `M${p.x} ${sy(p, 0).toFixed(1)} H${p.x + p.w} M${sx(p, 0).toFixed(1)} ${p.y} V${p.y + p.h}`;
+const arrow = (p: Panel, from: [number, number], to: [number, number]) =>
+  `M${sx(p, from[0]).toFixed(1)} ${sy(p, from[1]).toFixed(1)} L${sx(p, to[0]).toFixed(1)} ${sy(p, to[1]).toFixed(1)}`;
+const grid = (p: Panel) => {
+  const parts: string[] = [];
+  for (let i = M.ceil(p.xr[0]); i <= p.xr[1]; i++) parts.push(`M${sx(p, i).toFixed(1)} ${p.y} V${p.y + p.h}`);
+  for (let j = M.ceil(p.yr[0]); j <= p.yr[1]; j++) parts.push(`M${p.x} ${sy(p, j).toFixed(1)} H${p.x + p.w}`);
+  return parts.join(' ');
+};
+
+// Fig. 1: one vector as an arrow with its components.
+const one: Panel = { x: 80, y: 30, w: 300, h: 225, xr: [-1, 4], yr: [-1, 3] };
+// Fig. 2: addition and scaling.
+const add: Panel = { x: 40, y: 30, w: 300, h: 250, xr: [-1, 5], yr: [-1, 5] };
+const scale: Panel = { x: 400, y: 30, w: 300, h: 250, xr: [-1, 5], yr: [-1, 5] };
+// Fig. 3: three dot-product signs.
+const signs = [
+  { x: 40, a: [2, 1] as [number, number], b: [3, 2] as [number, number], label: 'a·b = 8 > 0', sub: 'same general direction' },
+  { x: 270, a: [2, 1] as [number, number], b: [-1, 2] as [number, number], label: 'a·b = 0', sub: 'perpendicular' },
+  { x: 500, a: [2, 1] as [number, number], b: [-2, -1] as [number, number], label: 'a·b = −5 < 0', sub: 'opposite directions' },
+].map((s) => ({ ...s, panel: { x: s.x, y: 40, w: 190, h: 190, xr: [-3, 3] as [number, number], yr: [-3, 3] as [number, number] } }));
+// Fig. 4: projection of a onto b.
+const proj: Panel = { x: 80, y: 30, w: 330, h: 260, xr: [-0.5, 5], yr: [-0.5, 4.5] };
+const projA: [number, number] = [3, 4];
+const projB: [number, number] = [4, 3];
+const projLen = (3 * 4 + 4 * 3) / 5; // 4.8
+const projPoint: [number, number] = [(projLen * 4) / 5, (projLen * 3) / 5];
+// Fig. 5: toy word vectors.
+const words: Panel = { x: 90, y: 30, w: 420, h: 250, xr: [0, 1.1], yr: [0, 1.1] };
+const wordVecs = [
+  { w: 'cat', v: [0.9, 0.3] as [number, number] },
+  { w: 'dog', v: [0.8, 0.45] as [number, number] },
+  { w: 'kitten', v: [0.95, 0.2] as [number, number] },
+  { w: 'car', v: [0.2, 0.9] as [number, number] },
+  { w: 'truck', v: [0.3, 0.95] as [number, number] },
+];
+
+const basicsCode = `import numpy as np
+
+x = np.array([3.0, 2.0])          # a vector: a 1-D array
+print(x.shape)                    # (2,)   <- one number in the shape = one axis = a vector
+print(x.ndim)                     # 1
+
+u = np.array([2.0, 1.0])
+v = np.array([1.0, 3.0])
+print(u + v)                      # [3. 4.]   component by component
+print(2 * v)                      # [2. 6.]   every component doubled
+print(3 * u - v)                  # [5. 0.]   a linear combination
+
+w = np.array([3.0, -2.0, -4.0])   # the walk neuron's weights
+inputs = np.array([1.0, 0.0, 1.0])  # sunny, not cold, tired
+print(w * inputs)                 # [ 3. -0. -4.]  element-wise product: still a vector
+print(np.sum(w * inputs))         # -1.0          add it up: that is the dot product
+print(np.dot(w, inputs), w @ inputs)   # -1.0 -1.0   the two built-in spellings`;
+
+const dotCode = `import numpy as np
+
+def dot(a, b):
+    """The definition, spelled out."""
+    assert a.shape == b.shape, f"shapes differ: {a.shape} vs {b.shape}"
+    total = 0.0
+    for ai, bi in zip(a, b):
+        total += ai * bi
+    return total
+
+a = np.array([3.0, 4.0])
+b = np.array([4.0, 3.0])
+assert dot(a, b) == np.dot(a, b) == a @ b == 24.0
+
+length_a = np.sqrt(a @ a)                 # 5.0: the length is the square root of the self dot product
+length_b = np.linalg.norm(b)              # 5.0: the library way
+cos_theta = (a @ b) / (length_a * length_b)
+print(cos_theta)                          # 0.96
+print(np.degrees(np.arccos(cos_theta)))   # 16.26 degrees
+
+# The shadow (projection) of a onto the direction of b:
+print((a @ b) / length_b)                 # 4.8`;
+
+const embedCode = `import numpy as np
+
+# Toy "embeddings": one vector per word. Real ones have hundreds of numbers; the arithmetic is identical.
+emb = {
+    "cat":    np.array([0.9, 0.8, 0.1]),
+    "dog":    np.array([0.8, 0.9, 0.2]),
+    "car":    np.array([0.1, 0.2, 0.9]),
+}
+
+def similarity(w1, w2):
+    return emb[w1] @ emb[w2]
+
+print(similarity("cat", "dog"))   # 1.46  high: the lists agree
+print(similarity("cat", "car"))   # 0.34  low: where one is big the other is small
+
+# Find the nearest word to a query vector: compute every dot product, take the largest.
+query = np.array([0.85, 0.85, 0.15])
+scores = {w: v @ query for w, v in emb.items()}
+print(max(scores, key=scores.get))   # dog  (scores: cat 1.46, dog 1.475, car 0.39)`;
+
+const matrixPreviewCode = `import numpy as np
+
+W = np.array([[3.0, -2.0, -4.0],     # neuron 1: the walk neuron
+              [1.0, -1.0,  0.0]])    # neuron 2: "is the weather good?"
+x = np.array([1.0, 0.0, 1.0])
+
+print(W @ x)          # [-1.  1.]   two dot products, one per row, in a single operation
+print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
+---
+
+<Note
+  track="math"
+  slug="vectors-dot-product"
+  lede="A vector is a list of numbers that describes one thing, and the dot product is the single operation that asks “how much do two such lists agree?”. Every neuron, every similarity search and every attention score is a dot product. This note makes both ideas concrete with pictures and small numbers."
+  sections={sections}
+>
+  <h2 id="why">Why this note matters</h2>
+  <p>
+    Deep learning is, mechanically, the dot product repeated a few trillion times. A neuron is a dot product. The
+    score that decides which words a transformer attends to is a dot product. “Find the documents most similar to
+    this question” in a retrieval system is a dot product against every document. If you can picture what a dot
+    product measures, half of the architecture diagrams you will meet later are already readable.
+  </p>
+  <p>Questions that are really about this note:</p>
+  <ul>
+    <li>“What does the dot product between two embeddings tell you?”</li>
+    <li>“Why does attention compute <Math tex="q \cdot k" />, and what does a large value mean?”</li>
+    <li>“What is the difference between the dot product and cosine similarity?” (Finished in the <a href="/notes/math/norms-distance-cosine/">norms note</a>.)</li>
+    <li>“What shape is this tensor, and why did the multiplication fail?”</li>
+    <li>“Write linear regression’s prediction as a single expression.”</li>
+  </ul>
+  <Callout kind="note" label="The scope rule">
+    <p>
+      Vectors, their two operations, the dot product and its geometric meaning, and length. No cross products, no
+      abstract vector spaces, no proofs. Matrices get the <a href="/notes/math/matrices-and-shapes/">next note</a>;
+      norms and cosine similarity the one after.
+    </p>
+  </Callout>
+
+  <h2 id="plain">In plain words</h2>
+  <Callout kind="plain">
+    <p>
+      <strong>A vector</strong> is a list of numbers that together describe one thing. A recipe card is a vector:
+      (2 eggs, 1 cup flour, 1 cup milk). A weather report is a vector: (sunny = 1, cold = 0, tired = 1). A point on a
+      map is a vector: (3 blocks east, 2 blocks north). The numbers are the thing’s <em>coordinates</em>, and the list
+      can be as long as you like.
+    </p>
+    <p>
+      <strong>The dot product</strong> takes two lists of the same length, multiplies them item by item, and adds the
+      results. That one number answers “how much do these two lists agree?”. Where both lists are large, it goes up.
+      Where one is large and the other is small or negative, it goes down. The walk neuron from the neural network note
+      is exactly this: a list of weights, a list of inputs, multiplied pairwise and summed.
+    </p>
+  </Callout>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Everyday idea</th><th>Technical term</th><th>Symbol</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>A list of numbers describing one thing</td><td><span class="term">vector</span></td><td><Math tex="\mathbf{x}" /> or <Math tex="\vec{x}" /></td></tr>
+        <tr><td>One number in the list</td><td><span class="term">component</span> (or element, entry)</td><td><Math tex="x_1, x_2, \dots, x_n" /></td></tr>
+        <tr><td>How many numbers are in the list</td><td><span class="term">dimension</span></td><td><Math tex="n" />; the vector is “in <Math tex="\mathbb{R}^n" />”</td></tr>
+        <tr><td>A plain single number</td><td><span class="term">scalar</span></td><td><Math tex="c" />, <Math tex="\alpha" /></td></tr>
+        <tr><td>Multiply pairwise and add</td><td><span class="term">dot product</span> (inner product)</td><td><Math tex="\mathbf{a}\cdot\mathbf{b}" /> or <Math tex="\mathbf{a}^\top \mathbf{b}" /></td></tr>
+        <tr><td>How long the arrow is</td><td><span class="term">norm</span> (length, magnitude)</td><td><Math tex="\lVert \mathbf{a} \rVert" /></td></tr>
+        <tr><td>Stretch a vector by a number</td><td><span class="term">scalar multiplication</span></td><td><Math tex="c\,\mathbf{a}" /></td></tr>
+        <tr><td>Some of each, added up</td><td><span class="term">linear combination</span></td><td><Math tex="c_1\mathbf{a} + c_2\mathbf{b}" /></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="vector">What a vector is</h2>
+  <Callout kind="plain">
+    <p>
+      A vector has two faces, and you need both. As a <em>list</em>, it is data: three numbers about today’s weather,
+      or 768 numbers describing the word “cat”. As an <em>arrow</em>, it is a picture: start at the origin and move 3
+      steps right and 2 steps up. The list is what the computer stores; the arrow is how you think about it. Every
+      sentence about “directions”, “angles” and “closeness” in machine learning is the arrow picture applied to the
+      list.
+    </p>
+  </Callout>
+  <Figure n={1} caption="One vector, two faces. The list (3, 2) and the arrow that goes 3 right and 2 up are the same object.">
+    <svg viewBox="0 0 720 290" role="img" aria-label="A 2-D arrow from the origin to the point (3, 2) with its components marked, next to the column form of the vector">
+      <g class="sketch">
+        <path class="stroke-soft" d={grid(one)} stroke-dasharray="2 5"></path>
+        <path class="stroke-soft" d={axes(one)}></path>
+        <path class="stroke ink-red" d={arrow(one, [0, 0], [3, 2])} stroke-width="3" marker-end="url(#arrow)"></path>
+        <path class="stroke" d={arrow(one, [0, 0], [3, 0])} stroke-dasharray="7 5"></path>
+        <path class="stroke" d={arrow(one, [3, 0], [3, 2])} stroke-dasharray="7 5"></path>
+        <circle class="stroke fill-paper" cx={sx(one, 3)} cy={sy(one, 2)} r="5"></circle>
+      </g>
+      <text class="small" x={sx(one, 1.5)} y={sy(one, 0) + 22} text-anchor="middle">3 across (x₁)</text>
+      <text class="small" x={sx(one, 3) + 10} y={sy(one, 1) + 5}>2 up (x₂)</text>
+      <text class="small" x={sx(one, 3) + 10} y={sy(one, 2) - 10}>(3, 2)</text>
+      <text class="small" x={sx(one, 0) - 8} y={sy(one, 0) + 20} text-anchor="end">0</text>
+      <text class="label-red" x={sx(one, 1.3)} y={sy(one, 1.5)}>x</text>
+      <text x="560" y="110" text-anchor="middle" font-size="26">x = ( 3 )</text>
+      <text x="560" y="150" text-anchor="middle" font-size="26">( 2 )</text>
+      <text class="small" x="560" y="195" text-anchor="middle">the list</text>
+      <text class="small" x="560" y="235" text-anchor="middle">np.array([3, 2])</text>
+      <text class="small" x="560" y="258" text-anchor="middle">shape (2,)</text>
+    </svg>
+  </Figure>
+  <p>
+    A <span class="term">vector</span> is an ordered list of numbers. We write it in bold, <Math tex="\mathbf{x}" />,
+    or with an arrow, <Math tex="\vec{x}" />, and its numbers with subscripts: <Math tex="x_1" /> is the first,
+    <Math tex="x_2" /> the second, and so on up to <Math tex="x_n" />. The count <Math tex="n" /> is the vector’s
+    <span class="term">dimension</span>. <Math tex="(3, 2)" /> is a 2-dimensional vector; the weather report
+    <Math tex="(1, 0, 1)" /> is 3-dimensional; a GPT-2 word embedding is 768-dimensional. “Dimension” here just means
+    “how many numbers”, nothing more mysterious. <em>Order matters</em>: <Math tex="(3, 2)" /> and
+    <Math tex="(2, 3)" /> are different vectors, just as “2 eggs, 1 cup flour” is a different recipe from “1 egg, 2
+    cups flour”.
+  </p>
+  <p>
+    A single plain number, like 5 or −0.3, is called a <span class="term">scalar</span>, to distinguish it from a
+    vector. The word comes from “scale”: multiplying a vector by a scalar scales it, as you will see in a moment.
+  </p>
+  <p>
+    Mathematicians usually write vectors standing up, as <span class="term">columns</span>, and the next note explains
+    why that convention matters once matrices arrive. In NumPy a plain vector is a one-dimensional array with shape
+    <code>(n,)</code>: one number in the shape means one axis. The 2-D arrow picture only works for 2 or 3 numbers, but
+    every rule below works for 768 just the same. You cannot draw a 768-dimensional arrow, and nobody can; you compute
+    with the list and borrow the intuition from the picture.
+  </p>
+  <Source
+    kind="watch"
+    href="https://www.youtube.com/watch?v=fNk_zzaMoSs"
+    title="3Blue1Brown: Vectors | Chapter 1, Essence of linear algebra"
+    meta="About 10 minutes. The three views of a vector (physics arrow, computer-science list, mathematician’s object) and why they are one thing. Watch before reading on."
+  />
+  <Callout kind="say">
+    <p>
+      “A vector is an ordered list of <Math tex="n" /> real numbers, equivalently a point or arrow in
+      <Math tex="n" />-dimensional space. In ML, inputs, weights, embeddings and gradients are all vectors; the
+      dimension is the number of features.”
+    </p>
+  </Callout>
+
+  <h2 id="operations">Adding and scaling vectors</h2>
+  <Callout kind="plain">
+    <p>
+      There are only two things you can do to vectors directly, and both are what you would guess. To <strong>add</strong>
+      two recipe cards, add the eggs to the eggs and the flour to the flour. To <strong>double</strong> a recipe, double
+      every number. As arrows: adding means walking the first arrow and then the second; doubling means an arrow twice
+      as long in the same direction.
+    </p>
+  </Callout>
+  <Figure n={2} caption="Left: adding (2, 1) and (1, 3) tip to tail lands at (3, 4). Right: scaling (1, 3) by 2 gives (2, 6), same direction, twice the length; scaling by −1 flips it.">
+    <svg viewBox="0 0 740 330" role="img" aria-label="Two panels: vector addition tip to tail, and scalar multiplication">
+      <g class="sketch">
+        <path class="stroke-soft" d={grid(add)} stroke-dasharray="2 5"></path>
+        <path class="stroke-soft" d={axes(add)}></path>
+        <path class="stroke" d={arrow(add, [0, 0], [2, 1])} stroke-width="2.5" marker-end="url(#arrow)"></path>
+        <path class="stroke" d={arrow(add, [2, 1], [3, 4])} stroke-width="2.5" marker-end="url(#arrow)"></path>
+        <path class="stroke ink-red" d={arrow(add, [0, 0], [3, 4])} stroke-width="3" marker-end="url(#arrow)"></path>
+        <path class="stroke-soft" d={arrow(add, [0, 0], [1, 3])} stroke-dasharray="6 5"></path>
+        <path class="stroke-soft" d={grid(scale)} stroke-dasharray="2 5"></path>
+        <path class="stroke-soft" d={axes(scale)}></path>
+        <path class="stroke ink-red" d={arrow(scale, [0, 0], [2, 4.9])} stroke-width="3" marker-end="url(#arrow)"></path>
+        <path class="stroke" d={arrow(scale, [0, 0], [1, 3])} stroke-width="2.5" marker-end="url(#arrow)"></path>
+        <path class="stroke" d={arrow(scale, [0, 0], [-1, -3])} stroke-width="2.5" stroke-dasharray="6 5" marker-end="url(#arrow)"></path>
+      </g>
+      <text class="small" x={sx(add, 1)} y={sy(add, 0.5) + 20} text-anchor="middle">u = (2, 1)</text>
+      <text class="small" x={sx(add, 2.6) + 8} y={sy(add, 2.5)}>v = (1, 3)</text>
+      <text class="small label-red" x={sx(add, 1.1)} y={sy(add, 2.6)} text-anchor="end">u + v = (3, 4)</text>
+      <text x={sx(add, 2)} y={add.y + add.h + 34} text-anchor="middle">addition: tip to tail</text>
+      <text class="small" x={sx(scale, 1) + 10} y={sy(scale, 3) + 4}>v = (1, 3)</text>
+      <text class="small label-red" x={sx(scale, 2) + 10} y={sy(scale, 4.6)}>2v = (2, 6), off the chart</text>
+      <text class="small" x={sx(scale, -1) + 6} y={sy(scale, -0.6)} >−v</text>
+      <text x={sx(scale, 2)} y={scale.y + scale.h + 34} text-anchor="middle">scaling: stretch or flip</text>
+    </svg>
+  </Figure>
+  <p>
+    <strong>Addition</strong> is component by component, and only between vectors of the same dimension:
+  </p>
+  <Math block tex="(2, 1) + (1, 3) = (2 + 1,\ 1 + 3) = (3, 4)" />
+  <p>
+    <strong>Scalar multiplication</strong> multiplies every component by the same number:
+  </p>
+  <Math block tex="2 \cdot (1, 3) = (2, 6) \qquad -1 \cdot (1, 3) = (-1, -3) \qquad 0.5 \cdot (1, 3) = (0.5, 1.5)" />
+  <p>
+    A positive scalar keeps the direction and changes the length; a negative scalar also flips the arrow around.
+    Combine the two operations and you get a <span class="term">linear combination</span>: some amount of one vector
+    plus some amount of another, <Math tex="c_1\mathbf{u} + c_2\mathbf{v}" />. For example
+    <Math tex="3\mathbf{u} - \mathbf{v} = (6, 3) - (1, 3) = (5, 0)" />. This phrase is worth knowing because a linear
+    layer’s output is a linear combination of its inputs, and “the span of these vectors” means “everything you can
+    reach with linear combinations of them”. That is as far as span needs to go for interviews.
+  </p>
+  <p>
+    Subtraction is addition of a flipped vector, and it has a useful picture: <Math tex="\mathbf{a} - \mathbf{b}" /> is
+    the arrow <em>from</em> the tip of <Math tex="\mathbf{b}" /> <em>to</em> the tip of <Math tex="\mathbf{a}" />. So
+    the difference between two points is the arrow between them, which is why “distance” in the
+    <a href="/notes/math/norms-distance-cosine/">norms note</a> will start from <Math tex="\mathbf{a} - \mathbf{b}" />.
+  </p>
+  <Source
+    kind="watch"
+    href="https://www.youtube.com/watch?v=k7RM-ot2NWY"
+    title="3Blue1Brown: Linear combinations, span, and basis vectors | Chapter 2"
+    meta="About 10 minutes. Watch for the picture of linear combinations; you can let “basis” wash over you for now."
+  />
+  <Source
+    kind="read"
+    href="https://www.khanacademy.org/math/precalculus/x9e81a4f98389efdf:vectors"
+    title="Khan Academy: Vectors (Precalculus)"
+    meta="Do the exercise sets on adding vectors, scalar multiplication and vector components. Forty minutes of practice with instant feedback."
+  />
+
+  <h2 id="dot">The dot product</h2>
+  <Callout kind="plain">
+    <p>
+      Here is the walk decision again. Weights (3, −2, −4) for sunny, cold, tired; today is (1, 0, 1): sunny, not
+      cold, tired. Multiply each pair and add: <Math tex="3 \cdot 1 + (-2) \cdot 0 + (-4) \cdot 1 = -1" />. You just
+      computed a dot product. It is a weighted sum: each input counted as much as its weight says, then totalled. That
+      is the whole definition, and everything else in this note is about what that number <em>means</em>.
+    </p>
+  </Callout>
+  <p>
+    The <span class="term">dot product</span> of two vectors of the same dimension multiplies matching components and
+    sums the results:
+  </p>
+  <Math block tex="\mathbf{a} \cdot \mathbf{b} = a_1 b_1 + a_2 b_2 + \dots + a_n b_n = \sum_{i=1}^{n} a_i b_i" />
+  <p>
+    Three things to notice. The result is a <strong>single number</strong> (a scalar), not a vector. Both vectors must
+    have the <strong>same dimension</strong>, or there is nothing to pair up. And the <strong>order does not matter</strong>:
+    <Math tex="\mathbf{a} \cdot \mathbf{b} = \mathbf{b} \cdot \mathbf{a}" />, because each pair is multiplied either
+    way round.
+  </p>
+  <p>Three worked examples, each used again below:</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th><Math tex="\mathbf{a}" /></th><th><Math tex="\mathbf{b}" /></th><th>Pairwise products</th><th><Math tex="\mathbf{a}\cdot\mathbf{b}" /></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>(3, 4)</td><td>(4, 3)</td><td>12 + 12</td><td>24</td></tr>
+        <tr><td>(1, 2)</td><td>(2, −1)</td><td>2 − 2</td><td>0</td></tr>
+        <tr><td>(3, −2, −4)</td><td>(1, 0, 1)</td><td>3 + 0 − 4</td><td>−1</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    You will also see the dot product written <Math tex="\mathbf{a}^\top \mathbf{b}" /> (“a transpose b”) or
+    <Math tex="\langle \mathbf{a}, \mathbf{b} \rangle" />. All three mean the same sum. The transpose notation comes
+    from matrices and is explained in the next note; for now read <Math tex="\mathbf{w}^\top \mathbf{x}" /> as
+    <Math tex="\mathbf{w} \cdot \mathbf{x}" />.
+  </p>
+  <p>
+    Two small but useful special cases. The dot product of a vector with a vector of all ones is its sum:
+    <Math tex="(1, 1, 1) \cdot (a, b, c) = a + b + c" />. And the dot product with <Math tex="(1/n, \dots, 1/n)" /> is
+    its mean. So averaging is a dot product too, which is one reason the operation shows up in so many places.
+  </p>
+  <Callout kind="say">
+    <p>
+      “The dot product is the sum of element-wise products of two equal-length vectors. It is a scalar, it is
+      symmetric, and it is linear in each argument. A neuron’s pre-activation is a dot product of its weight vector
+      with the input, plus a bias.”
+    </p>
+  </Callout>
+
+  <h2 id="geometry">What the dot product measures</h2>
+  <Callout kind="plain">
+    <p>
+      Picture two arrows from the same point. If they point the same general way, the dot product is positive. If
+      they point in opposite directions, it is negative. If they are at right angles, it is exactly zero. And the more
+      closely they line up, the bigger it gets. So the dot product is a <em>measure of agreement in direction</em>,
+      scaled by how long the arrows are. That is why “similar” in machine learning so often means “large dot product”.
+    </p>
+  </Callout>
+  <Figure n={3} caption="The sign of the dot product tells you the angle. Same side: positive. Right angle: zero. Opposite: negative. Here a = (2, 1) in every panel.">
+    <svg viewBox="0 0 740 290" role="img" aria-label="Three panels showing a positive, zero and negative dot product between two arrows">
+      {signs.map((s) => (
+        <>
+          <g class="sketch">
+            <path class="stroke-soft" d={axes(s.panel)} />
+            <path class="stroke ink-red" d={arrow(s.panel, [0, 0], s.a)} stroke-width="3" marker-end="url(#arrow)" />
+            <path class="stroke" d={arrow(s.panel, [0, 0], s.b)} stroke-width="2.5" marker-end="url(#arrow)" />
+          </g>
+          <text class="small label-red" x={sx(s.panel, s.a[0]) + 6} y={sy(s.panel, s.a[1]) + 4}>a</text>
+          <text class="small" x={sx(s.panel, s.b[0]) + (s.b[0] < 0 ? -14 : 6)} y={sy(s.panel, s.b[1]) + (s.b[1] < 0 ? 16 : -6)}>b = ({s.b[0]}, {s.b[1]})</text>
+          <text x={s.panel.x + s.panel.w / 2} y={s.panel.y + s.panel.h + 30} text-anchor="middle">{s.label}</text>
+          <text class="small" x={s.panel.x + s.panel.w / 2} y={s.panel.y + s.panel.h + 52} text-anchor="middle">{s.sub}</text>
+        </>
+      ))}
+    </svg>
+  </Figure>
+  <p>The exact statement is the single most useful formula in this note:</p>
+  <Math block tex="\mathbf{a} \cdot \mathbf{b} = \lVert \mathbf{a} \rVert \, \lVert \mathbf{b} \rVert \, \cos\theta" />
+  <p>
+    where <Math tex="\lVert \mathbf{a} \rVert" /> is the length of <Math tex="\mathbf{a}" /> (defined properly in the
+    next section) and <Math tex="\theta" /> is the angle between the two arrows. Read it as: dot product = (length of
+    a) × (length of b) × (how aligned they are). The cosine is the alignment dial. It is 1 when the arrows point the
+    same way (<Math tex="\theta = 0°" />), 0 at a right angle (<Math tex="90°" />), and −1 when they point opposite
+    ways (<Math tex="180°" />). You do not need any other trigonometry; those three values and “in between means in
+    between” are enough.
+  </p>
+  <p>Check it on the first worked example. <Math tex="\mathbf{a} = (3, 4)" /> and <Math tex="\mathbf{b} = (4, 3)" /> both have length 5 (by Pythagoras: <Math tex="\sqrt{9 + 16} = 5" />). Their dot product was 24, so</p>
+  <Math block tex="\cos\theta = \frac{\mathbf{a}\cdot\mathbf{b}}{\lVert\mathbf{a}\rVert\,\lVert\mathbf{b}\rVert} = \frac{24}{5 \cdot 5} = 0.96 \quad\Rightarrow\quad \theta \approx 16°" />
+  <p>
+    Two arrows of the same length, pointing almost the same way: a large dot product, as the picture promised. The
+    second example, <Math tex="(1, 2) \cdot (2, -1) = 0" />, says those two arrows are at exactly 90° to each other;
+    draw them and you will see it. Vectors with a zero dot product are called <span class="term">orthogonal</span>,
+    and the word will come back when the eigenvector note talks about directions that do not interfere with each
+    other.
+  </p>
+  <p>
+    The formula also explains a subtlety that trips people up. A dot product can be large because the arrows are
+    aligned <em>or</em> because one of them is simply long. Two embeddings can have a big dot product just because one
+    has big numbers in it. When you only care about direction, you divide the lengths out, and what remains is
+    <Math tex="\cos\theta" /> itself: <span class="term">cosine similarity</span>. The
+    <a href="/notes/math/norms-distance-cosine/">norms note</a> is about exactly when to use which.
+  </p>
+  <Source
+    kind="watch"
+    href="https://www.youtube.com/watch?v=LyGKycYT2v0"
+    title="3Blue1Brown: Dot products and duality | Chapter 9"
+    meta="About 14 minutes. The first half shows why the pairwise-multiply-and-add rule and the projection picture are the same thing. The second half, on duality, is optional."
+  />
+  <Source
+    kind="read"
+    href="https://betterexplained.com/articles/vector-calculus-understanding-the-dot-product/"
+    title="Better Explained: Understanding the dot product"
+    meta="The “how much of a goes in the direction of b” explanation with several everyday analogies. Ten minutes."
+  />
+  <Callout kind="say">
+    <p>
+      “Geometrically the dot product equals the product of the two lengths times the cosine of the angle between
+      them, so it measures alignment: positive when the vectors point the same way, zero when orthogonal, negative
+      when opposed. Normalizing out the lengths gives cosine similarity.”
+    </p>
+  </Callout>
+
+  <h2 id="length">Length, unit vectors and projection</h2>
+  <Callout kind="plain">
+    <p>
+      How long is the arrow (3, 4)? Walk 3 east and 4 north and you are 5 away from where you started, by the
+      Pythagoras rule for right triangles. The dot product gives this for free: dot a vector with <em>itself</em> and
+      you get the squared length, because <Math tex="3 \cdot 3 + 4 \cdot 4 = 25" />. So length is “square root of
+      the self dot product”, and it works in any number of dimensions where you cannot draw the triangle.
+    </p>
+  </Callout>
+  <p>The <span class="term">length</span> (also <span class="term">norm</span> or <span class="term">magnitude</span>) of a vector is</p>
+  <Math block tex="\lVert \mathbf{a} \rVert = \sqrt{\mathbf{a} \cdot \mathbf{a}} = \sqrt{a_1^2 + a_2^2 + \dots + a_n^2}" />
+  <p>
+    For <Math tex="(3, 4)" /> that is <Math tex="\sqrt{9 + 16} = 5" />; for <Math tex="(1, 1, 1, 1)" /> it is
+    <Math tex="\sqrt{4} = 2" />. A vector of length exactly 1 is a <span class="term">unit vector</span>; it carries a
+    direction and nothing else. You make one by dividing a vector by its own length, which is called
+    <span class="term">normalizing</span>: <Math tex="(3, 4) / 5 = (0.6, 0.8)" />, and indeed
+    <Math tex="0.36 + 0.64 = 1" />. Embedding models often normalize their outputs to unit length so that dot
+    products between them are pure cosines.
+  </p>
+  <Figure n={4} caption="Projection. The shadow that a = (3, 4) casts onto the direction of b = (4, 3) has length (a·b)/‖b‖ = 24/5 = 4.8. The dot product is “how much of a points along b”, times the length of b.">
+    <svg viewBox="0 0 720 320" role="img" aria-label="Vector a projected onto vector b with the perpendicular dropped from the tip of a">
+      <g class="sketch">
+        <path class="stroke-soft" d={grid(proj)} stroke-dasharray="2 5"></path>
+        <path class="stroke-soft" d={axes(proj)}></path>
+        <path class="stroke-soft" d={arrow(proj, [0, 0], [projB[0] * 1.2, projB[1] * 1.2])} stroke-dasharray="4 6"></path>
+        <path class="stroke" d={arrow(proj, [0, 0], projB)} stroke-width="2.5" marker-end="url(#arrow)"></path>
+        <path class="stroke ink-red" d={arrow(proj, [0, 0], projA)} stroke-width="3" marker-end="url(#arrow)"></path>
+        <path class="stroke" d={arrow(proj, projA, projPoint)} stroke-dasharray="6 5"></path>
+        <path class="stroke ink-red" d={arrow(proj, [0, 0], projPoint)} stroke-width="6" opacity="0.35"></path>
+        <circle class="stroke fill-paper" cx={sx(proj, projPoint[0])} cy={sy(proj, projPoint[1])} r="5"></circle>
+      </g>
+      <text class="label-red" x={sx(proj, 3) - 26} y={sy(proj, 4) - 4}>a = (3, 4)</text>
+      <text x={sx(proj, 4) + 10} y={sy(proj, 3) + 6}>b = (4, 3)</text>
+      <text class="small label-red" x={sx(proj, 2.1)} y={sy(proj, 1.2)}>shadow, length 4.8</text>
+      <text class="small" x={sx(proj, 3.55)} y={sy(proj, 3.6)}>right angle</text>
+      <text class="small" x="470" y="120">a·b = ‖a‖ ‖b‖ cos θ</text>
+      <text class="small" x="470" y="150">= (shadow of a on b) × ‖b‖</text>
+      <text class="small" x="470" y="180">= 4.8 × 5 = 24</text>
+      <text class="small" x="470" y="226">shadow = a·b / ‖b‖</text>
+      <text class="small" x="470" y="256">= 24 / 5 = 4.8</text>
+    </svg>
+  </Figure>
+  <p>
+    Fig. 4 is the second way to read a dot product, and it is the one that makes neurons make sense. Drop a
+    perpendicular from the tip of <Math tex="\mathbf{a}" /> onto the line through <Math tex="\mathbf{b}" />. The piece
+    of that line from the origin to the foot of the perpendicular is the <span class="term">projection</span> of
+    <Math tex="\mathbf{a}" /> onto <Math tex="\mathbf{b}" />, the shadow <Math tex="\mathbf{a}" /> would cast if light
+    shone straight down onto <Math tex="\mathbf{b}" />. Its length is
+  </p>
+  <Math block tex="\text{shadow} = \lVert \mathbf{a} \rVert \cos\theta = \frac{\mathbf{a}\cdot\mathbf{b}}{\lVert \mathbf{b} \rVert}" />
+  <p>
+    If <Math tex="\mathbf{b}" /> is a unit vector, the shadow is simply <Math tex="\mathbf{a} \cdot \mathbf{b}" />: the
+    dot product with a unit vector measures <em>how much of <Math tex="\mathbf{a}" /> lies along that direction</em>.
+    This is what a neuron does. Its weight vector <Math tex="\mathbf{w}" /> is a direction in input space, and
+    <Math tex="\mathbf{w} \cdot \mathbf{x}" /> asks how far the input <Math tex="\mathbf{x}" /> extends along that
+    direction. Training moves <Math tex="\mathbf{w}" /> until the direction it points in is the one that matters for
+    the task.
+  </p>
+  <p>
+    One fact to file away: a dot product can never exceed the product of the two lengths,
+    <Math tex="|\mathbf{a}\cdot\mathbf{b}| \le \lVert\mathbf{a}\rVert\,\lVert\mathbf{b}\rVert" />, because
+    <Math tex="|\cos\theta| \le 1" />. It is called the Cauchy–Schwarz inequality, and its only job in these notes is
+    to guarantee that cosine similarity always lies between −1 and 1.
+  </p>
+  <Callout kind="say">
+    <p>
+      “The norm is the square root of a vector’s dot product with itself. Dividing by the norm gives a unit vector,
+      and the dot product with a unit vector is the length of the projection onto that direction. A neuron’s weight
+      vector defines a direction; its pre-activation measures how far the input projects along it.”
+    </p>
+  </Callout>
+
+  <h2 id="everywhere">Why the dot product is everywhere in ML</h2>
+  <Callout kind="plain">
+    <p>
+      Almost every model answers the same question over and over: “how well does this input match this pattern?”.
+      Store the pattern as a vector, store the input as a vector, and the dot product is the match score. Train the
+      pattern vectors, and you have a model. Compare two inputs instead, and you have a similarity search. Compare
+      every word in a sentence with every other word, and you have attention.
+    </p>
+  </Callout>
+  <p>Here is the same operation wearing five different names. In each row the thing being computed is one dot product.</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Where</th><th>The dot product</th><th>What it means</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Linear regression (week 1)</td><td><Math tex="\hat{y} = \mathbf{w}\cdot\mathbf{x} + b" /></td><td>The prediction is a weighted sum of the features.</td></tr>
+        <tr><td>Logistic regression (week 3)</td><td><Math tex="\sigma(\mathbf{w}\cdot\mathbf{x} + b)" /></td><td>Same score, squashed into a probability.</td></tr>
+        <tr><td>A neuron (week 5)</td><td><Math tex="f(\mathbf{w}\cdot\mathbf{x} + b)" /></td><td>Same score, passed through an activation.</td></tr>
+        <tr><td>Embedding similarity (weeks 1, 11)</td><td><Math tex="\mathbf{e}_{\text{cat}} \cdot \mathbf{e}_{\text{dog}}" /></td><td>How alike two things are, as learned by a model.</td></tr>
+        <tr><td>Attention (week 8)</td><td><Math tex="\mathbf{q}\cdot\mathbf{k}" /></td><td>How much one token should look at another.</td></tr>
+        <tr><td>Output logits (week 8)</td><td><Math tex="\mathbf{h}\cdot\mathbf{e}_{\text{token}}" /></td><td>How well the model’s state matches each possible next token.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Why is the dot product the match score, rather than something else? Because it has the geometric meaning you just
+    saw (big when aligned), because it is cheap (one multiply and one add per component, which GPUs do by the
+    trillion), and because it is <em>linear</em>: doubling a component of <Math tex="\mathbf{w}" /> exactly doubles its
+    contribution. Linearity is what makes the gradient in week 2 easy: the derivative of
+    <Math tex="\mathbf{w}\cdot\mathbf{x}" /> with respect to <Math tex="w_i" /> is just <Math tex="x_i" />. Hold onto
+    that sentence; it is the reason training a linear model is simple.
+  </p>
+  <Callout kind="say">
+    <p>
+      “Linear models, neurons, attention scores and similarity search all compute a dot product between a learned
+      vector and an input vector. It is the natural match score: it measures alignment, it is linear so its gradients
+      are trivial, and it maps directly onto matrix-multiply hardware.”
+    </p>
+  </Callout>
+
+  <h2 id="embeddings">Vectors that mean something: embeddings</h2>
+  <Callout kind="plain">
+    <p>
+      Suppose you had to describe words with numbers. You might give each word a score for “is an animal”, a score for
+      “is a vehicle”, a score for “is small”, and so on. “Cat” would score high on animal and small; “truck” high on
+      vehicle and low on small. Each word becomes a list of scores, a vector, and words with similar meanings end up
+      with similar lists. A model does this automatically, with hundreds of scores whose meanings nobody chose, and
+      the lists are called embeddings. The dot product between two of them is a similarity score.
+    </p>
+  </Callout>
+  <Figure n={5} caption="Toy word vectors in two dimensions. Animal words cluster, vehicle words cluster, and the angle between cat and car is large, so their dot product is small.">
+    <svg viewBox="0 0 720 300" role="img" aria-label="Five word vectors drawn as arrows: cat, dog and kitten point one way, car and truck another">
+      <g class="sketch">
+        <path class="stroke-soft" d={axes(words)}></path>
+        {wordVecs.map((w) => (
+          <path class={`stroke ${w.w === 'cat' || w.w === 'car' ? 'ink-red' : ''}`} d={arrow(words, [0, 0], w.v)} stroke-width={w.w === 'cat' || w.w === 'car' ? 3 : 2} marker-end="url(#arrow)" />
+        ))}
+        <path class="stroke-soft" d={`M${sx(words, 0.28)} ${sy(words, 0.093)} A ${0.3 * words.w / 1.1} ${0.3 * words.h / 1.1} 0 0 0 ${sx(words, 0.065)} ${sy(words, 0.29)}`} stroke-dasharray="4 4"></path>
+      </g>
+      {wordVecs.map((w) => (
+        <text class={`small ${w.w === 'cat' || w.w === 'car' ? 'label-red' : ''}`} x={sx(words, w.v[0]) + 8} y={sy(words, w.v[1]) + 4}>
+          {w.w}
+        </text>
+      ))}
+      <text class="small" x={sx(words, 0.22)} y={sy(words, 0.2)}>θ ≈ 59°</text>
+      <text class="small" x={sx(words, 1.1) + 6} y={sy(words, 0) + 5}>“vehicle-ness”</text>
+      <text class="small" x={sx(words, 0)} y={words.y - 10}>“animal-ness”</text>
+      <text class="small" x="540" y="200">cat·dog = 0.855</text>
+      <text class="small" x="540" y="226">cat·car = 0.45</text>
+      <text class="small" x="540" y="252">cat·kitten = 0.915</text>
+    </svg>
+  </Figure>
+  <p>
+    An <span class="term">embedding</span> is a vector that a model has learned to represent something: a word, a
+    sentence, an image, a user. The defining property is that <em>similar things get vectors that point in similar
+    directions</em>, so that the dot product (or cosine) between embeddings behaves like a similarity score. In Fig. 5,
+    cat and kitten are nearly parallel; cat and car are far apart. With real embeddings the dimension is 384, 768 or
+    more, and the axes have no human names, but the arithmetic is identical.
+  </p>
+  <p>
+    The famous demonstration is that vector arithmetic on word embeddings captures relationships: with the right
+    embeddings, <Math tex="\mathbf{e}_{\text{king}} - \mathbf{e}_{\text{man}} + \mathbf{e}_{\text{woman}}" /> lands
+    close to <Math tex="\mathbf{e}_{\text{queen}}" />. That is vector subtraction and addition from Fig. 2 doing
+    something that looks like reasoning. It works approximately, not exactly, and only for some relationships, but it
+    is the standard illustration that directions in embedding space can carry meaning.
+  </p>
+  <p>
+    This is also the entire basis of the retrieval systems in weeks 11 and 12: embed every document, embed the
+    question, and return the documents whose vectors have the largest dot product with the question’s vector. A
+    vector database is a system for doing that dot product against millions of vectors quickly.
+  </p>
+  <Source
+    kind="read"
+    href="https://jalammar.github.io/illustrated-word2vec/"
+    title="Jay Alammar: The Illustrated Word2vec"
+    meta="Read the first half, up to and including the personality-score analogy and the king − man + woman example. It is this section with better pictures. The training details can wait until week 7."
+  />
+  <Source
+    kind="try"
+    href="https://projector.tensorflow.org/"
+    title="TensorFlow Embedding Projector"
+    meta="Real word embeddings, squashed to 3-D so you can look at them. Search for a word and see its nearest neighbours by cosine. Five minutes makes the idea permanent."
+  />
+  <Callout kind="say">
+    <p>
+      “An embedding is a learned dense vector where geometric closeness reflects semantic similarity. Similarity is
+      measured with the dot product or cosine; retrieval systems embed the query and return the stored vectors with
+      the highest scores.”
+    </p>
+  </Callout>
+
+  <h2 id="many">Many dot products at once</h2>
+  <Callout kind="plain">
+    <p>
+      A layer has many neurons, each with its own weight vector, all reading the same input. That is many dot products
+      with the same <Math tex="\mathbf{x}" />. Stack the weight vectors as rows of a table and the whole layer becomes
+      one operation: table times vector. The next note is about those tables, but the idea is already here, so see it
+      once now.
+    </p>
+  </Callout>
+  <p>Two neurons on the walk inputs, written as two dot products and then as one matrix-vector product:</p>
+  <Math block tex="\mathbf{w}_1 \cdot \mathbf{x} = (3, -2, -4)\cdot(1, 0, 1) = -1 \qquad \mathbf{w}_2 \cdot \mathbf{x} = (1, -1, 0)\cdot(1, 0, 1) = 1" />
+  <Math block tex={String.raw`\begin{pmatrix} 3 & -2 & -4 \\ 1 & -1 & 0 \end{pmatrix} \begin{pmatrix} 1 \\ 0 \\ 1 \end{pmatrix} = \begin{pmatrix} -1 \\ 1 \end{pmatrix}`} />
+  <p>
+    Each row of the matrix dotted with the column gives one entry of the result. That is <em>all</em> a matrix-vector
+    product is: a stack of dot products. If you understand this note, the next one is bookkeeping about which rows
+    pair with which columns and what shape comes out.
+  </p>
+  <CodeBlock code={matrixPreviewCode} />
+
+  <h2 id="code">Code</h2>
+  <p>Type these out. Each one is a sentence from above turned into NumPy.</p>
+  <h3>Vectors, shapes, addition, scaling, and the walk neuron</h3>
+  <CodeBlock code={basicsCode} />
+  <h3>The dot product three ways, the angle, and the projection</h3>
+  <CodeBlock code={dotCode} />
+  <h3>Toy embeddings and nearest-neighbour search</h3>
+  <CodeBlock code={embedCode} />
+  <Source
+    kind="read"
+    href="https://numpy.org/doc/stable/reference/generated/numpy.dot.html"
+    title="NumPy documentation: numpy.dot"
+    meta="Read the first three bullet points: what dot does for two 1-D arrays, for 2-D arrays, and when it broadcasts. The @ operator is the modern spelling of the same thing for 1-D and 2-D inputs."
+  />
+
+  <h2 id="llm">Where this lives in an LLM</h2>
+  <ul>
+    <li>
+      <strong>Token embeddings.</strong> Every token in GPT-2’s vocabulary has a 768-dimensional vector in a lookup
+      table. Feeding text to the model starts by replacing each token ID with its vector. A sentence becomes a stack
+      of vectors, one per token.
+    </li>
+    <li>
+      <strong>Attention scores.</strong> For each pair of tokens the model computes the dot product of one token’s
+      <em>query</em> vector with the other’s <em>key</em> vector. A large value means “pay attention to this one”.
+      This is Fig. 3 applied to every pair of positions in the sentence; week 8 adds the scaling and the softmax.
+    </li>
+    <li>
+      <strong>Output logits.</strong> At the end, the model’s hidden vector for a position is dotted with every token’s
+      embedding vector (GPT-2 reuses the input table for this, called weight tying). The 50,257 resulting numbers are
+      the logits from the previous note, and the biggest dot product is the model’s best guess for the next token.
+    </li>
+    <li>
+      <strong>Retrieval.</strong> A RAG system embeds documents and queries with a separate embedding model and ranks
+      documents by dot product or cosine similarity with the query. That ranking is the “R” in RAG.
+    </li>
+    <li>
+      <strong>LoRA.</strong> The low-rank update in LoRA is built from vectors and their products; the eigenvector note
+      in week 4 connects the pieces.
+    </li>
+  </ul>
+
+  <h2 id="interview">The full interview answer</h2>
+  <p>
+    The question usually arrives as “what does the dot product tell you?” or “why is similarity a dot product?”. Here
+    is a complete answer in about seventy seconds.
+  </p>
+  <Callout kind="interview">
+    <p>
+      “The dot product of two equal-length vectors is the sum of their element-wise products. Algebraically it is a
+      weighted sum, which is why a linear model’s prediction and a neuron’s pre-activation are both
+      <Math tex="\mathbf{w}\cdot\mathbf{x} + b" />. Geometrically it equals the product of the two norms times the
+      cosine of the angle between the vectors, so it measures alignment: positive for vectors pointing the same way,
+      zero for orthogonal ones, negative for opposed ones. Equivalently it is the length of one vector’s projection
+      onto the other, scaled by the other’s length.
+    </p>
+    <p>
+      That is why it is used as a similarity score between embeddings and as the attention score between a query and
+      a key: a large dot product means the two vectors agree in direction. When vector lengths vary and only direction
+      matters, we divide the lengths out and use cosine similarity, which lies between −1 and 1. And because the dot
+      product is linear in each argument, its gradients are simple, and a whole layer of dot products is one
+      matrix-vector multiply, which is what GPUs are built for.”
+    </p>
+  </Callout>
+  <p><strong>If they push further, be ready for:</strong></p>
+  <ul>
+    <li>“Dot product or cosine for embeddings?” Cosine if lengths are not meaningful or not normalized; dot product if the embedding model was trained for it or vectors are already unit length (then they are the same).</li>
+    <li>“What is the derivative of <Math tex="\mathbf{w}\cdot\mathbf{x}" /> with respect to <Math tex="\mathbf{w}" />?” <Math tex="\mathbf{x}" />. Each weight’s gradient is the input it multiplies.</li>
+    <li>“Why do we scale attention scores by <Math tex="\sqrt{d}" />?” Dot products of long random vectors grow with the dimension; dividing keeps them in a range where softmax is not saturated. Week 8 works the numbers.</li>
+    <li>“Can two different vectors have the same dot product with a third?” Yes, infinitely many: all vectors with the same projection onto it. The dot product throws away everything perpendicular to the other vector.</li>
+  </ul>
+
+  <h2 id="questions">Practice questions</h2>
+  <p>Answer each one out loud before opening it.</p>
+  <QA q="What is a vector, in one sentence each for a mathematician and for a programmer?">
+    <p>
+      Mathematician: an element of <Math tex="\mathbb{R}^n" />, a point or arrow in <Math tex="n" />-dimensional
+      space. Programmer: a one-dimensional array of <Math tex="n" /> numbers with shape <code>(n,)</code>. Same object.
+    </p>
+  </QA>
+  <QA q="Is the dot product of two vectors a vector or a number?">
+    <p>A number (scalar). The element-wise product <Math tex="a_i b_i" /> is a vector; summing it gives the dot product.</p>
+  </QA>
+  <QA q="What does a dot product of zero mean?">
+    <p>
+      The vectors are orthogonal: at 90° to each other, with no component in common. Neither tells you anything about
+      the other’s direction.
+    </p>
+  </QA>
+  <QA q="Why is a neuron’s pre-activation called a weighted sum, and why is that a dot product?">
+    <p>
+      Each input is multiplied by its own weight and the products are summed:
+      <Math tex="\sum_i w_i x_i" />. That is the definition of <Math tex="\mathbf{w}\cdot\mathbf{x}" />. The bias is
+      added afterwards.
+    </p>
+  </QA>
+  <QA q="Two embeddings have a large dot product. Name two different reasons that could be true.">
+    <p>
+      They point in nearly the same direction (high cosine), or one of them is simply long (large norm). Cosine
+      similarity removes the second cause.
+    </p>
+  </QA>
+  <QA q="How do you get a vector’s length from the dot product?">
+    <p>
+      <Math tex="\lVert\mathbf{a}\rVert = \sqrt{\mathbf{a}\cdot\mathbf{a}}" />. For <Math tex="(3, 4)" />:
+      <Math tex="\sqrt{9 + 16} = 5" />.
+    </p>
+  </QA>
+  <QA q="What is a unit vector and how do you make one?">
+    <p>
+      A vector of length 1. Divide any non-zero vector by its norm. <Math tex="(3, 4)/5 = (0.6, 0.8)" />. It keeps
+      the direction and discards the length.
+    </p>
+  </QA>
+  <QA q="What does the dot product with a unit vector measure?">
+    <p>
+      The length of the projection onto that direction: how much of the vector lies along it. For a general vector
+      <Math tex="\mathbf{b}" /> the projection length is <Math tex="(\mathbf{a}\cdot\mathbf{b})/\lVert\mathbf{b}\rVert" />.
+    </p>
+  </QA>
+  <QA q="Why can cosine similarity never be bigger than 1?">
+    <p>
+      Cosine similarity is <Math tex="\cos\theta" />, and the Cauchy–Schwarz inequality says
+      <Math tex="|\mathbf{a}\cdot\mathbf{b}| \le \lVert\mathbf{a}\rVert\lVert\mathbf{b}\rVert" />, so the ratio is
+      between −1 and 1.
+    </p>
+  </QA>
+  <QA q="What is a linear combination, and where does one appear in a neural network?">
+    <p>
+      A sum of vectors each scaled by a number: <Math tex="c_1\mathbf{u} + c_2\mathbf{v}" />. A linear layer’s output
+      is a linear combination of its input components (weights are the coefficients), and attention’s output is a
+      linear combination of value vectors (attention weights are the coefficients).
+    </p>
+  </QA>
+  <QA q="What does a matrix-vector product have to do with dot products?">
+    <p>
+      Each entry of the result is the dot product of one row of the matrix with the vector. A matrix-vector product
+      is a stack of dot products done at once, one per row.
+    </p>
+  </QA>
+  <QA q="In NumPy, what is the difference between w * x and w @ x?">
+    <p>
+      <code>w * x</code> is element-wise: a vector of products. <code>w @ x</code> (or <code>np.dot</code>) sums
+      those products: the dot product, a scalar. <code>np.sum(w * x)</code> equals <code>w @ x</code>.
+    </p>
+  </QA>
+
+  <h2 id="practice">Practice problems</h2>
+  <p>Paper first, then check. Solutions are hidden under each problem.</p>
+  <h3>By hand</h3>
+  <QA q="1. Let u = (2, −1, 3) and v = (0, 4, −2). Compute u + v, 3u, u − v and 2u + 0.5v.">
+    <p>
+      <Math tex="(2, 3, 1)" />; <Math tex="(6, -3, 9)" />; <Math tex="(2, -5, 5)" />; <Math tex="(4, 0, 5)" />.
+    </p>
+  </QA>
+  <QA q="2. Compute the dot products: (1, 2)·(3, 4); (1, 2, 3)·(4, 5, 6); (2, −1, 3)·(0, 4, −2); (1, 1, 1, 1)·(5, −2, 7, 0).">
+    <p>
+      <Math tex="3 + 8 = 11" />; <Math tex="4 + 10 + 18 = 32" />; <Math tex="0 - 4 - 6 = -10" />;
+      <Math tex="5 - 2 + 7 + 0 = 10" /> (the all-ones vector sums the other).
+    </p>
+  </QA>
+  <QA q="3. For each pair, say without computing the angle whether it is acute, right or obtuse: (1, 2) and (2, 1); (1, 2) and (−2, 1); (1, 2) and (−1, −3).">
+    <p>
+      Dot products 4, 0, −7. Acute (positive), right (zero), obtuse (negative).
+    </p>
+  </QA>
+  <QA q="4. Find x so that (1, 2, x) is orthogonal to (3, −1, 2).">
+    <p>
+      Set the dot product to zero: <Math tex="3 - 2 + 2x = 0" />, so <Math tex="x = -0.5" />.
+    </p>
+  </QA>
+  <QA q="5. Compute the lengths of (3, 4), (1, 1, 1, 1), (5, 12) and (0.6, 0.8). Which is a unit vector?">
+    <p>
+      5; 2; 13; 1. The last one is a unit vector (it is <Math tex="(3, 4)/5" />).
+    </p>
+  </QA>
+  <QA q="6. Normalize (2, −2, 1). Check the result has length 1.">
+    <p>
+      Length <Math tex="\sqrt{4 + 4 + 1} = 3" />, so the unit vector is <Math tex="(2/3, -2/3, 1/3)" />. Check:
+      <Math tex="4/9 + 4/9 + 1/9 = 1" />.
+    </p>
+  </QA>
+  <QA q="7. Find the cosine of the angle between (1, 0) and (1, 1), and between (1, 2, 2) and (2, 1, −2).">
+    <p>
+      First: dot 1, lengths 1 and <Math tex="\sqrt{2}" />, so <Math tex="\cos\theta = 1/\sqrt{2} = 0.707" /> (45°).
+      Second: dot <Math tex="2 + 2 - 4 = 0" />, so <Math tex="\cos\theta = 0" /> (90°), orthogonal.
+    </p>
+  </QA>
+  <QA q="8. What is the projection length of a = (6, 2) onto b = (3, 4)? And the projection of b onto a?">
+    <p>
+      <Math tex="\mathbf{a}\cdot\mathbf{b} = 18 + 8 = 26" />. Onto <Math tex="\mathbf{b}" />:
+      <Math tex="26 / \lVert\mathbf{b}\rVert = 26/5 = 5.2" />. Onto <Math tex="\mathbf{a}" />:
+      <Math tex="26 / \lVert\mathbf{a}\rVert = 26/\sqrt{40} = 4.11" />. Projection is not symmetric; the dot product is.
+    </p>
+  </QA>
+  <QA q="9. The walk neuron has weights (3, −2, −4) and bias −1. Write its pre-activation as a dot product and evaluate it for the days (1, 1, 0), (0, 0, 1) and (1, 0, 0).">
+    <p>
+      <Math tex="z = \mathbf{w}\cdot\mathbf{x} + b" />. Days: <Math tex="3 - 2 + 0 - 1 = 0" />;
+      <Math tex="-4 - 1 = -5" />; <Math tex="3 - 1 = 2" />. The first day sits exactly on the decision boundary.
+    </p>
+  </QA>
+  <QA q="10. Toy embeddings: cat = (0.9, 0.8, 0.1), dog = (0.8, 0.9, 0.2), car = (0.1, 0.2, 0.9), bus = (0.2, 0.1, 0.8). Which pair is most similar by dot product? Compute all six.">
+    <p>
+      cat·dog 1.46, cat·car 0.34, cat·bus 0.34, dog·car 0.44, dog·bus 0.41, car·bus 0.76. Most similar: cat and
+      dog. Next: car and bus. The animals and the vehicles form two clusters.
+    </p>
+  </QA>
+  <QA q="11. Show algebraically that (a + b)·(a + b) = ‖a‖² + 2 a·b + ‖b‖². What does this say about the length of a sum when a and b are orthogonal?">
+    <p>
+      Expand using linearity: <Math tex="\mathbf{a}\cdot\mathbf{a} + \mathbf{a}\cdot\mathbf{b} + \mathbf{b}\cdot\mathbf{a} + \mathbf{b}\cdot\mathbf{b}" />,
+      and <Math tex="\mathbf{a}\cdot\mathbf{b} = \mathbf{b}\cdot\mathbf{a}" />. If they are orthogonal the middle term
+      vanishes and <Math tex="\lVert\mathbf{a}+\mathbf{b}\rVert^2 = \lVert\mathbf{a}\rVert^2 + \lVert\mathbf{b}\rVert^2" />:
+      Pythagoras, in any dimension.
+    </p>
+  </QA>
+  <QA q="12. Write the mean of (4, 8, 6) as a dot product.">
+    <p>
+      <Math tex="(1/3, 1/3, 1/3)\cdot(4, 8, 6) = 18/3 = 6" />. Any weighted average is a dot product with a weight
+      vector whose entries sum to 1.
+    </p>
+  </QA>
+  <h3>Code</h3>
+  <QA q="13. Implement dot, norm, normalize and cosine_similarity from scratch with plain loops. Test them against NumPy on 1000 random pairs of 50-dimensional vectors.">
+    <CodeBlock
+      code={`import numpy as np
+
+def dot(a, b):
+    assert len(a) == len(b)
+    return sum(x * y for x, y in zip(a, b))
+
+def norm(a):
+    return dot(a, a) ** 0.5
+
+def normalize(a):
+    n = norm(a)
+    return [x / n for x in a]
+
+def cosine_similarity(a, b):
+    return dot(a, b) / (norm(a) * norm(b))
+
+rng = np.random.default_rng(0)
+for _ in range(1000):
+    a, b = rng.normal(size=50), rng.normal(size=50)
+    assert np.isclose(dot(a, b), a @ b)
+    assert np.isclose(norm(a), np.linalg.norm(a))
+    assert np.isclose(np.linalg.norm(normalize(a)), 1.0)
+    assert np.isclose(cosine_similarity(a, b), (a @ b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+    assert -1.0 <= cosine_similarity(a, b) <= 1.0
+print("all good")`}
+    />
+  </QA>
+  <QA q="14. Generate 10,000 pairs of random vectors in 2, 10, 100 and 1000 dimensions (standard normal entries). For each dimension, print the mean and standard deviation of the dot product. What happens as the dimension grows, and why might attention divide by √d?">
+    <CodeBlock
+      code={`import numpy as np
+
+rng = np.random.default_rng(0)
+for d in [2, 10, 100, 1000]:
+    a = rng.normal(size=(10_000, d))
+    b = rng.normal(size=(10_000, d))
+    dots = np.sum(a * b, axis=1)          # 10,000 dot products at once
+    print(f"d={d:>5}  mean={dots.mean():6.2f}  std={dots.std():6.2f}  std/sqrt(d)={dots.std()/np.sqrt(d):4.2f}")
+# d=    2  mean=  0.00  std=  1.41  std/sqrt(d)=1.00
+# d=   10  mean=  0.00  std=  3.16  std/sqrt(d)=1.00
+# d=  100  mean=  0.00  std= 10.00  std/sqrt(d)=1.00
+# d= 1000  mean=  0.00  std= 31.6   std/sqrt(d)=1.00
+# The spread of a dot product grows like the square root of the dimension.
+# Dividing attention scores by sqrt(d) puts them back on a fixed scale before the softmax.`}
+    />
+  </QA>
+  <QA q="15. Build a tiny nearest-neighbour search: 1,000 random 'document' vectors of dimension 64 and one query. Return the top 5 by dot product and by cosine similarity. Make one document vector 10× longer and see which ranking changes.">
+    <CodeBlock
+      code={`import numpy as np
+
+rng = np.random.default_rng(1)
+docs = rng.normal(size=(1000, 64))
+query = rng.normal(size=64)
+
+def top5(scores):
+    return np.argsort(-scores)[:5]        # indices of the five largest scores
+
+dot_scores = docs @ query                                   # 1000 dot products in one line
+cos_scores = dot_scores / (np.linalg.norm(docs, axis=1) * np.linalg.norm(query))
+print("dot   ", top5(dot_scores))
+print("cosine", top5(cos_scores))
+
+docs[7] *= 10                             # make one document's vector ten times longer
+dot_scores = docs @ query
+cos_scores = dot_scores / (np.linalg.norm(docs, axis=1) * np.linalg.norm(query))
+print("dot after   ", top5(dot_scores))   # document 7 very likely jumps into the top 5
+print("cosine after", top5(cos_scores))   # unchanged: cosine ignores length`}
+    />
+  </QA>
+  <QA q="16. Draw Fig. 3 yourself with matplotlib: for a fixed a = (2, 1), sweep b around the circle and plot a·b against the angle. Mark where it is zero.">
+    <CodeBlock
+      code={`import numpy as np
+import matplotlib.pyplot as plt
+
+a = np.array([2.0, 1.0])
+angles = np.linspace(0, 2 * np.pi, 361)
+b = np.stack([np.cos(angles), np.sin(angles)], axis=1)     # unit vectors around the circle
+dots = b @ a
+
+plt.plot(np.degrees(angles), dots)
+plt.axhline(0, color="gray", linewidth=0.8)
+zero_at = np.degrees(angles[np.isclose(dots, 0, atol=0.02)])
+plt.scatter(zero_at, np.zeros_like(zero_at), color="red")
+plt.xlabel("angle of b (degrees)")
+plt.ylabel("a · b")
+plt.title("dot product with a unit vector = ‖a‖ cos θ, a cosine wave of height √5")
+plt.show()`}
+    />
+  </QA>
+
+  <h2 id="mistakes">Common mistakes</h2>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Expecting the dot product to be a vector.</strong> It is one number. The vector of pairwise products is
+      the element-wise (Hadamard) product, written <Math tex="\mathbf{a} \odot \mathbf{b}" /> or <code>a * b</code>.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Reading a negative dot product as “small similarity”.</strong> It means <em>opposed</em>: the vectors
+      point away from each other. Zero is “unrelated”; negative is “anti-related”.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Treating a big dot product as high similarity without checking lengths.</strong> A long vector has big
+      dot products with everything. Normalize or use cosine when lengths are not meaningful.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Confusing shape <code>(3,)</code> with <code>(3, 1)</code> or <code>(1, 3)</code>.</strong> The first is
+      a vector; the others are matrices with one column or one row. <code>a @ b</code> works for two <code>(3,)</code>
+      arrays and gives a scalar; mix in a <code>(3, 1)</code> and you get a <code>(1, 1)</code> matrix or an error.
+      The next note is largely about this.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Thinking vectors live only in 2-D or 3-D.</strong> Those are for drawing. Every formula here holds in
+      768 dimensions; what changes is only that you can no longer picture the arrow, so you lean on the algebra.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Projection is not symmetric.</strong> The shadow of <Math tex="\mathbf{a}" /> on <Math tex="\mathbf{b}" />
+      is <Math tex="\mathbf{a}\cdot\mathbf{b}/\lVert\mathbf{b}\rVert" />; the shadow of <Math tex="\mathbf{b}" /> on
+      <Math tex="\mathbf{a}" /> divides by <Math tex="\lVert\mathbf{a}\rVert" /> instead. The dot product itself is
+      symmetric.
+    </p>
+  </Callout>
+
+  <h2 id="sources">All sources</h2>
+  <p>Everything linked above, in the order to use it, plus one reference.</p>
+  <ol>
+    <li>
+      <a href="https://www.youtube.com/watch?v=fNk_zzaMoSs" target="_blank" rel="noopener noreferrer">3Blue1Brown, “Vectors | Chapter 1, Essence of linear algebra”</a>
+      (video, 10 min). Start here.
+    </li>
+    <li>
+      <a href="https://www.youtube.com/watch?v=k7RM-ot2NWY" target="_blank" rel="noopener noreferrer">3Blue1Brown, “Linear combinations, span, and basis vectors | Chapter 2”</a>
+      (video, 10 min).
+    </li>
+    <li>
+      <a href="https://www.youtube.com/watch?v=LyGKycYT2v0" target="_blank" rel="noopener noreferrer">3Blue1Brown, “Dot products and duality | Chapter 9”</a>
+      (video, 14 min; first half).
+    </li>
+    <li>
+      <a href="https://www.khanacademy.org/math/precalculus/x9e81a4f98389efdf:vectors" target="_blank" rel="noopener noreferrer">Khan Academy, Vectors (Precalculus)</a>
+      and <a href="https://www.khanacademy.org/math/linear-algebra/vectors-and-spaces" target="_blank" rel="noopener noreferrer">Vectors and spaces (Linear algebra)</a>
+      (exercises). The graded problem sets.
+    </li>
+    <li>
+      <a href="https://betterexplained.com/articles/vector-calculus-understanding-the-dot-product/" target="_blank" rel="noopener noreferrer">Better Explained, “Understanding the dot product”</a>
+      (article).
+    </li>
+    <li>
+      <a href="https://jalammar.github.io/illustrated-word2vec/" target="_blank" rel="noopener noreferrer">Jay Alammar, “The Illustrated Word2vec”</a>
+      (article, first half) and the
+      <a href="https://projector.tensorflow.org/" target="_blank" rel="noopener noreferrer">TensorFlow Embedding Projector</a> (interactive).
+    </li>
+    <li>
+      <a href="https://numpy.org/doc/stable/reference/generated/numpy.dot.html" target="_blank" rel="noopener noreferrer">NumPy, numpy.dot</a>
+      (documentation).
+    </li>
+    <li>
+      <a href="https://mml-book.github.io/" target="_blank" rel="noopener noreferrer">Deisenroth, Faisal and Ong, <em>Mathematics for Machine Learning</em></a>,
+      sections 2.1–2.2 and 3.1–3.3 (free PDF). The formal version, for after the note has settled.
+    </li>
+  </ol>
+
+  <h2 id="revision">One-minute revision</h2>
+  <Callout kind="revision">
+    <ul>
+      <li>Vector: ordered list of <Math tex="n" /> numbers = arrow in <Math tex="n" />-D. Shape <code>(n,)</code>. Order matters.</li>
+      <li>Add component-wise (tip to tail); scale by a number (stretch, flip if negative). Linear combination: <Math tex="c_1\mathbf{u} + c_2\mathbf{v}" />.</li>
+      <li>Dot product: <Math tex="\sum_i a_i b_i" />. A scalar. Symmetric. Needs equal dimensions.</li>
+      <li>Meaning: <Math tex="\mathbf{a}\cdot\mathbf{b} = \lVert\mathbf{a}\rVert\lVert\mathbf{b}\rVert\cos\theta" />. Positive = aligned, 0 = orthogonal, negative = opposed.</li>
+      <li>Length: <Math tex="\lVert\mathbf{a}\rVert = \sqrt{\mathbf{a}\cdot\mathbf{a}}" />. Unit vector = divide by length. Projection of <Math tex="\mathbf{a}" /> on <Math tex="\mathbf{b}" /> = <Math tex="\mathbf{a}\cdot\mathbf{b}/\lVert\mathbf{b}\rVert" />.</li>
+      <li>Big dot product: aligned, <em>or</em> one vector is long. Cosine similarity removes length.</li>
+      <li>Neuron, linear regression, attention score, embedding similarity, output logit: all <Math tex="\mathbf{w}\cdot\mathbf{x}" />.</li>
+      <li>Derivative of <Math tex="\mathbf{w}\cdot\mathbf{x}" /> with respect to <Math tex="w_i" /> is <Math tex="x_i" />.</li>
+      <li>Matrix-vector product = one dot product per row.</li>
+      <li>NumPy: <code>w * x</code> is element-wise, <code>w @ x</code> is the dot product.</li>
+    </ul>
+  </Callout>
+</Note>
