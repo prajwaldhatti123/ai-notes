@@ -4,10 +4,37 @@ import Callout from '../components/Callout.astro';
 
 const projects = [
   {
+    id: 'ml-from-scratch',
+    number: 0,
+    title: 'An ML library from scratch, a tabular case study and a NumPy neural network',
+    weeks: 'Weeks 1–6',
+    pitch: 'Write the classical algorithms yourself, prove each one against scikit-learn, use them on a real messy dataset, then build and train a neural network with nothing but NumPy.',
+    proves: 'You understand what the libraries do, not only how to call them, and you can run an honest experiment on real data.',
+    compute: 'CPU only. Every dataset fits in memory and every model trains in minutes on a laptop.',
+    milestones: [
+      'A Python package with tests from day one: linear regression by the normal equation, then by gradient descent with a pluggable loss and learning-rate schedule.',
+      'Logistic regression, a metrics module (accuracy, precision, recall, F1, ROC-AUC) and k-fold cross-validation, each tested against scikit-learn on the same data.',
+      'L1 and L2 regularization, kNN, k-means and PCA (via SVD), tested the same way.',
+      'A tabular case study on a Kaggle dataset: clean split, baseline, feature scaling and encoding, cross-validated comparison of your models against scikit-learn’s trees and gradient boosting, and a results table.',
+      'A multi-layer perceptron in NumPy with manual backpropagation and a numerical gradient check, trained on MNIST digits to above 95% test accuracy.',
+      'The same network in PyTorch; a README comparing SGD, momentum, Adam and AdamW, and the effect of dropout and weight decay.',
+    ],
+    stretch: [
+      'Implement a decision tree and a small random forest from scratch and compare with scikit-learn.',
+      'Add BatchNorm and LayerNorm to the NumPy network, with backward passes.',
+      'Make the NumPy network train on a free GPU through CuPy with a one-line change.',
+    ],
+    questions: [
+      'Your from-scratch logistic regression gives slightly different coefficients from scikit-learn. Why, and does it matter?',
+      'How did you choose the features and the metric for the case study?',
+      'How did you verify your backpropagation was correct?',
+    ],
+  },
+  {
     id: 'gpt-from-scratch',
     number: 1,
     title: 'GPT from scratch',
-    weeks: 'Weeks 2–4',
+    weeks: 'Weeks 7–9',
     pitch: 'Write a GPT-style language model yourself, train it, then make it faster and more modern than the textbook version.',
     proves: 'You understand the model itself, not only how to call it.',
     compute:
@@ -36,7 +63,7 @@ const projects = [
     id: 'qlora-finetune',
     number: 2,
     title: 'Fine-tune, quantize and run a model locally',
-    weeks: 'Week 5',
+    weeks: 'Week 10',
     pitch: 'Teach a small open model one real task with QLoRA, prove it improved, then shrink it so it runs on your own laptop.',
     proves: 'You can adapt a model cheaply and measure whether the adaptation worked.',
     compute:
@@ -64,7 +91,7 @@ const projects = [
     id: 'production-rag',
     number: 3,
     title: 'Production RAG with evals',
-    weeks: 'Weeks 6–7',
+    weeks: 'Weeks 11–12',
     pitch: 'A question-answering system over a large real document set, where every design choice is backed by a measured number.',
     proves: 'You can build the most common LLM product in industry and defend each decision in it.',
     compute: 'Hosted embedding and chat model APIs. The vector database runs locally in Docker. No GPU at any step.',
@@ -93,7 +120,7 @@ const projects = [
     id: 'agent-mcp',
     number: 4,
     title: 'An agent with your own MCP server, run like a production service',
-    weeks: 'Weeks 8–10',
+    weeks: 'Weeks 13–15',
     pitch: 'An agent that completes multi-step tasks with tools you wrote, plus everything needed to trust it: evals, tracing, guardrails and a cost report.',
     proves: 'You can ship an agent and show, with data, how often it succeeds, what it costs and how it fails.',
     compute: 'Hosted model APIs only.',
@@ -124,7 +151,7 @@ const projects = [
   <div class="prose">
     <p class="eyebrow">What you build</p>
     <h1>Projects</h1>
-    <p class="lede">Four projects, each harder than the tutorial version, each runnable without owning a GPU.</p>
+    <p class="lede">Five projects, each harder than the tutorial version, each runnable without owning a GPU.</p>
 
     <Callout kind="plain">
       <p>
@@ -135,7 +162,7 @@ const projects = [
     </Callout>
 
     <p>
-      Each project lives in its own GitHub repository, separate from these notes. Three rules apply to all four:
+      Each project lives in its own GitHub repository, separate from these notes. Three rules apply to all five:
     </p>
     <ol>
       <li><strong>Measure before you improve.</strong> Build the test set first, record a baseline, then change one thing at a time.</li>

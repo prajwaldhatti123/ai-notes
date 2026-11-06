@@ -1,50 +1,50 @@
 ---
 import Base from '../layouts/Base.astro';
 import Timeline from '../components/Timeline.astro';
-import { phases, totalNotes } from '../data/roadmap';
+import { tracks, totalNotes, totalWeeks } from '../data/roadmap';
 
-const ready = phases.flatMap((p) => p.notes).filter((n) => n.ready).length;
+const ready = tracks.flatMap((t) => t.notes).filter((n) => n.ready).length;
 ---
 
 <Base title="Home">
   <div class="prose">
-    <p class="eyebrow">A twelve-week path · {totalNotes} notes · 4 projects</p>
+    <p class="eyebrow">A {totalWeeks}-week path · {totalNotes} notes · 5 projects</p>
     <h1>AI Engineer Notes</h1>
     <p class="lede">
-      From “what is a neural network?” to designing LLM systems in an interview. Every idea is explained simply first,
-      then precisely, then in words you can say out loud.
+      From “what is a vector?” to designing LLM systems in an interview. Every idea is explained simply first, then
+      precisely, then in words you can say out loud, and then practised until it sticks.
     </p>
 
     <p>
-      These notes assume no AI background. Each one starts with an everyday explanation, shows the idea as a picture,
-      then gives the exact technical terms, the math and the code. It ends with a model interview answer, practice
-      questions and a revision card.
+      These notes assume no AI background and no more math than school algebra. Each one starts with an everyday
+      explanation, shows the idea as a picture, then gives the exact technical terms, the math and the code. It ends
+      with a model interview answer, practice questions and a revision card.
     </p>
     <p>
-      Start with the <a href="/roadmap/">roadmap</a> to see what to study each week, then check the
-      <a href="/projects/">projects</a> you will build alongside. {ready} of {totalNotes}
-      <a href="/notes/">notes</a> are written so far.
+      Start with the <a href="/roadmap/">roadmap</a> to see what to study each week, use the
+      <a href="/practice/">practice page</a> for the drills, and check the <a href="/projects/">projects</a> you will
+      build alongside. {ready} of {totalNotes} <a href="/notes/">notes</a> are written so far.
     </p>
 
     <Timeline />
 
-    <h2>The seven phases</h2>
+    <h2>The nine tracks</h2>
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Phase</th><th>When</th><th>Notes</th></tr>
+          <tr><th>Track</th><th>When</th><th>Notes</th></tr>
         </thead>
         <tbody>
           {
-            phases.map((phase) => (
+            tracks.map((track) => (
               <tr>
                 <td>
-                  <a href={`/notes/#${phase.id}`}>
-                    {phase.number}. {phase.title}
+                  <a href={`/notes/#${track.id}`}>
+                    {track.number}. {track.title}
                   </a>
                 </td>
-                <td>{phase.weeks}</td>
-                <td>{phase.notes.length}</td>
+                <td>{track.weeks}</td>
+                <td>{track.notes.length}</td>
               </tr>
             ))
           }

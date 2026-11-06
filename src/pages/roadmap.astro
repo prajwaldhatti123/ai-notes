@@ -1,35 +1,61 @@
 ---
 import Base from '../layouts/Base.astro';
 import Timeline from '../components/Timeline.astro';
-import PhaseNotes from '../components/PhaseNotes.astro';
+import TrackNotes from '../components/TrackNotes.astro';
 import Callout from '../components/Callout.astro';
-import { phases } from '../data/roadmap';
+import { tracks, notesForWeek, totalWeeks, noteHref } from '../data/roadmap';
+import { weeklyPractice } from '../data/practice';
+
+const weeks = Array.from({ length: totalWeeks }, (_, i) => i + 1);
+const themeOf = (week: number) => weeklyPractice.find((w) => w.week === week)?.theme ?? '';
 ---
 
 <Base title="Roadmap">
   <div class="prose">
     <p class="eyebrow">The learning path</p>
     <h1>Roadmap</h1>
-    <p class="lede">Twelve weeks, seven phases, four projects. Internals first, then building real systems on top.</p>
+    <p class="lede">
+      Sixteen weeks, nine subject tracks, five projects. Math and classical ML first and in parallel, then deep
+      learning, then everything that makes an AI engineer.
+    </p>
 
     <Callout kind="plain">
       <p>
-        An AI engineer is someone who builds products on top of language models. To do that well you need two things:
-        you must know how the engine works inside (phases 1–3), and you must know how to build a reliable car around it
-        (phases 4–6). The last phase is practice at explaining both out loud.
+        An AI engineer builds products on top of language models. To do that well you need three things. You need the
+        base: enough math and classical ML to read a formula and reason about data (tracks 1–2). You need to know how
+        the engine works inside (tracks 3–5). And you need to know how to build a reliable car around it (tracks 6–8).
+        The last track is practice at explaining all of it out loud.
+      </p>
+    </Callout>
+
+    <Callout kind="note" label="The scope rule">
+      <p>
+        Math, statistics and machine learning are each a lifetime of study. Here, every topic has to earn its place by
+        one of two tests: an AI engineer interview asks about it, or a later note needs it. Anything that passes
+        neither test is left out on purpose, and the
+        <a href="/notes/#math">math track</a> ends with a note listing what you may safely skip.
       </p>
     </Callout>
 
     <Timeline />
 
+    <h2>Why math and ML run together</h2>
+    <p>
+      Studying math alone is dry and studying ML without it is confusing. So each week pairs the two: the math note
+      gives you the tool, and the ML note of the same week uses it immediately. Vectors and dot products appear on
+      Monday, linear regression uses them on Tuesday. Derivatives arrive in week 2 and gradient descent spends them the
+      same week. By week 5 the <a href="/notes/dl/what-is-a-neural-network/">neural network note</a> reads easily,
+      because every symbol in it has already done a job.
+    </p>
+
     <h2>How to study each day</h2>
     <p>The order matters. Meeting an idea three times, in three forms, is what makes it stick.</p>
     <ol>
-      <li><strong>Watch or read the source</strong> for the topic (course lecture or book chapter listed under the phase).</li>
+      <li><strong>Watch or read the source</strong> for the topic (the lecture or chapter linked inside the note).</li>
       <li><strong>Read our note</strong> on the same topic. Redraw its main diagram on paper from memory.</li>
-      <li><strong>Type the code yourself.</strong> Do not paste. Change one thing and predict what happens before you run it.</li>
+      <li><strong>Do the practice.</strong> Hand problems on paper first, then the coding drill typed by hand. Do not paste.</li>
       <li><strong>Say the interview answer out loud</strong> without looking. If you get stuck, that is the part to reread.</li>
-      <li><strong>Answer the practice questions</strong> before opening them.</li>
+      <li><strong>Answer the practice questions</strong> at the end of the note before opening them.</li>
     </ol>
 
     <div class="table-wrap">
@@ -38,9 +64,9 @@ import { phases } from '../data/roadmap';
           <tr><th>Day</th><th>What to do</th></tr>
         </thead>
         <tbody>
-          <tr><td>Monday to Friday</td><td>One or two notes a day, following the five steps above.</td></tr>
-          <tr><td>Saturday</td><td>Project work only. Build the milestone for that week.</td></tr>
-          <tr><td>Sunday</td><td>Revision cards and practice questions for the whole week, then rest.</td></tr>
+          <tr><td>Monday to Friday</td><td>One or two notes a day with their practice drills. In weeks 1–4, alternate a math note and an ML note.</td></tr>
+          <tr><td>Saturday</td><td>Project work only. Build the milestone listed for that week on the <a href="/practice/">practice page</a>.</td></tr>
+          <tr><td>Sunday</td><td>Revision cards and practice questions for the whole week, plus a timed drill from the <a href="/practice/">practice page</a>. Then rest.</td></tr>
         </tbody>
       </table>
     </div>
@@ -52,43 +78,80 @@ import { phases } from '../data/roadmap';
       </p>
     </Callout>
 
-    <h2>The seven phases</h2>
+    <h2>Week by week</h2>
+    <p>
+      Each row is one week. The notes to read are listed by track; the full practice for the week is on the
+      <a href="/practice/">practice page</a>.
+    </p>
+    <div class="table-wrap">
+      <table class="schedule">
+        <thead>
+          <tr><th>Week</th><th>Theme</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          {
+            weeks.map((week) => (
+              <tr>
+                <td>W{week}</td>
+                <td>{themeOf(week)}</td>
+                <td>
+                  {notesForWeek(week).map(({ track, notes }) => (
+                    <p class="schedule-track">
+                      <strong>{track.short}.</strong>{' '}
+                      {notes.map((n, i) => (
+                        <>{n.ready ? <a href={noteHref(track, n)}>{n.title}</a> : <span class="pending">{n.title}</span>}{i < notes.length - 1 ? ' · ' : ''}</>
+                      ))}
+                    </p>
+                  ))}
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <h2>The nine tracks</h2>
     {
-      phases.map((phase) => (
-        <section class="phase" id={phase.id}>
+      tracks.map((track) => (
+        <section class="phase" id={track.id}>
           <div class="phase-head">
-            <span class="phase-number">{phase.number}</span>
-            <h3>{phase.title}</h3>
-            <span class="phase-weeks">{phase.weeks}</span>
+            <span class="phase-number">{track.number}</span>
+            <h3>{track.title}</h3>
+            <span class="phase-weeks">{track.weeks}</span>
           </div>
           <p>
-            <strong>Goal.</strong> {phase.goal}
+            <strong>Goal.</strong> {track.goal}
           </p>
-          {phase.project && (
+          <p>
+            <strong>Scope.</strong> {track.scope}
+          </p>
+          {track.project && (
             <p>
-              <strong>Build.</strong> <a href="/projects/">{phase.project}</a>
+              <strong>Build.</strong> <a href="/projects/">{track.project}</a>
             </p>
           )}
           <p>
             <strong>Study from.</strong>
           </p>
           <ul>
-            {phase.sources.map((s) => <li>{s}</li>)}
+            {track.sources.map((s) => <li>{s}</li>)}
           </ul>
           <p>
             <strong>Notes.</strong>
           </p>
-          <PhaseNotes phase={phase} />
+          <TrackNotes track={track} />
         </section>
       ))
     }
 
-    <h2>How you know a phase is done</h2>
+    <h2>How you know a track is done</h2>
     <ul>
-      <li>You can redraw every main diagram of the phase on a blank page.</li>
+      <li>You can redraw every main diagram of the track on a blank page.</li>
       <li>You can give each note’s interview answer in under two minutes, without notes.</li>
+      <li>You can do the week’s hand problems without looking anything up.</li>
       <li>You can answer at least four in five practice questions correctly.</li>
-      <li>The project milestone for the phase runs, and its README explains what you measured.</li>
+      <li>The project milestone for the track runs, and its README explains what you measured.</li>
     </ul>
   </div>
 </Base>

@@ -1,56 +1,67 @@
 ---
-// Twelve-week plan drawn from the roadmap data: phases on top, projects below.
+// Sixteen-week plan: Math and ML run side by side in weeks 1–4, then one track at a time.
 import Figure from './Figure.astro';
+import { totalWeeks } from '../data/roadmap';
 
-const x = (week: number) => 40 + (week - 1) * 74;
-const span = (from: number, to: number) => ({ x: x(from) + 4, width: (to - from + 1) * 74 - 8 });
+const step = 58;
+const x = (week: number) => 40 + (week - 1) * step;
+const span = (from: number, to: number) => ({ x: x(from) + 3, width: (to - from + 1) * step - 6 });
 
-const phaseBars = [
-  { from: 1, to: 1, label: '1 Basics', fill: 'fill-gold' },
-  { from: 2, to: 4, label: '2 LLM internals', fill: 'fill-green' },
-  { from: 5, to: 5, label: '3 Modern', fill: 'fill-gold' },
-  { from: 6, to: 7, label: '4 RAG', fill: 'fill-blue' },
-  { from: 8, to: 9, label: '5 Agents', fill: 'fill-green' },
-  { from: 10, to: 10, label: '6 Prod', fill: 'fill-red' },
-  { from: 11, to: 12, label: '7 Interview drill', fill: 'fill-blue' },
+const studyBars = [
+  { from: 1, to: 4, label: '1 Math', fill: 'fill-gold', row: 0 },
+  { from: 1, to: 4, label: '2 ML', fill: 'fill-gold', row: 1 },
+  { from: 5, to: 6, label: '3 DL', fill: 'fill-green', row: 0 },
+  { from: 7, to: 9, label: '4 LLM internals', fill: 'fill-green', row: 0 },
+  { from: 10, to: 10, label: '5', fill: 'fill-gold', row: 0 },
+  { from: 11, to: 12, label: '6 RAG', fill: 'fill-blue', row: 0 },
+  { from: 13, to: 14, label: '7 Agents', fill: 'fill-green', row: 0 },
+  { from: 15, to: 15, label: '8', fill: 'fill-red', row: 0 },
+  { from: 16, to: 16, label: '9', fill: 'fill-blue', row: 0 },
 ];
 
 const projectBars = [
-  { from: 2, to: 4, label: 'P1 GPT from scratch' },
-  { from: 5, to: 5, label: 'P2 LoRA' },
-  { from: 6, to: 7, label: 'P3 RAG + evals' },
-  { from: 8, to: 10, label: 'P4 Agent + MCP, production layer' },
-  { from: 11, to: 12, label: 'Polish + resume' },
+  { from: 1, to: 6, label: 'P0 ML + NN from scratch' },
+  { from: 7, to: 9, label: 'P1 GPT' },
+  { from: 10, to: 10, label: 'P2' },
+  { from: 11, to: 12, label: 'P3 RAG' },
+  { from: 13, to: 15, label: 'P4 Agent + prod' },
+  { from: 16, to: 16, label: 'Polish' },
 ];
+
+const rowY = (row: number) => 72 + row * 52;
 ---
 
-<Figure n={1} caption="The twelve weeks at a glance: what you study (top) and what you build (bottom)." wide>
-  <svg viewBox="0 0 968 230" role="img" aria-label="Twelve-week timeline of study phases and projects">
+<Figure
+  n={1}
+  caption="Sixteen weeks at a glance: what you study (top) and what you build (bottom). Math and ML share weeks 1–4. Bars 5, 8 and 9 are the modern LLM stack, evals and production, and the interview drill."
+  wide
+>
+  <svg viewBox="0 0 980 300" role="img" aria-label="Sixteen-week timeline of study tracks and projects">
     {
-      Array.from({ length: 12 }, (_, i) => (
-        <text class="small" x={x(i + 1) + 37} y="28" text-anchor="middle">
+      Array.from({ length: totalWeeks }, (_, i) => (
+        <text class="small" x={x(i + 1) + step / 2} y="28" text-anchor="middle">
           W{i + 1}
         </text>
       ))
     }
-    <text class="small label-red" x="40" y="62">study</text>
+    <text class="small label-red" x="40" y="60">study</text>
     <g class="sketch">
-      {phaseBars.map((b) => <rect class={`stroke ${b.fill}`} {...span(b.from, b.to)} y="72" height="46" rx="5" />)}
+      {studyBars.map((b) => <rect class={`stroke ${b.fill}`} {...span(b.from, b.to)} y={rowY(b.row)} height="40" rx="5" />)}
     </g>
     {
-      phaseBars.map((b) => (
-        <text x={span(b.from, b.to).x + span(b.from, b.to).width / 2} y="102" text-anchor="middle" font-size="19">
+      studyBars.map((b) => (
+        <text x={span(b.from, b.to).x + span(b.from, b.to).width / 2} y={rowY(b.row) + 26} text-anchor="middle" font-size="18">
           {b.label}
         </text>
       ))
     }
-    <text class="small label-red" x="40" y="150">build</text>
+    <text class="small label-red" x="40" y="212">build</text>
     <g class="sketch">
-      {projectBars.map((b) => <rect class="stroke fill-paper" {...span(b.from, b.to)} y="160" height="46" rx="5" stroke-dasharray="7 5" />)}
+      {projectBars.map((b) => <rect class="stroke fill-paper" {...span(b.from, b.to)} y="222" height="40" rx="5" stroke-dasharray="7 5" />)}
     </g>
     {
       projectBars.map((b) => (
-        <text x={span(b.from, b.to).x + span(b.from, b.to).width / 2} y="190" text-anchor="middle" font-size="19">
+        <text x={span(b.from, b.to).x + span(b.from, b.to).width / 2} y="248" text-anchor="middle" font-size="18">
           {b.label}
         </text>
       ))

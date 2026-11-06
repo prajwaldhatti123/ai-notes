@@ -1,15 +1,16 @@
 ---
-// Site-wide navigation: main pages, then every note grouped by phase.
-// The phase holding the current page starts open.
-import { phases, noteHref } from '../data/roadmap';
+// Site-wide navigation: main pages, then every note grouped by track.
+// The track holding the current page starts open.
+import { tracks, noteHref } from '../data/roadmap';
 
 const path = Astro.url.pathname;
 const current = (href: string) => (path === href ? 'page' : undefined);
-const activePhase = phases.find((p) => path.startsWith(`/notes/${p.id}/`))?.id ?? phases[0].id;
+const activeTrack = tracks.find((t) => path.startsWith(`/notes/${t.id}/`))?.id ?? tracks[0].id;
 const main = [
   { href: '/', label: 'Home' },
   { href: '/notes/', label: 'All notes' },
   { href: '/roadmap/', label: 'Roadmap' },
+  { href: '/practice/', label: 'Practice' },
   { href: '/projects/', label: 'Projects' },
 ];
 ---
@@ -19,17 +20,17 @@ const main = [
     {main.map((l) => <a href={l.href} aria-current={current(l.href)}>{l.label}</a>)}
   </div>
   {
-    phases.map((phase) => (
-      <details open={phase.id === activePhase}>
+    tracks.map((track) => (
+      <details open={track.id === activeTrack}>
         <summary>
-          <b>{phase.number}</b>
-          <span>{phase.title}</span>
+          <b>{track.number}</b>
+          <span>{track.title}</span>
         </summary>
         <ol>
-          {phase.notes.map((note) => (
+          {track.notes.map((note) => (
             <li>
               {note.ready ? (
-                <a href={noteHref(phase, note)} aria-current={current(noteHref(phase, note))}>
+                <a href={noteHref(track, note)} aria-current={current(noteHref(track, note))}>
                   {note.title}
                 </a>
               ) : (

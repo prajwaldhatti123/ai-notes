@@ -1,6 +1,6 @@
 # AI Engineer Notes
 
-Interview-ready notes for AI engineering: explained simply first, then precisely, then in words you can say out loud.
+Interview-ready notes for AI engineering: explained simply first, then precisely, then in words you can say out loud, then practised.
 
 Built with [Astro](https://astro.build). Output is plain static HTML.
 
@@ -8,7 +8,7 @@ Built with [Astro](https://astro.build). Output is plain static HTML.
 
 ```bash
 npm install
-npm run dev      # http://localhost:4321
+npm run dev      # http://localhost:4321  (Astro 7 runs it in the background; `npx astro dev stop` stops it)
 npm run build    # static site in dist/
 ```
 
@@ -16,9 +16,10 @@ npm run build    # static site in dist/
 
 | Path | What it holds |
 |---|---|
-| `src/data/roadmap.ts` | The learning path: phases, sources and the list of notes. Home, roadmap and note navigation are generated from it. |
-| `src/pages/notes/<phase>/<slug>.astro` | One file per note. Set `ready: true` for it in `roadmap.ts` to link it. |
-| `src/components/` | Building blocks: `Callout`, `QA`, `Figure`, `Math`, `CodeBlock`, plus the `Sidebar`. |
+| `src/data/roadmap.ts` | The learning path: subject tracks (Math, ML, DL, LLM internals, …), their sources and the list of notes with the week each belongs to. Home, roadmap, practice and note navigation are generated from it. |
+| `src/data/practice.ts` | The weekly practice plan: hand problems, coding drills, project milestone and problem-set links per week. |
+| `src/pages/notes/<track>/<slug>.astro` | One file per note. Set `ready: true` for it in `roadmap.ts` to link it. |
+| `src/components/` | Building blocks: `Callout`, `QA`, `Figure`, `Math`, `CodeBlock`, `Source`, `TrackNotes`, `Timeline`, plus the `Sidebar`. |
 | `src/styles/global.css` | The design system. All colours, fonts and spacing are tokens at the top, with a dark set under `[data-theme='dark']`. |
 
 ## Deploy

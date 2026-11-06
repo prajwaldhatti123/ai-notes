@@ -963,6 +963,44 @@ svg text.mono {
   font-weight: 600;
 }
 
+/* Two badges on one row: the week tag sits next to the status, status stays right-aligned. */
+.badge.week {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-variant-caps: normal;
+  letter-spacing: 0;
+  color: var(--ink-soft);
+}
+
+.badge.week + .badge {
+  margin-left: 0;
+}
+
+/* Practice page: "W1" is longer than a single digit. */
+.phase-number.week,
+.phase-head .phase-number:has(+ h2) {
+  font-size: 2.4rem;
+}
+
+/* Week-by-week schedule table and the "Notes this week" line on the practice page. */
+.schedule td {
+  vertical-align: top;
+}
+
+.schedule td:first-child {
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+.schedule-track {
+  margin: 0 0 0.35rem;
+  font-size: var(--text-small);
+}
+
+.schedule-track .pending {
+  color: var(--ink-faint);
+}
+
 @media print {
   .site-header,
   .site-footer,

@@ -1,25 +1,29 @@
 ---
 import Base from '../../layouts/Base.astro';
-import PhaseNotes from '../../components/PhaseNotes.astro';
-import { phases, totalNotes } from '../../data/roadmap';
+import TrackNotes from '../../components/TrackNotes.astro';
+import { tracks, totalNotes } from '../../data/roadmap';
 
-const ready = phases.flatMap((p) => p.notes).filter((n) => n.ready).length;
+const ready = tracks.flatMap((t) => t.notes).filter((n) => n.ready).length;
 ---
 
 <Base title="Notes">
   <div class="prose">
     <p class="eyebrow">{ready} of {totalNotes} written</p>
     <h1>Notes</h1>
-    <p class="lede">Every note in study order. Work through them top to bottom.</p>
+    <p class="lede">
+      Every note by subject. Math and ML are studied together in weeks 1–4; the week badge tells you which notes go
+      together.
+    </p>
     {
-      phases.map((phase) => (
-        <section class="phase" id={phase.id}>
+      tracks.map((track) => (
+        <section class="phase" id={track.id}>
           <div class="phase-head">
-            <span class="phase-number">{phase.number}</span>
-            <h2>{phase.title}</h2>
-            <span class="phase-weeks">{phase.weeks}</span>
+            <span class="phase-number">{track.number}</span>
+            <h2>{track.title}</h2>
+            <span class="phase-weeks">{track.weeks}</span>
           </div>
-          <PhaseNotes phase={phase} />
+          <p>{track.scope}</p>
+          <TrackNotes track={track} />
         </section>
       ))
     }

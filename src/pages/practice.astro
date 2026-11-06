@@ -1,0 +1,99 @@
+---
+import Base from '../layouts/Base.astro';
+import Callout from '../components/Callout.astro';
+import { weeklyPractice } from '../data/practice';
+import { notesForWeek, noteHref } from '../data/roadmap';
+---
+
+<Base title="Practice">
+  <div class="prose">
+    <p class="eyebrow">Drills for every week</p>
+    <h1>Practice</h1>
+    <p class="lede">
+      Reading a note takes an hour. Owning it takes problems. Every week here has hand problems, coding drills and a
+      project milestone.
+    </p>
+
+    <Callout kind="plain">
+      <p>
+        Nobody learns to ride a bike by reading about balance. The notes explain each idea; the drills on this page
+        are where you fall off and get back on. Interviewers can tell within two minutes whether you have done the
+        problems or only read the answers.
+      </p>
+    </Callout>
+
+    <h2>How to use this page</h2>
+    <ol>
+      <li>
+        <strong>By hand first.</strong> Paper and pen, no computer. These are the small calculations interviewers ask you
+        to do on a whiteboard. Check your answers with code afterwards, never before.
+      </li>
+      <li>
+        <strong>Then code.</strong> Type every drill yourself in a fresh file. Before running, write down what you
+        expect to see. When reality differs, that gap is the lesson.
+      </li>
+      <li>
+        <strong>Saturday is the milestone.</strong> Each week moves the current project forward. The milestone is
+        done when it runs and has a test.
+      </li>
+      <li>
+        <strong>Keep a mistakes file.</strong> One line per mistake: what you got wrong and the rule that fixes it.
+        Reread it every Sunday. It becomes your best revision document.
+      </li>
+    </ol>
+    <Callout kind="note" label="Where the problem sets come from">
+      <p>
+        Khan Academy has graded exercise sets for every math topic in weeks 1–4; do the exercises, not only the videos.
+        Deep-ML has LeetCode-style machine-learning coding problems that match our notes from week 4 onward. Kaggle
+        supplies the datasets. Each week below links the exact pages.
+      </p>
+    </Callout>
+
+    {
+      weeklyPractice.map((w) => (
+        <section class="phase" id={`week-${w.week}`}>
+          <div class="phase-head">
+            <span class="phase-number">W{w.week}</span>
+            <h2>{w.theme}</h2>
+          </div>
+          <p class="schedule-track">
+            <strong>Notes this week.</strong>{' '}
+            {notesForWeek(w.week).map(({ track, notes }, gi, groups) => (
+              <>
+                <em>{track.short}:</em>{' '}
+                {notes.map((n, i) => (
+                  <>{n.ready ? <a href={noteHref(track, n)}>{n.title}</a> : <span class="pending">{n.title}</span>}{i < notes.length - 1 ? ', ' : ''}</>
+                ))}{gi < groups.length - 1 ? '. ' : '.'}
+              </>
+            ))}
+          </p>
+          <h3>By hand</h3>
+          <ol>
+            {w.byHand.map((p) => <li>{p}</li>)}
+          </ol>
+          <h3>Code</h3>
+          <ol>
+            {w.code.map((p) => <li>{p}</li>)}
+          </ol>
+          <h3>Saturday milestone</h3>
+          <p>{w.milestone}</p>
+          {w.resources && (
+            <>
+              <h3>Problem sets and sources</h3>
+              <ul>
+                {w.resources.map((r) => (
+                  <li>
+                    <a href={r.href} target="_blank" rel="noopener noreferrer">
+                      {r.title}
+                    </a>
+                    {r.note && <> — {r.note}</>}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+      ))
+    }
+  </div>
+</Base>

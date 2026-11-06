@@ -1,0 +1,30 @@
+---
+// The list of notes in one track, with the week each belongs to.
+import { noteHref, type Track } from '../data/roadmap';
+
+interface Props {
+  track: Track;
+}
+
+const { track } = Astro.props;
+---
+
+<ol class="note-list">
+  {
+    track.notes.map((note) =>
+      note.ready ? (
+        <li>
+          <a href={noteHref(track, note)}>{note.title}</a>
+          <span class="badge week">W{note.week}</span>
+          <span class="badge ready">ready</span>
+        </li>
+      ) : (
+        <li class="pending">
+          <span>{note.title}</span>
+          <span class="badge week">W{note.week}</span>
+          <span class="badge">to be written</span>
+        </li>
+      )
+    )
+  }
+</ol>
