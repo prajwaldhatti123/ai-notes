@@ -1,0 +1,1074 @@
+---
+import Note from '../../../layouts/Note.astro';
+import CodeBlock from '../../../components/CodeBlock.astro';
+import Callout from '../../../components/Callout.astro';
+import QA from '../../../components/QA.astro';
+import Figure from '../../../components/Figure.astro';
+import Math from '../../../components/Math.astro';
+import Source from '../../../components/Source.astro';
+
+const sections = [
+  { id: 'why', label: 'Why this note matters' },
+  { id: 'plain', label: 'In plain words' },
+  { id: 'model', label: 'The model: a line, then a hyperplane' },
+  { id: 'loss', label: 'The loss: why squared errors' },
+  { id: 'closed-form', label: 'Solving it exactly: least squares' },
+  { id: 'gradient-descent', label: 'Solving it by steps: gradient descent' },
+  { id: 'interpret', label: 'Reading the result: coefficients and R²' },
+  { id: 'assumptions', label: 'What linear regression assumes' },
+  { id: 'beyond-lines', label: 'Curves from a linear model' },
+  { id: 'code', label: 'Code' },
+  { id: 'llm', label: 'Where this lives in an LLM' },
+  { id: 'interview', label: 'The full interview answer' },
+  { id: 'questions', label: 'Practice questions' },
+  { id: 'practice', label: 'Practice problems' },
+  { id: 'mistakes', label: 'Common mistakes' },
+  { id: 'sources', label: 'All sources' },
+  { id: 'revision', label: 'One-minute revision' },
+];
+
+const M = globalThis.Math;
+interface Panel { x: number; y: number; w: number; h: number; xr: [number, number]; yr: [number, number] }
+const sx = (p: Panel, vx: number) => p.x + ((vx - p.xr[0]) / (p.xr[1] - p.xr[0])) * p.w;
+const sy = (p: Panel, vy: number) => p.y + p.h - ((vy - p.yr[0]) / (p.yr[1] - p.yr[0])) * p.h;
+const lineD = (p: Panel, w: number, b: number) => `M${sx(p, p.xr[0]).toFixed(1)} ${sy(p, w * p.xr[0] + b).toFixed(1)} L${sx(p, p.xr[1]).toFixed(1)} ${sy(p, w * p.xr[1] + b).toFixed(1)}`;
+const curve = (p: Panel, f: (x: number) => number, n = 120) =>
+  Array.from({ length: n + 1 }, (_, i) => {
+    const vx = p.xr[0] + ((p.xr[1] - p.xr[0]) * i) / n;
+    return `${i ? 'L' : 'M'}${sx(p, vx).toFixed(1)} ${sy(p, f(vx)).toFixed(1)}`;
+  }).join(' ');
+
+// The running example: three houses. Least-squares line: w = 180, b = 23.33, MSE = 22.22.
+const houses = [
+  { x: 1, y: 200 },
+  { x: 1.5, y: 300 },
+  { x: 2, y: 380 },
+];
+const W = 180;
+const B = 70 / 3;
+// Fig. 1: best line with residuals.
+const fit: Panel = { x: 90, y: 30, w: 360, h: 240, xr: [0.5, 2.5], yr: [0, 500] };
+// Fig. 2: the loss as a function of w with b fixed. L(w) = 22.22 + 2.4167 (w - 180)^2.
+const bowl: Panel = { x: 90, y: 30, w: 400, h: 230, xr: [150, 210], yr: [0, 1100] };
+const lossW = (w: number) => houses.reduce((s, h) => s + (w * h.x + B - h.y) ** 2, 0) / 3;
+const bowlPts = [160, 170, 180, 190, 200];
+// Fig. 4: residual plots.
+const resL: Panel = { x: 40, y: 30, w: 300, h: 200, xr: [0, 11], yr: [-4, 4] };
+const resR: Panel = { x: 400, y: 30, w: 300, h: 200, xr: [0, 11], yr: [-4, 4] };
+const noise = [0.6, -0.9, 0.3, -0.4, 1.1, -0.7, 0.2, -1.0, 0.8, -0.3];
+const goodRes = noise.map((e, i) => ({ x: i + 1, y: e }));
+const badRes = noise.map((e, i) => ({ x: i + 1, y: ((i + 1 - 5.5) ** 2) / 6 - 1.5 + e * 0.4 }));
+// Fig. 5: a curve fitted by linear regression on [x, x^2].
+const poly: Panel = { x: 90, y: 30, w: 360, h: 230, xr: [0, 6], yr: [0, 20] };
+const polyPts = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5].map((x, i) => ({ x, y: 0.5 * x * x + 0.5 + [0.8, -0.6, 0.4, -0.9, 0.7, -0.3, 0.9, -0.8, 0.5, -0.4, 0.6][i] }));
+
+const closedFormCode = `import numpy as np
+
+x = np.array([1.0, 1.5, 2.0]); y = np.array([200.0, 300.0, 380.0])
+
+# Simple linear regression: two formulas.
+w = np.sum((x - x.mean()) * (y - y.mean())) / np.sum((x - x.mean()) ** 2)
+b = y.mean() - w * x.mean()
+print(w, b)                                   # 180.0 23.333
+
+# The same thing as the normal equation, which also works for many features.
+X = np.column_stack([np.ones_like(x), x])     # add the column of ones: shape (3, 2)
+theta = np.linalg.inv(X.T @ X) @ X.T @ y      # (2,2)^-1 @ (2,3) @ (3,) -> (2,)
+print(theta)                                  # [23.333 180.]   (b first, because the ones column is first)
+
+# In practice never invert explicitly; lstsq is more stable and handles singular X.
+theta2, *_ = np.linalg.lstsq(X, y, rcond=None)
+print(theta2)                                 # [23.333 180.]
+
+pred = X @ theta
+print(np.mean((pred - y) ** 2))               # 22.222  the smallest MSE any line can reach on these points`;
+
+const gdCode = `import numpy as np
+
+x = np.array([1.0, 1.5, 2.0]); y = np.array([200.0, 300.0, 380.0])
+w, b, lr = 200.0, 0.0, 0.1
+
+for step in range(2000):
+    pred = w * x + b
+    err = pred - y                                # (3,)
+    grad_w = (2 / len(x)) * np.sum(err * x)       # dL/dw
+    grad_b = (2 / len(x)) * np.sum(err)           # dL/db
+    w -= lr * grad_w
+    b -= lr * grad_b
+    if step in (0, 1, 10, 100, 1999):
+        print(f"step {step:>4}: w={w:8.3f}  b={b:8.3f}  loss={np.mean((w * x + b - y) ** 2):8.3f}")
+# step    0: w= 197.333  b=  -1.333  loss=  74.074
+# step    1: ...
+# step 1999: w= 180.0xx  b=  23.3xx  loss=  22.222    <- the same answer as the closed form`;
+
+const sklearnCode = `import numpy as np
+from sklearn.datasets import fetch_california_housing
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
+
+data = fetch_california_housing()
+X, y = data.data, data.target                     # 20,640 districts, 8 features, target = median house value ($100k)
+Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=0)
+
+model = LinearRegression().fit(Xtr, ytr)
+pred = model.predict(Xte)
+print("test RMSE ($100k):", np.sqrt(mean_squared_error(yte, pred)))   # about 0.73
+print("test R^2:", r2_score(yte, pred))                                # about 0.59
+
+# Raw coefficients are in mixed units (rooms, years, degrees of latitude...), so they cannot be compared.
+# Standardize the features and refit: now each coefficient is "effect of one standard deviation".
+scaler = StandardScaler().fit(Xtr)
+model_s = LinearRegression().fit(scaler.transform(Xtr), ytr)
+for name, coef in sorted(zip(data.feature_names, model_s.coef_), key=lambda t: -abs(t[1])):
+    print(f"{name:>12}: {coef:+.3f}")
+# MedInc is the largest positive effect; Latitude and Longitude are large and negative together,
+# which is geography (and a hint of the multicollinearity discussed in the assumptions section).`;
+
+const residualCode = `import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+
+rng = np.random.default_rng(0)
+x = np.linspace(0, 10, 60)
+y_curved = 0.3 * x ** 2 + rng.normal(0, 1, 60)         # the true relationship is curved
+
+model = LinearRegression().fit(x[:, None], y_curved)   # but we fit a straight line
+residuals = y_curved - model.predict(x[:, None])
+
+fig, ax = plt.subplots(1, 2, figsize=(10, 4))
+ax[0].scatter(x, y_curved, s=12); ax[0].plot(x, model.predict(x[:, None]), color="red"); ax[0].set_title("fit")
+ax[1].scatter(x, residuals, s=12); ax[1].axhline(0, color="gray"); ax[1].set_title("residuals: a U shape = missing curvature")
+plt.show()
+# Fix: add x**2 as a feature (next section) and the U disappears.`;
+---
+
+<Note
+  track="ml"
+  slug="linear-regression"
+  lede="Linear regression predicts a number as a weighted sum of features. It is the simplest model that learns, the one interviewers ask about most, and the template for every neural network layer. This note builds it from a line through three points to the matrix formula, solves it two ways, and shows how to read and distrust the result."
+  sections={sections}
+>
+  <h2 id="why">Why this note matters</h2>
+  <p>
+    “Explain linear regression” is the most common opening question in ML interviews, because a good answer touches
+    everything: the model, the loss, how it is optimized, what the coefficients mean, what can go wrong. It is also the
+    model you should fit first on any numeric problem, because it trains in milliseconds and gives you a baseline that
+    a fancier model must beat. And every linear layer in a neural network is literally this model with many outputs,
+    so the shapes and the gradient you learn here are reused in week 5 without change.
+  </p>
+  <p>Questions that are really this note:</p>
+  <ul>
+    <li>“Explain linear regression, how it is trained, and its assumptions.”</li>
+    <li>“Why do we minimize squared error rather than absolute error?”</li>
+    <li>“When would you use the closed-form solution and when gradient descent?”</li>
+    <li>“What does R² mean? Can it be negative?”</li>
+    <li>“The coefficient for a feature is huge. How do you interpret it, and when should you not?”</li>
+    <li>“Is a polynomial fit still linear regression?”</li>
+  </ul>
+  <Callout kind="note" label="The scope rule">
+    <p>
+      The model, the squared-error loss, the two ways to solve it, interpretation, assumptions and feature
+      transformations. Statistical inference (p-values, confidence intervals on coefficients) is left out; AI
+      engineering interviews rarely ask for it. Regularized variants get their own note in week 3.
+    </p>
+  </Callout>
+
+  <h2 id="plain">In plain words</h2>
+  <Callout kind="plain">
+    <p>
+      Put the three house sales from the last note on a chart: size across, price up. Now lay a ruler across the dots
+      and slide it around until it runs as close to all of them as it can. That ruler is a linear regression. Its
+      slope says “each extra thousand square feet adds about 180 thousand to the price”, and where it crosses the
+      left edge says what a house of zero size would cost, which is a bookkeeping number, not a real house.
+    </p>
+    <p>
+      “As close as it can” has to be made exact, and the choice everyone makes is: measure each dot’s vertical gap to
+      the ruler, square it, add them up, and pick the ruler that makes the total smallest. Squaring punishes big gaps
+      much more than small ones, so the ruler is pulled towards the outliers a little more than you might expect.
+      That recipe is called <em>least squares</em>, and it is two hundred years old.
+    </p>
+  </Callout>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Everyday idea</th><th>Technical term</th><th>Symbol</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>The ruler</td><td><span class="term">linear model</span> (regression line, hyperplane)</td><td><Math tex="\hat{y} = \mathbf{w}\cdot\mathbf{x} + b" /></td></tr>
+        <tr><td>How steep it is per feature</td><td><span class="term">coefficient</span> (weight, slope)</td><td><Math tex="w_j" /></td></tr>
+        <tr><td>Where it crosses the left edge</td><td><span class="term">intercept</span> (bias)</td><td><Math tex="b" /> or <Math tex="w_0" /></td></tr>
+        <tr><td>A dot’s vertical gap to the ruler</td><td><span class="term">residual</span></td><td><Math tex="r_i = y_i - \hat{y}_i" /></td></tr>
+        <tr><td>Average of the squared gaps</td><td><span class="term">mean squared error</span> (MSE)</td><td><Math tex="\frac{1}{n}\sum_i (y_i - \hat{y}_i)^2" /></td></tr>
+        <tr><td>Pick the ruler with the smallest total</td><td><span class="term">ordinary least squares</span> (OLS)</td><td></td></tr>
+        <tr><td>The formula that gives it directly</td><td><span class="term">normal equation</span> (closed form)</td><td><Math tex="\theta = (X^\top X)^{-1} X^\top \mathbf{y}" /></td></tr>
+        <tr><td>How much of the spread the ruler explains</td><td><span class="term">R²</span> (coefficient of determination)</td><td><Math tex="R^2 = 1 - \text{SS}_\text{res}/\text{SS}_\text{tot}" /></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="model">The model: a line, then a hyperplane</h2>
+  <Callout kind="plain">
+    <p>
+      With one feature the model is a line: price = slope × size + intercept. With two features it becomes a flat
+      sheet floating over a table of (size, age) pairs. With ten features you cannot draw it, but the formula is the
+      same: multiply each feature by its own weight, add them all up, add the intercept. That is a dot product plus a
+      number, which you met in the <a href="/notes/math/vectors-dot-product/">vectors note</a>. Linear regression is
+      the dot product used as a predictor.
+    </p>
+  </Callout>
+  <p>With one feature:</p>
+  <Math block tex="\hat{y} = w\,x + b" />
+  <p>With <Math tex="d" /> features <Math tex="\mathbf{x} = (x_1, \dots, x_d)" />:</p>
+  <Math block tex="\hat{y} = w_1 x_1 + w_2 x_2 + \dots + w_d x_d + b = \mathbf{w}\cdot\mathbf{x} + b" />
+  <p>
+    The parameters are the weight vector <Math tex="\mathbf{w}" /> and the intercept <Math tex="b" />,
+    <Math tex="d + 1" /> numbers in all. The model is called <span class="term">linear</span> because the prediction
+    is a weighted sum of the inputs: double a feature’s value and its contribution exactly doubles, and the effect of
+    one feature does not depend on the value of another.
+  </p>
+  <p>
+    A small trick makes the formulas cleaner and is used in every textbook: pretend there is an extra feature
+    <Math tex="x_0" /> that is always equal to 1, and call the intercept <Math tex="w_0" />. Then
+    <Math tex="\hat{y} = w_0 \cdot 1 + w_1 x_1 + \dots = \boldsymbol{\theta}\cdot\mathbf{x}" /> with no separate
+    <Math tex="b" />. For a whole dataset, stack the examples as rows of a matrix <Math tex="X" /> of shape
+    <Math tex="n \times (d+1)" /> whose first column is all ones, and every prediction at once is one matrix-vector
+    product from the <a href="/notes/math/matrices-and-shapes/">matrices note</a>:
+  </p>
+  <Math block tex={String.raw`\hat{\mathbf{y}} = X\boldsymbol{\theta} \qquad \text{for the houses: } \begin{pmatrix} 1 & 1 \\ 1 & 1.5 \\ 1 & 2 \end{pmatrix}\begin{pmatrix} b \\ w \end{pmatrix} = \begin{pmatrix} b + w \\ b + 1.5w \\ b + 2w \end{pmatrix}`} />
+  <Figure n={1} caption="The least-squares line for the three houses, ŷ = 180 x + 23.3. The red ticks are the residuals, y − ŷ: −3.3, +6.7, −3.3. They sum to zero, as least-squares residuals always do when there is an intercept.">
+    <svg viewBox="0 0 770 300" role="img" aria-label="Scatter of three houses with the best-fit line and the vertical residuals marked">
+      <g class="sketch">
+        <path class="stroke-soft" d={`M${fit.x} ${sy(fit, 0)} H${fit.x + fit.w} M${sx(fit, 0.5)} ${fit.y} V${fit.y + fit.h}`}></path>
+        <path class="stroke" d={lineD(fit, W, B)} stroke-width="2.5"></path>
+        {houses.map((h) => <path class="stroke ink-red" d={`M${sx(fit, h.x)} ${sy(fit, h.y)} V${sy(fit, W * h.x + B)}`} stroke-width="3" />)}
+        {houses.map((h) => <circle class="stroke fill-paper" cx={sx(fit, h.x)} cy={sy(fit, h.y)} r="7" />)}
+        <circle class="stroke fill-paper" cx={sx(fit, 0.5)} cy={sy(fit, W * 0.5 + B)} r="4" style="fill: var(--ink)"></circle>
+      </g>
+      {houses.map((h, i) => <text class="small label-red" x={sx(fit, h.x) + 12} y={sy(fit, (h.y + W * h.x + B) / 2) + 4}>{['−3.3', '+6.7', '−3.3'][i]}</text>)}
+      <text class="small" x={sx(fit, 2.5)} y={sy(fit, 0) + 20} text-anchor="end">size x (thousand sq ft)</text>
+      <text class="small" x={sx(fit, 0.5) - 6} y={fit.y - 8} text-anchor="end">price y</text>
+      <text class="small" x="500" y="90">ŷ = 180 x + 23.3</text>
+      <text class="small" x="500" y="122">slope w = 180: +180k per</text>
+      <text class="small" x="500" y="142">extra thousand sq ft</text>
+      <text class="small" x="500" y="174">intercept b = 23.3: the line’s</text>
+      <text class="small" x="500" y="194">height at x = 0 (not a house)</text>
+      <text class="small label-red" x="500" y="226">residuals sum to 0</text>
+      <text class="small label-red" x="500" y="246">MSE = (3.3² + 6.7² + 3.3²)/3 = 22.2</text>
+    </svg>
+  </Figure>
+  <Callout kind="say">
+    <p>
+      “Linear regression models the target as a weighted sum of the features plus an intercept,
+      <Math tex="\hat{y} = \mathbf{w}\cdot\mathbf{x} + b" />. Absorbing the intercept into a constant feature, the
+      predictions for a whole dataset are <Math tex="X\boldsymbol{\theta}" />, with <Math tex="X" /> of shape
+      <Math tex="n \times (d+1)" />.”
+    </p>
+  </Callout>
+
+  <h2 id="loss">The loss: why squared errors</h2>
+  <Callout kind="plain">
+    <p>
+      You need one number that says how bad a ruler is. Take every dot’s gap to the ruler. You cannot just add the
+      gaps, because gaps above and below would cancel and a terrible ruler could score zero. You could add their
+      absolute sizes, which works and has its own uses. But squaring them first has three gifts: it treats above and
+      below the same, it makes the score a smooth bowl with one bottom that you can find exactly with a formula, and
+      it cares more about one big miss than several small ones, which is usually what you want.
+    </p>
+  </Callout>
+  <p>The <span class="term">mean squared error</span> over <Math tex="n" /> examples is</p>
+  <Math block tex="L(\mathbf{w}, b) = \frac{1}{n}\sum_{i=1}^{n}\big(y_i - (\mathbf{w}\cdot\mathbf{x}_i + b)\big)^2 = \frac{1}{n}\lVert\mathbf{y} - X\boldsymbol{\theta}\rVert^2" />
+  <p>
+    The second form uses the <a href="/notes/math/norms-distance-cosine/">L2 norm</a>: the MSE is the squared
+    Euclidean distance between the vector of true values and the vector of predictions, divided by
+    <Math tex="n" />. The quantities <Math tex="r_i = y_i - \hat{y}_i" /> are the <span class="term">residuals</span>,
+    and the loss is their mean square. Four reasons squared error is the default, each of which an interviewer may
+    ask for:
+  </p>
+  <ul>
+    <li>
+      <strong>It is smooth with a single minimum.</strong> As a function of the parameters, MSE is a parabola in each
+      one and a bowl overall (Fig. 2). There is exactly one bottom, no local traps, and the derivative exists
+      everywhere. Absolute error has a sharp corner at zero, which makes both the formula and gradient descent messier.
+    </li>
+    <li>
+      <strong>It has a closed-form solution.</strong> Setting the derivative to zero gives linear equations you can
+      solve directly. The next section does it.
+    </li>
+    <li>
+      <strong>It is maximum likelihood under Gaussian noise.</strong> If the true relationship is linear plus
+      bell-curve noise, the line that maximizes the probability of the observed data is exactly the least-squares
+      line. The <a href="/notes/math/maximum-likelihood/">maximum likelihood note</a> in week 3 derives this; it is the
+      deep reason behind the choice.
+    </li>
+    <li>
+      <strong>It penalizes large errors heavily.</strong> An error of 10 costs 100; two errors of 5 cost 50. If big
+      misses are much worse than small ones in your application, this is right. If your data has outliers you do not
+      trust, it is wrong, and you switch to absolute error or a hybrid; the <a href="/notes/ml/loss-functions/">loss
+      functions note</a> next week compares them.
+    </li>
+  </ul>
+  <Figure n={2} caption="The loss as a function of the slope w, with the intercept held at its best value 23.3. A parabola with its bottom at w = 180 and height 22.2 there. In both parameters together it is a bowl.">
+    <svg viewBox="0 0 720 300" role="img" aria-label="Parabola of mean squared error against slope with the minimum marked at w equals 180">
+      <g class="sketch">
+        <path class="stroke-soft" d={`M${bowl.x} ${sy(bowl, 0)} H${bowl.x + bowl.w} M${sx(bowl, 150)} ${bowl.y} V${bowl.y + bowl.h}`}></path>
+        <path class="stroke ink-red" d={curve(bowl, lossW)} stroke-width="3"></path>
+        {bowlPts.map((w) => <circle class="stroke fill-paper" cx={sx(bowl, w)} cy={sy(bowl, lossW(w))} r="5" />)}
+        <path class="stroke" d={`M${sx(bowl, 165)} ${sy(bowl, 560)} L${sx(bowl, 172)} ${sy(bowl, 320)}`} marker-end="url(#arrow)"></path>
+        <path class="stroke" d={`M${sx(bowl, 195)} ${sy(bowl, 560)} L${sx(bowl, 188)} ${sy(bowl, 320)}`} marker-end="url(#arrow)"></path>
+      </g>
+      {bowlPts.map((w) => <text class="small" x={sx(bowl, w)} y={sy(bowl, 0) + 20} text-anchor="middle">{w}</text>)}
+      {bowlPts.map((w) => <text class="small" x={sx(bowl, w) + (w === 180 ? 0 : w < 180 ? -12 : 12)} y={sy(bowl, lossW(w)) - 12} text-anchor={w === 180 ? 'middle' : w < 180 ? 'end' : 'start'}>{lossW(w).toFixed(0)}</text>)}
+      <text class="small" x={sx(bowl, 210)} y={sy(bowl, 0) + 20} text-anchor="end">w</text>
+      <text class="small" x={sx(bowl, 150) - 6} y={bowl.y - 8} text-anchor="end">MSE</text>
+      <text class="small label-red" x={sx(bowl, 180)} y={sy(bowl, 22) + 40} text-anchor="middle">minimum: w = 180, MSE = 22.2</text>
+      <text class="small" x="520" y="100">downhill from either side</text>
+      <text class="small" x="520" y="122">leads to the same bottom:</text>
+      <text class="small" x="520" y="144">no local minima</text>
+    </svg>
+  </Figure>
+  <Callout kind="say">
+    <p>
+      “The loss is mean squared error, the average squared residual. It is convex and differentiable, has a
+      closed-form minimizer, and corresponds to maximum likelihood under Gaussian noise; the price is sensitivity to
+      outliers, which is when I would consider absolute or Huber loss.”
+    </p>
+  </Callout>
+
+  <h2 id="closed-form">Solving it exactly: least squares</h2>
+  <Callout kind="plain">
+    <p>
+      Because the loss is a bowl, the best ruler is at the single point where the bowl is flat, and “flat” can be
+      written as an equation and solved. For one feature the answer is two small formulas you can do by hand: the
+      slope is how much <Math tex="x" /> and <Math tex="y" /> move together, divided by how much <Math tex="x" /> moves
+      on its own; the intercept then makes the line pass through the centre of the dots. For many features the same
+      idea becomes one matrix formula.
+    </p>
+  </Callout>
+  <p>
+    For one feature, write <Math tex="\bar{x}" /> and <Math tex="\bar{y}" /> for the means. The least-squares slope
+    and intercept are:
+  </p>
+  <Math block tex="w = \frac{\sum_i (x_i - \bar{x})(y_i - \bar{y})}{\sum_i (x_i - \bar{x})^2} \qquad b = \bar{y} - w\,\bar{x}" />
+  <p>
+    The numerator of <Math tex="w" /> is how <Math tex="x" /> and <Math tex="y" /> vary <em>together</em> (the
+    covariance, up to a constant) and the denominator is how <Math tex="x" /> varies on its own (its variance). The
+    intercept formula says the line passes through the point of means <Math tex="(\bar{x}, \bar{y})" />. Work the
+    houses:
+  </p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th><Math tex="x_i" /></th><th><Math tex="y_i" /></th><th><Math tex="x_i - \bar{x}" /></th><th><Math tex="y_i - \bar{y}" /></th><th>product</th><th><Math tex="(x_i - \bar{x})^2" /></th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>200</td><td>−0.5</td><td>−93.33</td><td>46.67</td><td>0.25</td></tr>
+        <tr><td>1.5</td><td>300</td><td>0</td><td>6.67</td><td>0</td><td>0</td></tr>
+        <tr><td>2</td><td>380</td><td>0.5</td><td>86.67</td><td>43.33</td><td>0.25</td></tr>
+        <tr><td colspan="2">means: 1.5, 293.33</td><td></td><td></td><td><strong>sum 90</strong></td><td><strong>sum 0.5</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <Math block tex="w = \frac{90}{0.5} = 180 \qquad b = 293.33 - 180 \times 1.5 = 23.33" />
+  <p>
+    So the best line is <Math tex="\hat{y} = 180x + 23.3" />, with predictions 203.3, 293.3, 383.3 and MSE
+    <Math tex="(3.33^2 + 6.67^2 + 3.33^2)/3 = 22.2" />. No search was needed; the formula went straight to the bottom
+    of the bowl. The reason the formula is true is that the derivative of the loss is zero at the minimum; the
+    <a href="/notes/math/partial-derivatives-gradient/">gradient note</a> next week gives you the tools to derive it
+    yourself in ten lines.
+  </p>
+  <p>
+    For many features, the same “set the derivative to zero” step produces the <span class="term">normal
+    equation</span>. With <Math tex="X" /> the <Math tex="n \times (d+1)" /> data matrix (ones column included) and
+    <Math tex="\mathbf{y}" /> the <Math tex="n" /> targets:
+  </p>
+  <Math block tex="\boldsymbol{\theta} = (X^\top X)^{-1} X^\top \mathbf{y}" />
+  <Figure n={3} caption="Shapes in the normal equation for n examples and d features (plus the ones column). XᵀX is a small square matrix, (d+1) × (d+1), whatever n is; inverting it costs about (d+1)³ operations.">
+    <svg viewBox="0 0 760 240" role="img" aria-label="Rectangles showing the shapes of X transpose, X, their product, its inverse, X transpose y and theta">
+      <g class="sketch">
+        <rect class="stroke fill-gold" x="30" y="90" width="150" height="50" rx="4"></rect>
+        <rect class="stroke fill-gold" x="200" y="40" width="50" height="150" rx="4"></rect>
+        <rect class="stroke fill-green" x="290" y="90" width="50" height="50" rx="4"></rect>
+        <rect class="stroke fill-gold" x="400" y="90" width="150" height="50" rx="4"></rect>
+        <rect class="stroke fill-blue" x="570" y="40" width="22" height="150" rx="4"></rect>
+        <rect class="stroke fill-paper" x="690" y="90" width="22" height="50" rx="4"></rect>
+      </g>
+      <text x="105" y="120" text-anchor="middle" font-size="18">Xᵀ</text>
+      <text class="small" x="105" y="160" text-anchor="middle">(d+1) × n</text>
+      <text x="225" y="120" text-anchor="middle" font-size="18">X</text>
+      <text class="small" x="225" y="210" text-anchor="middle">n × (d+1)</text>
+      <text x="270" y="120" text-anchor="middle" font-size="18">=</text>
+      <text x="315" y="120" text-anchor="middle" font-size="18">XᵀX</text>
+      <text class="small" x="315" y="160" text-anchor="middle">(d+1)²</text>
+      <text class="small" x="315" y="30" text-anchor="middle">invert this</text>
+      <text x="475" y="120" text-anchor="middle" font-size="18">Xᵀ</text>
+      <text class="small" x="475" y="160" text-anchor="middle">(d+1) × n</text>
+      <text x="581" y="120" text-anchor="middle" font-size="18">y</text>
+      <text class="small" x="581" y="210" text-anchor="middle">n</text>
+      <text x="640" y="120" text-anchor="middle" font-size="18">→</text>
+      <text x="701" y="120" text-anchor="middle" font-size="16">θ</text>
+      <text class="small" x="701" y="160" text-anchor="middle">d+1</text>
+      <text class="small" x="370" y="120" text-anchor="middle">·</text>
+    </svg>
+  </Figure>
+  <p>Read it with the shape rule. <Math tex="X^\top X" /> is <Math tex="(d+1) \times (d+1)" />, a small square matrix however many examples you have; <Math tex="X^\top\mathbf{y}" /> is a <Math tex="(d+1)" />-vector; the inverse times the vector is the <Math tex="(d+1)" /> parameters. For the houses, <Math tex="d = 1" />, so it is a 2 × 2 inverse, and the <a href="#code">code</a> shows it giving the same 23.33 and 180. Three practical notes:</p>
+  <ul>
+    <li>
+      <strong>Cost.</strong> Forming <Math tex="X^\top X" /> is about <Math tex="n d^2" /> operations and inverting it
+      about <Math tex="d^3" />. With a million rows and a hundred features that is instant. With a hundred thousand
+      features (text with one feature per word) the inverse alone is <Math tex="10^{15}" /> operations, and you use
+      gradient descent instead.
+    </li>
+    <li>
+      <strong>When it breaks.</strong> <Math tex="X^\top X" /> has no inverse if some feature is an exact combination of
+      others (a column of temperatures in Celsius next to one in Fahrenheit, or more features than examples). The
+      model is then not unique. Regularization (week 3) or <code>lstsq</code>, which returns the minimum-norm solution,
+      handles it.
+    </li>
+    <li>
+      <strong>In code, do not invert.</strong> <code>np.linalg.lstsq</code> or <code>solve</code> is more stable and
+      faster than <code>inv</code>. The explicit inverse is for the whiteboard.
+    </li>
+  </ul>
+  <Source
+    kind="watch"
+    href="https://www.youtube.com/watch?v=PaFPbb66DxQ"
+    title="StatQuest: The Main Ideas of Fitting a Line to Data (Least Squares)"
+    meta="About 9 minutes. The bowl, the “rotate the line until the sum of squares is smallest” picture, and why the derivative being zero finds it."
+  />
+  <Source
+    kind="read"
+    href="https://www.khanacademy.org/math/statistics-probability/describing-relationships-quantitative-data"
+    title="Khan Academy: Describing relationships in quantitative data"
+    meta="The “least-squares regression” and “residuals” exercise sets. Do them by hand once; they are exactly the table above with different numbers."
+  />
+  <Callout kind="say">
+    <p>
+      “Ordinary least squares has a closed form: the normal equation <Math tex="\theta = (X^\top X)^{-1}X^\top y" />,
+      which comes from setting the gradient of the MSE to zero. It costs about <Math tex="nd^2 + d^3" />, so it is the
+      right choice for moderate <Math tex="d" />; for very many features, or when <Math tex="X^\top X" /> is singular
+      because of collinear features, I use gradient descent or add regularization.”
+    </p>
+  </Callout>
+
+  <h2 id="gradient-descent">Solving it by steps: gradient descent</h2>
+  <Callout kind="plain">
+    <p>
+      The other way to find the bottom of the bowl is to stand somewhere on it, feel which way is downhill, take a
+      small step that way, and repeat. For a bowl this always works and always reaches the same bottom the formula
+      finds. It is slower for small problems and the only option for huge ones, and it is the method every neural
+      network uses, so linear regression is the right place to meet it.
+    </p>
+  </Callout>
+  <p>
+    “Which way is downhill” is the gradient, the subject of week 2. For MSE on a line it comes out as two simple
+    expressions, which you can take on trust for one week:
+  </p>
+  <Math block tex="\frac{\partial L}{\partial w} = \frac{2}{n}\sum_i (\hat{y}_i - y_i)\,x_i \qquad \frac{\partial L}{\partial b} = \frac{2}{n}\sum_i (\hat{y}_i - y_i)" />
+  <p>
+    Read them: each is an average of the errors, weighted by the input for <Math tex="w" /> and unweighted for
+    <Math tex="b" />. If predictions are too high on average, <Math tex="\partial L/\partial b" /> is positive and the
+    update below pushes <Math tex="b" /> down. The update rule, with a <span class="term">learning rate</span>
+    <Math tex="\eta" /> (“eta”) that sets the step size:
+  </p>
+  <Math block tex="w \leftarrow w - \eta\,\frac{\partial L}{\partial w} \qquad b \leftarrow b - \eta\,\frac{\partial L}{\partial b}" />
+  <p>One step by hand, starting from <Math tex="w = 200, b = 0" /> (loss 133.3) with <Math tex="\eta = 0.1" />:</p>
+  <ul>
+    <li>Predictions 200, 300, 400; errors <Math tex="\hat{y} - y" /> are 0, 0, +20.</li>
+    <li><Math tex="\partial L/\partial w = \frac{2}{3}(0 \cdot 1 + 0 \cdot 1.5 + 20 \cdot 2) = 26.67" />; <Math tex="\partial L/\partial b = \frac{2}{3}(20) = 13.33" />.</li>
+    <li>New <Math tex="w = 200 - 0.1 \times 26.67 = 197.33" />; new <Math tex="b = 0 - 0.1 \times 13.33 = -1.33" />.</li>
+    <li>New predictions 196, 294.7, 393.3; errors −4, −5.3, +13.3; new loss <Math tex="(16 + 28.4 + 177.8)/3 = 74.1" />. Down from 133.3 in one step.</li>
+  </ul>
+  <p>
+    Keep going and the pair drifts to <Math tex="(180, 23.3)" />, the closed-form answer, as the
+    <a href="#code">code</a> shows. Two things to notice now and study properly next week: the learning rate matters
+    (too small and it crawls, too large and it overshoots and diverges), and the two parameters move at very
+    different speeds here because <Math tex="x" /> and the constant 1 have different scales. That second problem is
+    why the <a href="/notes/ml/feature-scaling-encoding/">feature scaling note</a> exists.
+  </p>
+  <Source
+    kind="read"
+    href="https://developers.google.com/machine-learning/crash-course/linear-regression"
+    title="Google Machine Learning Crash Course: Linear regression"
+    meta="The linear regression unit, including the loss page and the interactive gradient-descent exercise where you adjust the learning rate and watch the line move. Thirty minutes."
+  />
+  <Callout kind="say">
+    <p>
+      “Alternatively I minimize the MSE iteratively with gradient descent: the gradient with respect to the weights is
+      the average of residuals times inputs, and I step against it with a learning rate. For a convex loss like this
+      it converges to the same optimum as the closed form, and it scales to large feature counts and streaming data.”
+    </p>
+  </Callout>
+
+  <h2 id="interpret">Reading the result: coefficients and R²</h2>
+  <Callout kind="plain">
+    <p>
+      A fitted line gives you two kinds of information: what each feature does, read from its coefficient, and how
+      well the whole thing explains the data, read from a score between zero and one. Both are easy to misread. A
+      coefficient’s size depends on the feature’s units, so a big number can mean a tiny effect measured in small
+      units. And the score can be high for a model that is useless on new data, or low for a model that is the best
+      anyone could do on noisy data.
+    </p>
+  </Callout>
+  <p>
+    <strong>Coefficients.</strong> <Math tex="w_j" /> is the change in the prediction for a one-unit increase in
+    feature <Math tex="j" />, <em>holding the other features fixed</em>. For the houses, <Math tex="w = 180" /> means
+    “180 thousand more per extra thousand square feet”. Three cautions:
+  </p>
+  <ul>
+    <li>
+      <strong>Units.</strong> Measure size in square feet instead of thousands and the coefficient becomes 0.18. Same
+      model, same predictions, coefficient a thousand times smaller. To compare the importance of features, fit on
+      <span class="term">standardized</span> features (each scaled to mean 0, standard deviation 1); then each
+      coefficient is the effect of one standard deviation, in the target’s units, and they are comparable.
+    </li>
+    <li>
+      <strong>Correlated features.</strong> When two features move together (house size and number of rooms), the
+      model can split the credit between them almost arbitrarily. Individual coefficients become unstable and can
+      even flip sign, while predictions stay fine. This is <span class="term">multicollinearity</span>; it is a
+      problem for interpretation, not for prediction, and the fix is to drop or combine features or regularize.
+    </li>
+    <li>
+      <strong>Not causation.</strong> The coefficient says what the data associates with what. Ice-cream sales have a
+      positive coefficient for drowning deaths; the hidden feature is summer. Do not say “increasing X by one unit
+      <em>causes</em> Y to rise by <Math tex="w" />” unless the data came from an experiment.
+    </li>
+  </ul>
+  <p>
+    <strong>R².</strong> The <span class="term">coefficient of determination</span> compares the model’s residuals with
+    those of the dumbest baseline, always predicting the mean <Math tex="\bar{y}" />:
+  </p>
+  <Math block tex="R^2 = 1 - \frac{\text{SS}_\text{res}}{\text{SS}_\text{tot}} = 1 - \frac{\sum_i (y_i - \hat{y}_i)^2}{\sum_i (y_i - \bar{y})^2}" />
+  <p>
+    For the houses, <Math tex="\text{SS}_\text{res} = 66.7" /> and <Math tex="\text{SS}_\text{tot} = 93.33^2 + 6.67^2 + 86.67^2 = 16{,}267" />,
+    so <Math tex="R^2 = 1 - 66.7/16{,}267 = 0.996" />: the line explains 99.6% of the variation in price. In words,
+    <Math tex="R^2" /> is “the fraction of the target’s variance the model accounts for”. Four facts about it:
+  </p>
+  <ul>
+    <li>On the training data, <Math tex="R^2 = 1" /> is a perfect fit and <Math tex="R^2 = 0" /> is no better than predicting the mean.</li>
+    <li>On <em>test</em> data it can be <strong>negative</strong>: the model is doing worse than the test set’s mean. Negative test <Math tex="R^2" /> is a loud sign of overfitting or of a data shift.</li>
+    <li>Adding any feature never lowers training <Math tex="R^2" />, even a random one, so it rewards bloat. <span class="term">Adjusted R²</span> penalizes the feature count; better still, judge on held-out data.</li>
+    <li>A low <Math tex="R^2" /> is not necessarily a bad model: if the target is genuinely noisy, 0.3 may be the best achievable and still valuable. Compare with a baseline and the domain, not with 1.</li>
+  </ul>
+  <p>
+    For reporting, also quote the <span class="term">RMSE</span>, the square root of the MSE, because it is in the
+    target’s own units: an RMSE of 4.7 here means “typically off by about 4.7 thousand”. Interviewers like a candidate
+    who reports both a relative score and an absolute one.
+  </p>
+  <Figure n={4} caption="Residual plots, the fastest check of a fit. Left: residuals scattered evenly around zero, the line has captured the pattern. Right: a U shape, the relationship is curved and the line is missing it.">
+    <svg viewBox="0 0 740 280" role="img" aria-label="Two residual plots: one with no pattern, one with a U-shaped pattern">
+      <g class="sketch">
+        <path class="stroke-soft" d={`M${resL.x} ${sy(resL, 0)} H${resL.x + resL.w}`}></path>
+        <path class="stroke-soft" d={`M${resR.x} ${sy(resR, 0)} H${resR.x + resR.w}`}></path>
+        {goodRes.map((p) => <circle class="stroke fill-paper" cx={sx(resL, p.x)} cy={sy(resL, p.y)} r="5" style="fill: var(--ink)" />)}
+        {badRes.map((p) => <circle class="stroke fill-paper" cx={sx(resR, p.x)} cy={sy(resR, p.y)} r="5" style="fill: var(--ink)" />)}
+        <path class="stroke ink-red" d={curve(resR, (x) => ((x - 5.5) ** 2) / 6 - 1.5)} stroke-dasharray="6 5" stroke-width="2"></path>
+      </g>
+      <text class="small" x={resL.x} y={sy(resL, 0) - 6}>residual = 0</text>
+      <text class="small" x={resR.x} y={sy(resR, 0) - 6}>residual = 0</text>
+      <text x={resL.x + resL.w / 2} y="262" text-anchor="middle">good: no pattern</text>
+      <text x={resR.x + resR.w / 2} y="262" text-anchor="middle">bad: curvature the line missed</text>
+    </svg>
+  </Figure>
+  <p>
+    The residual plot (residuals against the prediction or against each feature) is worth more than any single
+    number. A pattern in it means the model is systematically wrong somewhere: a U shape means missing curvature, a
+    fan shape means the noise grows with the prediction, a few far-off points mean outliers. The famous
+    <a href="https://en.wikipedia.org/wiki/Anscombe%27s_quartet" target="_blank" rel="noopener noreferrer">Anscombe’s quartet</a>
+    is four datasets with the same line, the same <Math tex="R^2" /> and completely different pictures; look at it
+    once and you will never trust a summary number alone again.
+  </p>
+  <Source
+    kind="watch"
+    href="https://www.youtube.com/watch?v=2AQKmw14mHM"
+    title="StatQuest: R-squared, Clearly Explained"
+    meta="About 11 minutes. The “variation around the mean versus variation around the line” picture that makes the formula obvious."
+  />
+  <Source
+    kind="try"
+    href="https://mlu-explain.github.io/linear-regression/"
+    title="MLU-Explain: Linear Regression (interactive)"
+    meta="Drag points, watch the line, the residuals and R² update live. Includes the normal-equation derivation if you want it early."
+  />
+  <Callout kind="say">
+    <p>
+      “A coefficient is the expected change in the target per unit change in that feature with the others held fixed;
+      it depends on units, so I standardize before comparing features, and I treat it as association, not causation.
+      <Math tex="R^2" /> is one minus the residual sum of squares over the total sum of squares, the fraction of
+      variance explained; it can be negative on held-out data, it never decreases when features are added, and I
+      always pair it with RMSE in the target’s units and a residual plot.”
+    </p>
+  </Callout>
+
+  <h2 id="assumptions">What linear regression assumes</h2>
+  <Callout kind="plain">
+    <p>
+      A ruler is the right tool when the dots really do lie roughly along a straight line, when each dot’s wobble is
+      its own business and about the same size everywhere, and when no two measurements are secretly the same thing.
+      When those hold, least squares is not just reasonable; it is the best possible linear estimate. When they fail,
+      the line still gets drawn, with no error message, and it quietly misleads you. The assumptions are the checklist
+      for noticing.
+    </p>
+  </Callout>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Assumption</th><th>Plainly</th><th>How to check</th><th>What to do if it fails</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="term">Linearity</span></td><td>The target really is a weighted sum of the features (plus noise).</td><td>Residual plot shows curvature.</td><td>Add transformed features (<Math tex="x^2" />, <Math tex="\log x" />, interactions), or use a non-linear model.</td></tr>
+        <tr><td><span class="term">Independent errors</span></td><td>One example’s wobble tells you nothing about another’s.</td><td>Residuals correlated over time or within groups.</td><td>Time-series or grouped models; at least, split data by group not by row.</td></tr>
+        <tr><td><span class="term">Constant variance</span> (homoscedasticity)</td><td>The wobble is about the same size for small and large predictions.</td><td>Fan-shaped residual plot.</td><td>Predict <Math tex="\log y" /> instead of <Math tex="y" />; weighted least squares.</td></tr>
+        <tr><td><span class="term">Normal errors</span></td><td>The wobble is bell-shaped. Needed for confidence intervals, not for the fit itself.</td><td>Histogram or Q-Q plot of residuals.</td><td>Usually ignore for prediction; matters for inference.</td></tr>
+        <tr><td><span class="term">No perfect multicollinearity</span></td><td>No feature is an exact combination of others.</td><td><Math tex="X^\top X" /> singular; huge, unstable coefficients; variance inflation factors.</td><td>Drop or combine features; regularize (ridge).</td></tr>
+        <tr><td>No influential outliers</td><td>No single point is dragging the line.</td><td>Points with huge residuals or extreme <Math tex="x" />.</td><td>Investigate them; consider a robust loss.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Two interview-grade remarks. First, the assumptions are needed for <em>interpretation and inference</em> far
+    more than for prediction: a linear model with mildly non-normal, mildly heteroscedastic errors still predicts
+    fine. Second, the assumption people forget is independence, and it is the one most often violated in practice:
+    multiple rows from the same customer, repeated measurements, or time series. It does not bias the line much, but
+    it makes you far more confident than you should be, and it is why train/test splits must respect groups.
+  </p>
+  <Source
+    kind="read"
+    href="https://www.statlearning.com/"
+    title="James, Witten, Hastie and Tibshirani: An Introduction to Statistical Learning, chapter 3"
+    meta="Section 3.3.3, “Potential problems”, is the best short treatment of these assumptions, with plots. Free PDF; about 15 pages."
+  />
+  <Callout kind="say">
+    <p>
+      “OLS assumes a linear relationship, independent errors with constant variance, and no perfect multicollinearity;
+      normality of errors is needed only for inference. I check them with residual plots: curvature means add
+      non-linear features, a fan means heteroscedasticity, and unstable coefficients point to collinearity, which I
+      handle by dropping features or using ridge.”
+    </p>
+  </Callout>
+
+  <h2 id="beyond-lines">Curves from a linear model</h2>
+  <Callout kind="plain">
+    <p>
+      “Linear” sounds like it can only draw straight lines, but the word refers to the <em>parameters</em>, not the
+      picture. If you hand the model <Math tex="x" /> and also <Math tex="x^2" /> as two separate features, it will
+      draw a parabola, and it is still linear regression: a weighted sum of the features you gave it. You can feed it
+      logarithms, products of features, anything you like. The model stays simple and solvable; the cleverness moves
+      into choosing the features.
+    </p>
+  </Callout>
+  <Figure n={5} caption="A parabola fitted by ordinary linear regression. The features are x and x²; the model is ŷ = w₁x + w₂x² + b, which is linear in w₁, w₂ and b.">
+    <svg viewBox="0 0 720 300" role="img" aria-label="Scatter of points following a parabola with the fitted quadratic curve">
+      <g class="sketch">
+        <path class="stroke-soft" d={`M${poly.x} ${sy(poly, 0)} H${poly.x + poly.w} M${sx(poly, 0)} ${poly.y} V${poly.y + poly.h}`}></path>
+        <path class="stroke ink-red" d={curve(poly, (x) => 0.5 * x * x + 0.5)} stroke-width="3"></path>
+        {polyPts.map((p) => <circle class="stroke fill-paper" cx={sx(poly, p.x)} cy={sy(poly, p.y)} r="5" style="fill: var(--ink)" />)}
+      </g>
+      <text class="small" x={sx(poly, 6)} y={sy(poly, 0) + 20} text-anchor="end">x</text>
+      <text class="small" x={sx(poly, 0) - 6} y={poly.y - 8} text-anchor="end">y</text>
+      <text class="small" x="500" y="100">features: [x, x²]</text>
+      <text class="small" x="500" y="126">ŷ = w₁ x + w₂ x² + b</text>
+      <text class="small label-red" x="500" y="166">linear in the parameters,</text>
+      <text class="small label-red" x="500" y="188">curved in x</text>
+      <text class="small" x="500" y="228">solved by the same</text>
+      <text class="small" x="500" y="250">normal equation</text>
+    </svg>
+  </Figure>
+  <p>Common feature transformations, each still fitted by ordinary least squares:</p>
+  <ul>
+    <li><strong>Polynomial features.</strong> Add <Math tex="x^2, x^3, \dots" />. Powerful and dangerous: high degrees overfit violently (the wiggly curve from the last note). Degree 2 or 3 is usually the limit.</li>
+    <li><strong>Log transforms.</strong> Use <Math tex="\log x" /> for features that span orders of magnitude (income, population), or predict <Math tex="\log y" /> when the target is positive and skewed (prices, counts). A coefficient on a log feature reads as “effect per percent change”, which is often the natural scale.</li>
+    <li><strong>Interactions.</strong> Add <Math tex="x_1 x_2" /> to let the effect of one feature depend on another: the value of an extra bedroom depends on the size of the house.</li>
+    <li><strong>One-hot encoding.</strong> Turn a category (city) into several 0/1 features so the model can give each city its own offset. The <a href="/notes/ml/feature-scaling-encoding/">next note</a> covers how.</li>
+  </ul>
+  <p>
+    This is also the bridge to neural networks. A network is “linear regression on features it invented itself”: the
+    hidden layers learn the transformations, and the last layer is exactly the weighted sum on this page. Classical
+    feature engineering and deep learning are two answers to the same question of which features to hand the final
+    line.
+  </p>
+  <Callout kind="say">
+    <p>
+      “Linear means linear in the parameters, not in the inputs. Polynomial terms, logs, interactions and one-hot
+      categories are all fitted by the same least-squares machinery; the model’s capacity comes from the features.
+      A neural network can be viewed as linear regression on learned features.”
+    </p>
+  </Callout>
+
+  <h2 id="code">Code</h2>
+  <p>Type these out. The first two reproduce the hand calculations exactly; the third is the real-data version.</p>
+  <h3>Closed form, three ways</h3>
+  <CodeBlock code={closedFormCode} />
+  <h3>Gradient descent reaching the same answer</h3>
+  <CodeBlock code={gdCode} />
+  <h3>Many features, standardized coefficients, R² and RMSE</h3>
+  <CodeBlock code={sklearnCode} />
+  <h3>The residual plot catching a curved relationship</h3>
+  <CodeBlock code={residualCode} />
+  <Source
+    kind="read"
+    href="https://numpy.org/doc/stable/reference/generated/numpy.linalg.lstsq.html"
+    title="NumPy documentation: numpy.linalg.lstsq"
+    meta="The function to use for least squares in NumPy. Note that it returns the residual sum of squares and the rank of X, which tells you about collinearity for free."
+  />
+  <Source
+    kind="read"
+    href="https://scikit-learn.org/stable/modules/linear_model.html"
+    title="scikit-learn user guide: Linear models"
+    meta="Section 1.1.1 (Ordinary Least Squares) now; sections 1.1.2–1.1.3 (Ridge, Lasso) when you reach the regularization note."
+  />
+
+  <h2 id="llm">Where this lives in an LLM</h2>
+  <ul>
+    <li>
+      <strong>Every linear layer is multi-output linear regression.</strong> <code>nn.Linear(768, 3072)</code> is 3,072
+      linear regressions sharing the same 768 inputs, computed as one matrix multiply. The gradient formulas above,
+      “error times input”, are exactly what backpropagation computes for such a layer.
+    </li>
+    <li>
+      <strong>The output head is a linear regression onto logits.</strong> The final hidden state is mapped to 50,257
+      scores by a linear layer; softmax then turns them into probabilities. Classification fine-tuning in week 9
+      replaces that head with a new, small linear layer, and trains it with the same ideas.
+    </li>
+    <li>
+      <strong>Linear probes.</strong> To ask “does layer 6 know the sentiment of the text?”, researchers fit a linear
+      regression or logistic regression from layer-6 activations to the label. If a line can read it off, the
+      information is there. It is the standard interpretability tool, and it is this note.
+    </li>
+    <li>
+      <strong>Features matter more than the model.</strong> The section on curves is the whole philosophy of deep
+      learning in miniature: give a linear model good enough features and it solves hard problems. Networks learn the
+      features; this note is the last layer.
+    </li>
+  </ul>
+
+  <h2 id="interview">The full interview answer</h2>
+  <p>
+    The question is simply “explain linear regression”. Here is a complete answer in about ninety seconds that leaves
+    the interviewer nothing obvious to add.
+  </p>
+  <Callout kind="interview">
+    <p>
+      “Linear regression predicts a continuous target as a weighted sum of the features plus an intercept,
+      <Math tex="\hat{y} = \mathbf{w}\cdot\mathbf{x} + b" />. We fit it by minimizing the mean squared error, the
+      average squared residual. Squared error is convex and differentiable, has a closed-form minimizer, and
+      corresponds to maximum likelihood under Gaussian noise; its downside is sensitivity to outliers.
+    </p>
+    <p>
+      There are two ways to solve it. The normal equation, <Math tex="\theta = (X^\top X)^{-1}X^\top y" />, gives the
+      exact answer in about <Math tex="nd^2 + d^3" /> time and is what I use for moderate numbers of features;
+      gradient descent iterates <Math tex="\theta \leftarrow \theta - \eta \nabla L" /> and is what scales to very many
+      features or streaming data, and it reaches the same optimum because the loss is convex.
+    </p>
+    <p>
+      Each coefficient is the expected change in the target per unit of that feature with the others held fixed; it
+      depends on the feature’s units, so I standardize before comparing them, and I read it as association, not
+      causation. I evaluate with RMSE in the target’s units and <Math tex="R^2" />, the fraction of variance explained,
+      on held-out data, where <Math tex="R^2" /> can be negative. The model assumes linearity, independent errors with
+      constant variance and no perfect collinearity, which I check with residual plots. And linear means linear in
+      the parameters: polynomial, log and interaction features give curved fits with the same machinery, which is why
+      it is both the first baseline on any numeric problem and the last layer of every neural network.”
+    </p>
+  </Callout>
+  <p><strong>If they push further, be ready for:</strong></p>
+  <ul>
+    <li>“Why not absolute error?” Not differentiable at zero and no closed form; but it is robust to outliers, and Huber loss gets both.</li>
+    <li>“What if <Math tex="X^\top X" /> is not invertible?” Collinear features or <Math tex="d > n" />. Use the pseudo-inverse (lstsq) or ridge regression, which adds <Math tex="\lambda I" /> and always inverts.</li>
+    <li>“Why can test R² be negative?” The model’s residuals are larger than the test set’s own variance around its mean: worse than guessing the mean.</li>
+    <li>“Two features are highly correlated. What happens?” Predictions are fine, individual coefficients become unstable and uninterpretable. Drop one, combine them, or regularize.</li>
+    <li>“Derive the gradient.” <Math tex="\partial L/\partial \mathbf{w} = \frac{2}{n}X^\top(X\theta - y)" />; week 2 shows the steps.</li>
+  </ul>
+
+  <h2 id="questions">Practice questions</h2>
+  <p>Answer each one out loud before opening it.</p>
+  <QA q="Write the linear regression model for d features in vector form and name the parameters.">
+    <p><Math tex="\hat{y} = \mathbf{w}\cdot\mathbf{x} + b" />, with weight vector <Math tex="\mathbf{w} \in \mathbb{R}^d" /> and intercept <Math tex="b" />; or <Math tex="\hat{y} = \boldsymbol{\theta}\cdot\mathbf{x}" /> with a constant feature 1 absorbed. <Math tex="d + 1" /> parameters.</p>
+  </QA>
+  <QA q="What is a residual, and what property do least-squares residuals have when the model has an intercept?">
+    <p><Math tex="r_i = y_i - \hat{y}_i" />, the vertical gap. With an intercept they sum to zero, because the intercept’s gradient being zero is exactly <Math tex="\sum_i r_i = 0" />.</p>
+  </QA>
+  <QA q="Give three reasons squared error is the default loss for regression.">
+    <p>Convex and differentiable (one minimum, easy optimization); closed-form solution; equals maximum likelihood under Gaussian noise. A fourth: it penalizes large errors strongly, which is often desired.</p>
+  </QA>
+  <QA q="State the normal equation and the shape of each piece for n examples and d features.">
+    <p><Math tex="\theta = (X^\top X)^{-1}X^\top y" />. <Math tex="X" /> is <Math tex="n \times (d+1)" />, <Math tex="X^\top X" /> is <Math tex="(d+1) \times (d+1)" />, <Math tex="X^\top y" /> is a <Math tex="(d+1)" />-vector, <Math tex="\theta" /> is a <Math tex="(d+1)" />-vector.</p>
+  </QA>
+  <QA q="When would you choose gradient descent over the closed form, and vice versa?">
+    <p>Closed form for moderate <Math tex="d" /> (thousands or fewer): exact and fast. Gradient descent for very large <Math tex="d" />, for data that does not fit in memory or arrives as a stream, or as the same machinery you already run for a neural network.</p>
+  </QA>
+  <QA q="Write the gradient of the MSE with respect to w for a single feature, and say what it means in words.">
+    <p><Math tex="\frac{2}{n}\sum_i(\hat{y}_i - y_i)x_i" />: the average error weighted by the input. Over-predicting on large inputs makes it positive, which pushes <Math tex="w" /> down.</p>
+  </QA>
+  <QA q="How do you interpret a coefficient, and what two things make that interpretation unreliable?">
+    <p>Expected change in the target per unit increase in the feature, other features fixed. Unreliable when features are correlated (multicollinearity splits credit arbitrarily) and when units differ (compare only standardized coefficients). It is also association, not causation.</p>
+  </QA>
+  <QA q="Define R² and explain how it can be negative.">
+    <p><Math tex="R^2 = 1 - \text{SS}_\text{res}/\text{SS}_\text{tot}" />, the fraction of variance explained relative to predicting the mean. On held-out data the model’s squared residuals can exceed the variance around the test mean, making the ratio larger than 1 and <Math tex="R^2" /> negative: worse than the mean baseline.</p>
+  </QA>
+  <QA q="Why does adding a random feature never decrease training R²? What is the fix?">
+    <p>The new coefficient can always be set to zero to recover the old fit, so the optimum is at least as good; in practice it fits a little noise and improves slightly. Use adjusted <Math tex="R^2" /> or, better, evaluate on validation data.</p>
+  </QA>
+  <QA q="Is fitting y = w₁x + w₂x² + b linear regression?">
+    <p>Yes. It is linear in the parameters <Math tex="w_1, w_2, b" />; <Math tex="x^2" /> is just a second feature. The normal equation and gradient descent apply unchanged.</p>
+  </QA>
+  <QA q="List the main OLS assumptions and name one diagnostic for each.">
+    <p>Linearity (residuals vs fitted shows no curve); independent errors (no autocorrelation or grouping in residuals); constant variance (no fan shape); no perfect multicollinearity (invertible <Math tex="X^\top X" />, modest variance inflation); normality only for inference (Q-Q plot).</p>
+  </QA>
+  <QA q="What does a U-shaped residual plot tell you, and what do you do?">
+    <p>The true relationship is curved and the line is systematically under-predicting at the ends and over-predicting in the middle (or the reverse). Add a squared term or another non-linear transformation, or switch model class.</p>
+  </QA>
+
+  <h2 id="practice">Practice problems</h2>
+  <p>Paper first, then check. Solutions are hidden under each problem.</p>
+  <h3>By hand</h3>
+  <QA q="1. Fit a least-squares line to x = (1, 2, 3), y = (2, 4, 6). Then to x = (0, 1, 2, 3), y = (1, 3, 2, 4). Give w, b and the MSE for each.">
+    <p>
+      First: the points are exactly on <Math tex="y = 2x" />, so <Math tex="w = 2, b = 0" />, MSE 0. Second:
+      <Math tex="\bar{x} = 1.5, \bar{y} = 2.5" />; numerator <Math tex="(-1.5)(-1.5) + (-0.5)(0.5) + (0.5)(-0.5) + (1.5)(1.5) = 4" />;
+      denominator <Math tex="2.25 + 0.25 + 0.25 + 2.25 = 5" />; <Math tex="w = 0.8" />, <Math tex="b = 2.5 - 1.2 = 1.3" />.
+      Predictions 1.3, 2.1, 2.9, 3.7; residuals −0.3, 0.9, −0.9, 0.3; MSE <Math tex="1.8/4 = 0.45" />.
+    </p>
+  </QA>
+  <QA q="2. For the second dataset in problem 1, compute SS_res, SS_tot and R².">
+    <p>
+      <Math tex="\text{SS}_\text{res} = 0.09 + 0.81 + 0.81 + 0.09 = 1.8" />. <Math tex="\text{SS}_\text{tot} = 2.25 + 0.25 + 0.25 + 2.25 = 5" />.
+      <Math tex="R^2 = 1 - 1.8/5 = 0.64" />.
+    </p>
+  </QA>
+  <QA q="3. Check that the residuals in problem 1 sum to zero and that the line passes through (x̄, ȳ).">
+    <p>
+      <Math tex="-0.3 + 0.9 - 0.9 + 0.3 = 0" />. At <Math tex="\bar{x} = 1.5" />: <Math tex="0.8 \times 1.5 + 1.3 = 2.5 = \bar{y}" />. ✓
+    </p>
+  </QA>
+  <QA q="4. Write the X matrix (with the ones column) for the four-point dataset and compute XᵀX and Xᵀy. Solve the 2 × 2 system and confirm w and b.">
+    <p>
+      <Math tex="X" /> rows: (1, 0), (1, 1), (1, 2), (1, 3). <Math tex="X^\top X = [[4, 6], [6, 14]]" />, <Math tex="X^\top y = [10, 19]" />.
+      Solve <Math tex="4b + 6w = 10" /> and <Math tex="6b + 14w = 19" />: from the first <Math tex="b = 2.5 - 1.5w" />; substitute:
+      <Math tex="15 - 9w + 14w = 19" />, <Math tex="w = 0.8" />, <Math tex="b = 1.3" />. Same as the formulas.
+    </p>
+  </QA>
+  <QA q="5. Starting from w = 0, b = 0 on the four-point dataset, do one gradient-descent step with learning rate 0.1. Report the new loss.">
+    <p>
+      Predictions all 0; errors <Math tex="\hat{y} - y = (-1, -3, -2, -4)" />. <Math tex="\partial L/\partial w = \frac{2}{4}(0 - 3 - 4 - 12) = -9.5" />;
+      <Math tex="\partial L/\partial b = \frac{2}{4}(-10) = -5" />. New <Math tex="w = 0.95" />, <Math tex="b = 0.5" />. Predictions 0.5, 1.45, 2.4, 3.35;
+      errors −0.5, −1.55, 0.4, −0.65; MSE <Math tex="(0.25 + 2.40 + 0.16 + 0.42)/4 = 0.81" />, down from 7.5.
+    </p>
+  </QA>
+  <QA q="6. A model predicts salary from years of experience with coefficient 4,000 per year. Experience is then re-coded in months. What is the new coefficient? Do the predictions change?">
+    <p>
+      <Math tex="4000/12 = 333.3" /> per month. Predictions are identical; only the units of the coefficient changed. This is why raw coefficients cannot be compared across features.
+    </p>
+  </QA>
+  <QA q="7. n = 10,000 examples, d = 50 features. Estimate the cost of the normal equation. Repeat for d = 100,000 (bag of words). Which method would you use in each case?">
+    <p>
+      <Math tex="nd^2 = 2.5 \times 10^7" /> plus <Math tex="d^3 = 1.25 \times 10^5" />: trivial, use the closed form. For <Math tex="d = 10^5" />:
+      <Math tex="d^3 = 10^{15}" /> and <Math tex="X^\top X" /> alone has <Math tex="10^{10}" /> entries (80 GB). Use gradient descent (or a sparse solver).
+    </p>
+  </QA>
+  <QA q="8. A dataset has temperature in Celsius and in Fahrenheit as two features. What happens to XᵀX and to the coefficients? Name two fixes.">
+    <p>
+      The columns are exactly linearly related (<Math tex="F = 1.8C + 32" /> with the ones column), so <Math tex="X^\top X" /> is singular and the coefficients are not unique: any split of the effect between the two works. Drop one feature, or use ridge regression, or lstsq’s minimum-norm solution.
+    </p>
+  </QA>
+  <QA q="9. On a test set, SS_res = 120 and SS_tot = 100. What is R², and what does it mean?">
+    <p>
+      <Math tex="R^2 = 1 - 1.2 = -0.2" />. The model is worse than predicting the test mean: it has overfit or the test data differs from training.
+    </p>
+  </QA>
+  <QA q="10. A house-price model has RMSE 45 (thousand) and R² 0.85 on validation. A colleague says R² should be above 0.95 before shipping. How do you respond?">
+    <p>
+      <Math tex="R^2" /> has no universal threshold; it depends on how noisy prices are. Compare with the baseline and with a stronger model; report RMSE in dollars against what the business needs; check the residual plot for systematic errors. 0.85 may be excellent for this problem.
+    </p>
+  </QA>
+  <QA q="11. Which of these are linear regression (linear in parameters)? (a) ŷ = w₁x + w₂x² + b; (b) ŷ = w log x + b; (c) ŷ = e^(wx); (d) ŷ = w₁x₁ + w₂x₁x₂ + b; (e) ŷ = x^w.">
+    <p>
+      (a), (b), (d) yes: weighted sums of fixed transformations of the inputs. (c) and (e) no: the parameter sits inside a non-linear function. (Taking logs of (c) gives <Math tex="\log \hat{y} = wx" />, which is linear regression on a transformed target.)
+    </p>
+  </QA>
+  <QA q="12. Sketch, from memory, the three bad residual plots (curved, fan, outlier) and write one fix next to each.">
+    <p>
+      Curved (U or arch): add polynomial or log features. Fan (spread grows with prediction): model <Math tex="\log y" />, or weighted least squares. Outliers (a few far points): investigate, remove if erroneous, or use a robust loss such as Huber.
+    </p>
+  </QA>
+  <h3>Code</h3>
+  <QA q="13. Implement simple linear regression (two formulas), the normal equation, and gradient descent as three functions. Check all three agree on random data to 4 decimals.">
+    <CodeBlock
+      code={`import numpy as np
+
+def simple_fit(x, y):
+    w = np.sum((x - x.mean()) * (y - y.mean())) / np.sum((x - x.mean()) ** 2)
+    return w, y.mean() - w * x.mean()
+
+def normal_eq_fit(x, y):
+    X = np.column_stack([np.ones_like(x), x])
+    b, w = np.linalg.solve(X.T @ X, X.T @ y)       # solve, never inv
+    return w, b
+
+def gd_fit(x, y, lr=0.05, steps=20000):
+    w = b = 0.0
+    for _ in range(steps):
+        err = w * x + b - y
+        w -= lr * 2 * np.mean(err * x)
+        b -= lr * 2 * np.mean(err)
+    return w, b
+
+rng = np.random.default_rng(0)
+x = rng.uniform(0, 5, 100); y = 3 * x - 2 + rng.normal(0, 0.5, 100)
+for f in (simple_fit, normal_eq_fit, gd_fit):
+    print(f.__name__, np.round(f(x, y), 4))         # all ~ [3.0, -2.0]`}
+    />
+  </QA>
+  <QA q="14. Fit polynomials of degree 1 to 10 to 20 noisy points from a cubic. Plot train and test R² against degree, and mark the degree where test R² is best.">
+    <CodeBlock
+      code={`import numpy as np, matplotlib.pyplot as plt
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.metrics import r2_score
+
+rng = np.random.default_rng(1)
+x = rng.uniform(-2, 2, 40); y = x ** 3 - x + rng.normal(0, 0.5, 40)
+xtr, ytr, xte, yte = x[:20], y[:20], x[20:], y[20:]
+
+degrees = range(1, 11); tr, te = [], []
+for d in degrees:
+    m = make_pipeline(PolynomialFeatures(d), LinearRegression()).fit(xtr[:, None], ytr)
+    tr.append(r2_score(ytr, m.predict(xtr[:, None]))); te.append(r2_score(yte, m.predict(xte[:, None])))
+plt.plot(degrees, tr, label="train R^2"); plt.plot(degrees, te, label="test R^2")
+plt.axvline(degrees[int(np.argmax(te))], color="gray", linestyle="--"); plt.legend(); plt.xlabel("degree"); plt.show()
+# Train R^2 only goes up. Test R^2 peaks near degree 3 (the truth) and then falls, eventually below zero.`}
+    />
+  </QA>
+  <QA q="15. On California housing, fit linear regression on raw features and on standardized features. Show the predictions are identical but the coefficients differ, and rank features by standardized coefficient.">
+    <CodeBlock
+      code={`import numpy as np
+from sklearn.datasets import fetch_california_housing
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression
+
+data = fetch_california_housing(); X, y = data.data, data.target
+raw = LinearRegression().fit(X, y)
+sc = StandardScaler().fit(X); std = LinearRegression().fit(sc.transform(X), y)
+
+assert np.allclose(raw.predict(X), std.predict(sc.transform(X)))     # same model, same predictions
+for name, c_raw, c_std in zip(data.feature_names, raw.coef_, std.coef_):
+    print(f"{name:>12}  raw {c_raw:+9.4f}   standardized {c_std:+.3f}")
+# Raw coefficients: AveBedrms looks huge and HouseAge tiny, purely because of units.
+# Standardized: MedInc dominates; Latitude/Longitude are large, opposite in sign and correlated.
+print("standardized coefficient = raw coefficient * feature std:", np.allclose(std.coef_, raw.coef_ * sc.scale_))`}
+    />
+  </QA>
+  <QA q="16. Create two perfectly collinear features (Celsius and Fahrenheit) plus noise in y. Show that np.linalg.inv(X.T @ X) fails or gives garbage, that lstsq returns a sensible answer, and that predictions are still fine.">
+    <CodeBlock
+      code={`import numpy as np
+
+rng = np.random.default_rng(0)
+c = rng.uniform(-10, 35, 200); f = 1.8 * c + 32
+y = 0.5 * c + 3 + rng.normal(0, 0.3, 200)
+X = np.column_stack([np.ones(200), c, f])
+
+print(np.linalg.matrix_rank(X))                 # 2, not 3: one column is redundant
+try:
+    theta = np.linalg.inv(X.T @ X) @ X.T @ y
+    print("inv gave:", theta)                    # if it runs at all, enormous unstable numbers
+except np.linalg.LinAlgError as e:
+    print("inv failed:", e)
+
+theta, res, rank, sv = np.linalg.lstsq(X, y, rcond=None)
+print("lstsq:", np.round(theta, 3), "rank", rank)   # a minimum-norm split of the effect between c and f
+print("prediction RMSE:", np.sqrt(np.mean((X @ theta - y) ** 2)))   # ~0.3: predictions are fine
+# Lesson: collinearity ruins interpretation, not prediction. Drop f, or use ridge.`}
+    />
+  </QA>
+
+  <h2 id="mistakes">Common mistakes</h2>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Comparing raw coefficients to rank feature importance.</strong> They are in different units. Standardize
+      first, and even then correlated features share credit unpredictably.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Reading a coefficient as a causal effect.</strong> Observational data gives associations. Say
+      “associated with”, not “causes”, unless the data came from an experiment.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Reporting training R².</strong> It only rises as you add features. Report held-out <Math tex="R^2" /> and
+      RMSE, and remember held-out <Math tex="R^2" /> can be negative.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Forgetting the intercept.</strong> Without the ones column the line is forced through the origin, the
+      residuals no longer sum to zero, and the fit is usually much worse. <code>fit_intercept=True</code> is the default
+      for a reason.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Inverting XᵀX in code.</strong> Numerically fragile and slow. Use <code>lstsq</code> or <code>solve</code>;
+      keep the explicit inverse for the whiteboard.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Saying linear regression “can only fit straight lines”.</strong> It fits any function that is linear in
+      the parameters; curves come from the features. The limitation is that you must choose those features, which is
+      what neural networks automate.
+    </p>
+  </Callout>
+
+  <h2 id="sources">All sources</h2>
+  <p>Everything linked above, in the order to use it, plus one reference.</p>
+  <ol>
+    <li>
+      <a href="https://www.youtube.com/watch?v=PaFPbb66DxQ" target="_blank" rel="noopener noreferrer">StatQuest, “The Main Ideas of Fitting a Line to Data”</a>
+      (video, 9 min), then
+      <a href="https://www.youtube.com/watch?v=7ArmBVF2dCs" target="_blank" rel="noopener noreferrer">“Linear Regression, Clearly Explained”</a>
+      (27 min) and <a href="https://www.youtube.com/watch?v=2AQKmw14mHM" target="_blank" rel="noopener noreferrer">“R-squared, Clearly Explained”</a> (11 min).
+    </li>
+    <li>
+      <a href="https://developers.google.com/machine-learning/crash-course/linear-regression" target="_blank" rel="noopener noreferrer">Google ML Crash Course, Linear regression</a>
+      (reading and interactive exercises).
+    </li>
+    <li>
+      <a href="https://mlu-explain.github.io/linear-regression/" target="_blank" rel="noopener noreferrer">MLU-Explain, Linear Regression</a> (interactive).
+    </li>
+    <li>
+      <a href="https://www.khanacademy.org/math/statistics-probability/describing-relationships-quantitative-data" target="_blank" rel="noopener noreferrer">Khan Academy, Describing relationships in quantitative data</a>
+      (exercises on least squares and residuals).
+    </li>
+    <li>
+      <a href="https://en.wikipedia.org/wiki/Anscombe%27s_quartet" target="_blank" rel="noopener noreferrer">Anscombe’s quartet</a> (Wikipedia), for why you plot residuals.
+    </li>
+    <li>
+      <a href="https://numpy.org/doc/stable/reference/generated/numpy.linalg.lstsq.html" target="_blank" rel="noopener noreferrer">NumPy, linalg.lstsq</a>
+      and <a href="https://scikit-learn.org/stable/modules/linear_model.html" target="_blank" rel="noopener noreferrer">scikit-learn, Linear models</a>
+      (documentation).
+    </li>
+    <li>
+      <a href="https://www.statlearning.com/" target="_blank" rel="noopener noreferrer">James, Witten, Hastie and Tibshirani, <em>An Introduction to Statistical Learning</em></a>,
+      chapter 3 (free PDF). The reference for assumptions and interpretation; and Andrew Ng’s
+      <a href="https://www.coursera.org/learn/machine-learning" target="_blank" rel="noopener noreferrer">Supervised Machine Learning</a>, week 1, for the gradient-descent view.
+    </li>
+  </ol>
+
+  <h2 id="revision">One-minute revision</h2>
+  <Callout kind="revision">
+    <ul>
+      <li>Model: <Math tex="\hat{y} = \mathbf{w}\cdot\mathbf{x} + b" />; with a ones column, <Math tex="\hat{\mathbf{y}} = X\boldsymbol{\theta}" />, <Math tex="X" /> is <Math tex="n \times (d+1)" />.</li>
+      <li>Loss: MSE <Math tex="= \frac{1}{n}\lVert\mathbf{y} - X\theta\rVert^2" />. Convex bowl, one minimum. Squared because: smooth, closed form, Gaussian MLE, punishes big errors.</li>
+      <li>Simple case: <Math tex="w = \sum(x-\bar{x})(y-\bar{y}) / \sum(x-\bar{x})^2" />, <Math tex="b = \bar{y} - w\bar{x}" />. Houses: 180 and 23.3, MSE 22.2.</li>
+      <li>Normal equation: <Math tex="\theta = (X^\top X)^{-1}X^\top y" />. Cost <Math tex="nd^2 + d^3" />. Fails if collinear; use lstsq or ridge.</li>
+      <li>Gradient descent: <Math tex="\partial L/\partial w = \frac{2}{n}\sum(\hat{y}-y)x" />; same optimum; scales to huge <Math tex="d" />.</li>
+      <li>Coefficient = change per unit, others fixed; unit-dependent; standardize to compare; association not causation; collinearity makes them unstable.</li>
+      <li><Math tex="R^2 = 1 - \text{SS}_\text{res}/\text{SS}_\text{tot}" />; can be negative on test; never falls with more features; pair with RMSE and a residual plot.</li>
+      <li>Assumptions: linearity, independent errors, constant variance, no perfect collinearity (normality only for inference). Residual plots catch the first three.</li>
+      <li>Linear in parameters, not inputs: polynomial, log, interaction, one-hot features. A network = linear regression on learned features.</li>
+    </ul>
+  </Callout>
+</Note>

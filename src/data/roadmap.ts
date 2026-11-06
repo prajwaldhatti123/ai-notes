@@ -79,7 +79,7 @@ export const tracks: Track[] = [
     project: 'Project 0: an ML library from scratch, plus a tabular case study',
     notes: [
       { slug: 'what-is-machine-learning', title: 'What machine learning is: data, model, loss, optimizer', week: 1, ready: true },
-      { slug: 'linear-regression', title: 'Linear regression', week: 1 },
+      { slug: 'linear-regression', title: 'Linear regression', week: 1, ready: true },
       { slug: 'feature-scaling-encoding', title: 'Feature scaling, normalization and encoding', week: 1 },
       { slug: 'loss-functions', title: 'Loss functions: MSE, MAE and log loss', week: 2 },
       { slug: 'gradient-descent', title: 'Gradient descent: batch, stochastic and mini-batch', week: 2 },
