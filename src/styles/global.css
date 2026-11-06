@@ -456,6 +456,13 @@ hr::before {
   font-size: 1.3rem;
 }
 
+/* Display math wider than the column scrolls sideways instead of overflowing the page. */
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+}
+
 /* The eyebrow line above a title: "Phase 1 · Week 1" */
 .eyebrow {
   font-variant-caps: all-small-caps;

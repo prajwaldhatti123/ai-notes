@@ -44,7 +44,7 @@ export const tracks: Track[] = [
       'Seeing Theory (Brown University), a visual introduction to probability',
     ],
     notes: [
-      { slug: 'functions-exponents-logs', title: 'Functions, exponents and logarithms', week: 1 },
+      { slug: 'functions-exponents-logs', title: 'Functions, exponents and logarithms', week: 1, ready: true },
       { slug: 'vectors-dot-product', title: 'Vectors and the dot product', week: 1 },
       { slug: 'matrices-and-shapes', title: 'Matrices, matrix multiplication and shapes', week: 1 },
       { slug: 'norms-distance-cosine', title: 'Norms, distance and cosine similarity', week: 1 },
