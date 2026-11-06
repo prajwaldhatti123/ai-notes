@@ -1,0 +1,962 @@
+---
+import Note from '../../../layouts/Note.astro';
+import CodeBlock from '../../../components/CodeBlock.astro';
+import Callout from '../../../components/Callout.astro';
+import QA from '../../../components/QA.astro';
+import Figure from '../../../components/Figure.astro';
+import Math from '../../../components/Math.astro';
+import Source from '../../../components/Source.astro';
+
+const sections = [
+  { id: 'why', label: 'Why this note matters' },
+  { id: 'plain', label: 'In plain words' },
+  { id: 'four-parts', label: 'The four parts of every ML system' },
+  { id: 'first-model', label: 'A first model, by hand' },
+  { id: 'generalization', label: 'The real goal: new data' },
+  { id: 'kinds', label: 'Kinds of learning' },
+  { id: 'workflow', label: 'The workflow around the loop' },
+  { id: 'vocabulary', label: 'The vocabulary, in one table' },
+  { id: 'nesting', label: 'AI, ML, deep learning, LLMs' },
+  { id: 'code', label: 'Code' },
+  { id: 'llm', label: 'Where this lives in an LLM' },
+  { id: 'interview', label: 'The full interview answer' },
+  { id: 'questions', label: 'Practice questions' },
+  { id: 'practice', label: 'Practice problems' },
+  { id: 'mistakes', label: 'Common mistakes' },
+  { id: 'sources', label: 'All sources' },
+  { id: 'revision', label: 'One-minute revision' },
+];
+
+const M = globalThis.Math;
+interface Panel { x: number; y: number; w: number; h: number; xr: [number, number]; yr: [number, number] }
+const sx = (p: Panel, vx: number) => p.x + ((vx - p.xr[0]) / (p.xr[1] - p.xr[0])) * p.w;
+const sy = (p: Panel, vy: number) => p.y + p.h - ((vy - p.yr[0]) / (p.yr[1] - p.yr[0])) * p.h;
+const line = (p: Panel, w: number, b: number) => `M${sx(p, p.xr[0]).toFixed(1)} ${sy(p, w * p.xr[0] + b).toFixed(1)} L${sx(p, p.xr[1]).toFixed(1)} ${sy(p, w * p.xr[1] + b).toFixed(1)}`;
+
+// Fig. 4: three houses and three candidate lines.
+const houses = [
+  { x: 1, y: 200 },
+  { x: 1.5, y: 300 },
+  { x: 2, y: 380 },
+];
+const fit: Panel = { x: 90, y: 30, w: 360, h: 240, xr: [0.5, 2.5], yr: [0, 500] };
+const candidates = [
+  { w: 180, b: 0, label: 'w = 180, b = 0: loss 567', cls: 'stroke-soft', dash: '7 5' },
+  { w: 200, b: 0, label: 'w = 200, b = 0: loss 133', cls: 'stroke', dash: '' },
+  { w: 190, b: 10, label: 'w = 190, b = 10: loss 42', cls: 'stroke ink-red', dash: '' },
+];
+// Fig. 5: memorizing versus learning.
+const gen: Panel = { x: 40, y: 30, w: 300, h: 220, xr: [0, 10], yr: [0, 10] };
+const gen2: Panel = { x: 400, y: 30, w: 300, h: 220, xr: [0, 10], yr: [0, 10] };
+const pts = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((x) => ({ x, y: 0.8 * x + 1 + [0.9, -1.1, 0.7, -0.8, 1.2, -0.6, 0.5, -1.0, 0.8][x - 1] }));
+const wiggle = (p: Panel) =>
+  pts.map((pt, i) => (i === 0 ? `M${sx(p, pt.x).toFixed(1)} ${sy(p, pt.y).toFixed(1)}` : `Q${sx(p, pt.x - 0.5).toFixed(1)} ${sy(p, (pts[i - 1].y + pt.y) / 2 + (i % 2 ? 3 : -3)).toFixed(1)} ${sx(p, pt.x).toFixed(1)} ${sy(p, pt.y).toFixed(1)}`)).join(' ');
+const newPoint = { x: 5.5, y: 5.6 };
+
+const bruteForceCode = `import numpy as np
+
+# Three houses: size in thousands of square feet, price in thousands.
+sizes  = np.array([1.0, 1.5, 2.0])
+prices = np.array([200.0, 300.0, 380.0])
+
+def predict(w, b, x):            # the MODEL: a line with two knobs
+    return w * x + b
+
+def loss(w, b):                  # the LOSS: mean squared error over the data
+    errors = predict(w, b, sizes) - prices
+    return np.mean(errors ** 2)
+
+print(loss(180, 0), loss(200, 0), loss(190, 10))     # 566.7 133.3 41.7  (matches the table)
+
+# The dumbest OPTIMIZER: try a grid of knob settings and keep the best.
+best = min(((loss(w, b), w, b) for w in range(150, 251, 2) for b in range(-50, 51, 2)))
+print(best)                                           # (22.67, 180, 24)  -> price ~ 180 * size + 24 on this coarse grid
+
+# That is machine learning in miniature: data, a model with knobs, a loss, and a search over the knobs.
+# Gradient descent (week 2) replaces the grid with a smarter search; everything else stays the same.`;
+
+const sklearnCode = `import numpy as np
+from sklearn.linear_model import LinearRegression
+
+sizes  = np.array([[1.0], [1.5], [2.0]])     # scikit-learn wants a 2-D array: (examples, features)
+prices = np.array([200.0, 300.0, 380.0])
+
+model = LinearRegression()        # the model: y = w x + b, knobs not yet set
+model.fit(sizes, prices)          # the optimizer: finds the best w and b for the data
+print(model.coef_, model.intercept_)          # [180.] 23.33  the exact best line; the grid got close
+print(model.predict([[1.8]]))                 # [347.33]      inference on a house we have not seen
+
+from sklearn.metrics import mean_squared_error
+print(mean_squared_error(prices, model.predict(sizes)))     # 22.22  the loss at the best knobs`;
+
+const splitCode = `import numpy as np
+from sklearn.datasets import load_diabetes
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
+
+X, y = load_diabetes(return_X_y=True)        # 442 patients, 10 features, target = disease progression
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+print(X_train.shape, X_test.shape)           # (353, 10) (89, 10)
+
+# Baseline first: always predict the training mean. Any real model must beat this.
+baseline = np.full_like(y_test, y_train.mean())
+print("baseline test MSE:", mean_squared_error(y_test, baseline))      # about 5500
+
+model = LinearRegression().fit(X_train, y_train)
+print("train MSE:", mean_squared_error(y_train, model.predict(X_train)))   # about 2900
+print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # about 3400
+
+# The test number is the one that matters: it estimates performance on patients we have never seen.
+# It is a little worse than train, which is normal. If it were much worse, we would suspect overfitting.`;
+---
+
+<Note
+  track="ml"
+  slug="what-is-machine-learning"
+  lede="Machine learning is programming by example: instead of writing the rules, you show the computer data and let it find rules that fit. Every ML system, from a line through three points to GPT, has the same four parts. This note names them, builds the smallest possible one by hand, and gives you the vocabulary for the rest of the track."
+  sections={sections}
+>
+  <h2 id="why">Why this note matters</h2>
+  <p>
+    Interviewers for AI roles ask the big-picture question more often than juniors expect, because it reveals whether
+    you have a mental model or a pile of memorized terms. “Explain machine learning to someone non-technical.” “What
+    is the difference between supervised and unsupervised learning?” “What are the parts of a training loop?” “What
+    is a hyperparameter?” These are easy marks if you have one clear picture, and that picture is the four-part loop
+    on this page. Every later note, including the ones on transformers, is a specialization of it.
+  </p>
+  <p>Questions that are really this note:</p>
+  <ul>
+    <li>“How is machine learning different from ordinary programming?”</li>
+    <li>“Walk me through what happens when a model trains.”</li>
+    <li>“Parameters versus hyperparameters?”</li>
+    <li>“Is training a language model supervised or unsupervised?”</li>
+    <li>“Why do we split data into train and test sets?”</li>
+  </ul>
+  <Callout kind="note" label="The scope rule">
+    <p>
+      The four parts, the kinds of learning that interviews mention, the standard workflow, the vocabulary, and one
+      tiny model built by hand. Each part gets its own detailed note later this week and next; this note is the map.
+    </p>
+  </Callout>
+
+  <h2 id="plain">In plain words</h2>
+  <Callout kind="plain">
+    <p>
+      In ordinary programming you write the rules. To tell spam from real email you would write “if the subject
+      contains FREE and the sender is unknown, it is spam”, and a hundred more rules, and still miss most of it.
+    </p>
+    <p>
+      In machine learning you do not write the rules. You collect ten thousand emails that someone has already marked
+      spam or not spam, hand them to a program with a lot of adjustable dials, and let the program turn its own dials
+      until its answers match the marks. The rules end up inside the dial settings. Nobody wrote them, and nobody can
+      easily read them, but they work on the next ten thousand emails too.
+    </p>
+    <p>
+      Cooking is the same shape. The <em>recipe</em> is the model, with amounts you can adjust. The <em>taste test</em>
+      is the loss: how far is this from what it should be? And <em>“a bit less salt next time”</em> is the optimizer.
+      Cook, taste, adjust, repeat. That loop is all of machine learning.
+    </p>
+  </Callout>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Everyday idea</th><th>Technical term</th><th>Symbol</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>The examples you learn from</td><td><span class="term">training data</span></td><td><Math tex="(\mathbf{x}_i, y_i)" /> pairs</td></tr>
+        <tr><td>The facts about one example</td><td><span class="term">features</span> (inputs)</td><td><Math tex="\mathbf{x}" /></td></tr>
+        <tr><td>The right answer for one example</td><td><span class="term">label</span> (target)</td><td><Math tex="y" /></td></tr>
+        <tr><td>The recipe with adjustable amounts</td><td><span class="term">model</span></td><td><Math tex="f_\theta(\mathbf{x})" /></td></tr>
+        <tr><td>The adjustable amounts</td><td><span class="term">parameters</span> (weights)</td><td><Math tex="\theta" /></td></tr>
+        <tr><td>The recipe’s guess</td><td><span class="term">prediction</span></td><td><Math tex="\hat{y}" /> (“y hat”)</td></tr>
+        <tr><td>The taste test: how wrong is the guess?</td><td><span class="term">loss function</span></td><td><Math tex="L(\hat{y}, y)" /></td></tr>
+        <tr><td>“Less salt next time”</td><td><span class="term">optimizer</span></td><td>gradient descent</td></tr>
+        <tr><td>Cooking it again with the new amounts</td><td><span class="term">training step</span> (iteration)</td><td></td></tr>
+        <tr><td>Serving the dish to a guest</td><td><span class="term">inference</span> (prediction on new data)</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="four-parts">The four parts of every ML system</h2>
+  <Callout kind="plain">
+    <p>
+      Every machine-learning system you will ever meet has the same four parts: some <strong>data</strong> to learn
+      from, a <strong>model</strong> with knobs, a <strong>loss</strong> that scores how wrong the model is, and an
+      <strong>optimizer</strong> that turns the knobs to make the loss smaller. Connect them in a loop and run the
+      loop many times. When you are confused by a complicated system later, find these four parts and the confusion
+      usually goes away.
+    </p>
+  </Callout>
+  <Figure n={1} caption="The training loop. Data goes in, the model guesses, the loss compares the guess with the label, and the optimizer nudges the model’s parameters. Repeat thousands of times.">
+    <svg viewBox="0 0 720 300" role="img" aria-label="Loop diagram: data flows into a model, which produces a prediction; the loss compares the prediction with the label; the optimizer updates the model">
+      <g class="sketch">
+        <rect class="stroke fill-paper" x="30" y="110" width="120" height="70" rx="8"></rect>
+        <rect class="stroke fill-gold" x="230" y="110" width="140" height="70" rx="8"></rect>
+        <rect class="stroke fill-green" x="470" y="110" width="120" height="70" rx="8"></rect>
+        <rect class="stroke fill-blue" x="230" y="230" width="140" height="56" rx="8"></rect>
+        <rect class="stroke fill-paper" x="470" y="20" width="120" height="56" rx="8"></rect>
+        <path class="stroke" d="M150 145 H222" marker-end="url(#arrow)"></path>
+        <path class="stroke" d="M370 145 H462" marker-end="url(#arrow)"></path>
+        <path class="stroke" d="M530 76 V102" marker-end="url(#arrow)"></path>
+        <path class="stroke" d="M530 180 V258 H378" marker-end="url(#arrow)"></path>
+        <path class="stroke ink-red" d="M300 230 V188" stroke-width="2.5" marker-end="url(#arrow)"></path>
+        <path class="stroke-soft" d="M90 110 V48 H462" stroke-dasharray="6 5" marker-end="url(#arrow)"></path>
+      </g>
+      <text x="90" y="140" text-anchor="middle">data</text>
+      <text class="small" x="90" y="162" text-anchor="middle">features x</text>
+      <text x="300" y="140" text-anchor="middle">model</text>
+      <text class="small" x="300" y="162" text-anchor="middle">f(x; θ), the knobs</text>
+      <text x="530" y="140" text-anchor="middle">loss</text>
+      <text class="small" x="530" y="162" text-anchor="middle">how wrong is ŷ?</text>
+      <text x="300" y="253" text-anchor="middle">optimizer</text>
+      <text class="small" x="300" y="274" text-anchor="middle">turn the knobs</text>
+      <text class="small" x="530" y="43" text-anchor="middle">label y</text>
+      <text class="small" x="530" y="62" text-anchor="middle">the right answer</text>
+      <text class="small" x="414" y="138" text-anchor="middle">prediction ŷ</text>
+      <text class="small label-red" x="316" y="214">update θ</text>
+      <text class="small" x="280" y="40">the data also carries the labels</text>
+    </svg>
+  </Figure>
+  <p>Take the parts one at a time, with the example this track will use for the next two weeks: predicting a house’s price from its size.</p>
+  <p>
+    <strong>Data.</strong> A set of examples, each with features and, for supervised learning, a label. Here each
+    example is one house: the feature is its size, the label is the price it sold for. The data is usually written
+    as a matrix <Math tex="X" /> with one row per example (the data matrix from the
+    <a href="/notes/math/matrices-and-shapes/">matrices note</a>) and a vector <Math tex="\mathbf{y}" /> of labels.
+    Data is the part people underestimate: in practice, more and cleaner data beats a cleverer model far more often
+    than the other way round.
+  </p>
+  <p>
+    <strong>Model.</strong> A function with adjustable parameters that turns features into a prediction. The simplest
+    one for house prices is a line, <Math tex="\hat{y} = w \cdot \text{size} + b" />, with two parameters. A neural
+    network is the same idea with millions of parameters and a more flexible shape. Choosing the <em>form</em> of the
+    model (line? tree? network? how big?) is your job; choosing the parameter <em>values</em> is the optimizer’s.
+  </p>
+  <p>
+    <strong>Loss.</strong> A single number that says how wrong the model’s predictions are on the data, with zero
+    meaning perfect. For prices, the standard choice is the <span class="term">mean squared error</span>: take each
+    prediction minus its label, square it so that over- and under-predictions both count as bad, and average. The
+    loss turns the vague goal “predict well” into a precise target: make this number small.
+  </p>
+  <p>
+    <strong>Optimizer.</strong> The procedure that changes the parameters to reduce the loss. The one everyone uses
+    is <span class="term">gradient descent</span>: compute which way each parameter should move to reduce the loss by
+    a little, move all of them that way, repeat. Week 2 is about exactly how. For now the key insight is that the
+    optimizer never sees the problem; it only sees the loss number and the knobs, and it turns knobs to push the
+    number down.
+  </p>
+  <p>
+    Run the loop: predict on the data, compute the loss, update the parameters, predict again. Each pass through the
+    whole dataset is an <span class="term">epoch</span>. Stop when the loss stops improving, or when a clock runs
+    out. The parameters at the end <em>are</em> the trained model; “saving a model” means saving those numbers.
+  </p>
+  <Source
+    kind="watch"
+    href="https://www.youtube.com/watch?v=Gv9_4yMHFhI"
+    title="StatQuest: A Gentle Introduction to Machine Learning"
+    meta="About 12 minutes. The whole picture, with the point that testing on new data is what makes a method good, which the next section is about."
+  />
+  <Callout kind="say">
+    <p>
+      “Every ML system has four parts: training data, a parameterized model, a loss function that measures prediction
+      error, and an optimizer that adjusts the parameters to minimize the loss. Training is iterating that loop;
+      inference is running the model with the learned parameters on new inputs.”
+    </p>
+  </Callout>
+
+  <h2 id="first-model">A first model, by hand</h2>
+  <Callout kind="plain">
+    <p>
+      Three houses sold recently: 1,000 square feet for 200 thousand, 1,500 for 300, and 2,000 for 380. You want a
+      rule for pricing the next one. Guess a rule, “200 per thousand square feet”, check it against the three sales,
+      see how far off you are, and adjust. Do that a few times and you have trained a model, with your own head as the
+      optimizer.
+    </p>
+  </Callout>
+  <p>
+    Write size in thousands of square feet, so the data is <Math tex="x = (1, 1.5, 2)" /> and the prices are
+    <Math tex="y = (200, 300, 380)" />. The model is a line with two knobs:
+  </p>
+  <Math block tex="\hat{y} = w\,x + b" />
+  <p>The loss is the mean squared error over the three houses:</p>
+  <Math block tex="L(w, b) = \frac{1}{3}\sum_{i=1}^{3} (\hat{y}_i - y_i)^2 = \frac{1}{3}\sum_{i=1}^{3} (w x_i + b - y_i)^2" />
+  <p>Now play optimizer. Try three settings of the knobs and score each one:</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Knobs</th><th>Predictions for x = 1, 1.5, 2</th><th>Errors (prediction − price)</th><th>Squared</th><th>Loss (mean)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><Math tex="w = 180,\ b = 0" /></td><td>180, 270, 360</td><td>−20, −30, −20</td><td>400, 900, 400</td><td><strong>566.7</strong></td></tr>
+        <tr><td><Math tex="w = 200,\ b = 0" /></td><td>200, 300, 400</td><td>0, 0, +20</td><td>0, 0, 400</td><td><strong>133.3</strong></td></tr>
+        <tr><td><Math tex="w = 190,\ b = 10" /></td><td>200, 295, 390</td><td>0, −5, +10</td><td>0, 25, 100</td><td><strong>41.7</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <Figure n={2} caption="Three candidate lines through three houses. The loss is the average squared vertical gap between the line and the dots. The red line has the smallest gaps.">
+    <svg viewBox="0 0 720 300" role="img" aria-label="Scatter plot of three houses with three candidate regression lines and their losses">
+      <g class="sketch">
+        <path class="stroke-soft" d={`M${fit.x} ${sy(fit, 0)} H${fit.x + fit.w} M${sx(fit, 0.5)} ${fit.y} V${fit.y + fit.h}`}></path>
+        {candidates.map((c) => <path class={c.cls} d={line(fit, c.w, c.b)} stroke-width={c.cls.includes('red') ? 3 : 2} stroke-dasharray={c.dash || undefined} />)}
+        {houses.map((h) => <circle class="stroke fill-paper" cx={sx(fit, h.x)} cy={sy(fit, h.y)} r="7" />)}
+        {houses.map((h) => <path class="stroke ink-red" d={`M${sx(fit, h.x)} ${sy(fit, h.y)} V${sy(fit, 190 * h.x + 10)}`} stroke-width="2" />)}
+      </g>
+      {houses.map((h) => <text class="small" x={sx(fit, h.x) + 10} y={sy(fit, h.y) + 18}>({h.x}, {h.y})</text>)}
+      <text class="small" x={sx(fit, 2.5)} y={sy(fit, 0) + 20} text-anchor="end">size (thousand sq ft)</text>
+      <text class="small" x={sx(fit, 0.5) - 6} y={fit.y - 8} text-anchor="end">price</text>
+      {candidates.map((c, i) => (
+        <text class={`small ${c.cls.includes('red') ? 'label-red' : ''}`} x="470" y={110 + i * 30}>{c.label}</text>
+      ))}
+      <text class="small label-red" x="470" y="220">red ticks = the errors</text>
+      <text class="small label-red" x="470" y="242">loss = mean of their squares</text>
+    </svg>
+  </Figure>
+  <p>
+    The third setting is best of the three, and you found it the way every optimizer does: by looking at how wrong
+    the current guess was and moving the knobs in the direction that reduces the error. The second row was too high
+    for the big house, so you lowered the slope a little and lifted the intercept to keep the small houses right.
+    Gradient descent will do exactly this reasoning with calculus instead of intuition, and the
+    <a href="#code">code section</a> does it with brute force. The best line of all turns out to be
+    <Math tex="w = 180,\ b \approx 23.3" />, with a loss of about 22.2; you will derive that in the
+    <a href="/notes/ml/linear-regression/">linear regression note</a>.
+  </p>
+  <p>
+    Notice what “learning” meant here. Nothing mystical: a model shape, a score, and a search over the knobs. The
+    model never “understood” houses. It found two numbers that make a score small. Keep this deflationary picture; it
+    is accurate all the way up to the largest language model, and it is what interviewers want to hear.
+  </p>
+  <Callout kind="say">
+    <p>
+      “Training means searching over the model’s parameters for values that minimize the loss on the training data.
+      For a line fit by mean squared error, the loss is the average squared residual, and the optimizer adjusts slope
+      and intercept to shrink it.”
+    </p>
+  </Callout>
+
+  <h2 id="generalization">The real goal: new data</h2>
+  <Callout kind="plain">
+    <p>
+      A student who memorizes last year’s exam paper scores perfectly on last year’s paper and fails this year’s. A
+      student who learned the subject does well on both. We do not care how well a model does on the houses it was
+      trained on; we already know those prices. We care about the <em>next</em> house. So the only honest test of a
+      model is on data it has never seen, and that is why every ML project hides some of its data from the model
+      from the very start.
+    </p>
+  </Callout>
+  <Figure n={3} caption="Two models fit to the same nine points. Left: a wiggly curve passing through every point has zero training loss and predicts the new point (open circle) badly. Right: a straight line misses the training points slightly and predicts the new point well.">
+    <svg viewBox="0 0 740 300" role="img" aria-label="Two scatter plots: a curve that passes exactly through every training point versus a straight line that fits the trend; a new test point is far from the curve but close to the line">
+      <g class="sketch">
+        <path class="stroke-soft" d={`M${gen.x} ${sy(gen, 0)} H${gen.x + gen.w} M${sx(gen, 0)} ${gen.y} V${gen.y + gen.h}`}></path>
+        <path class="stroke ink-red" d={wiggle(gen)} stroke-width="2.5"></path>
+        {pts.map((pt) => <circle class="stroke fill-paper" cx={sx(gen, pt.x)} cy={sy(gen, pt.y)} r="5" style="fill: var(--ink)" />)}
+        <circle class="stroke fill-paper" cx={sx(gen, newPoint.x)} cy={sy(gen, newPoint.y)} r="6"></circle>
+        <path class="stroke-soft" d={`M${gen2.x} ${sy(gen2, 0)} H${gen2.x + gen2.w} M${sx(gen2, 0)} ${gen2.y} V${gen2.y + gen2.h}`}></path>
+        <path class="stroke ink-red" d={line(gen2, 0.8, 1)} stroke-width="2.5"></path>
+        {pts.map((pt) => <circle class="stroke fill-paper" cx={sx(gen2, pt.x)} cy={sy(gen2, pt.y)} r="5" style="fill: var(--ink)" />)}
+        <circle class="stroke fill-paper" cx={sx(gen2, newPoint.x)} cy={sy(gen2, newPoint.y)} r="6"></circle>
+      </g>
+      <text x={gen.x + gen.w / 2} y="280" text-anchor="middle">memorized: training loss 0</text>
+      <text x={gen2.x + gen2.w / 2} y="280" text-anchor="middle">learned: training loss small, not 0</text>
+      <text class="small" x={sx(gen, newPoint.x) + 10} y={sy(gen, newPoint.y) + 4}>new point</text>
+      <text class="small" x={sx(gen2, newPoint.x) + 10} y={sy(gen2, newPoint.y) + 4}>new point</text>
+    </svg>
+  </Figure>
+  <p>
+    The ability to do well on unseen data is called <span class="term">generalization</span>, and it is the actual
+    objective of machine learning. The training loss is only a proxy for it. A model that drives training loss to
+    zero by memorizing the examples, like the wiggly curve, has <span class="term">overfit</span>: it learned the
+    noise along with the pattern. A model too simple to capture the pattern at all has
+    <span class="term">underfit</span>. The whole craft of ML sits between those two failures, and the
+    <a href="/notes/ml/overfitting-bias-variance/">overfitting note</a> next week gives it a full treatment.
+  </p>
+  <p>
+    The practical rule follows immediately. Before you train anything, split the data: a <strong>training set</strong>
+    the model learns from and a <strong>test set</strong> it never sees until the very end, when you measure it once.
+    Most projects add a third <strong>validation set</strong> for making choices during development, so that the test
+    set stays untouched. Any number you report from data the model trained on is not evidence of anything.
+    The <a href="/notes/ml/data-splits-cross-validation/">data splits note</a> in week 3 has the details and the
+    traps.
+  </p>
+  <Source
+    kind="read"
+    href="https://developers.google.com/machine-learning/crash-course/overfitting/generalization"
+    title="Google Machine Learning Crash Course: Generalization"
+    meta="A short page with the same picture as Fig. 3 and a clear statement of the train/test rule. Five minutes."
+  />
+  <Callout kind="say">
+    <p>
+      “The goal is generalization, performance on data the model has not seen, so we hold out a test set from the
+      start and never train or tune on it. Low training loss with high test loss is overfitting; high loss on both is
+      underfitting.”
+    </p>
+  </Callout>
+
+  <h2 id="kinds">Kinds of learning</h2>
+  <Callout kind="plain">
+    <p>
+      The difference between the kinds of machine learning is mostly about <em>what the labels are</em>. Sometimes a
+      human has written the right answer next to every example. Sometimes there are no right answers and you want
+      the computer to find structure on its own. Sometimes the right answer is hiding inside the data itself, as when
+      the next word of a sentence is the label for the words before it. And sometimes the answer arrives late, as a
+      reward after a sequence of moves. Four situations, four names.
+    </p>
+  </Callout>
+  <Figure n={4} caption="The kinds of learning, split by where the label comes from. Interviews mostly ask about the first two; LLM pretraining is the third.">
+    <svg viewBox="0 0 740 300" role="img" aria-label="Tree diagram: machine learning splits into supervised (regression, classification), unsupervised (clustering, dimensionality reduction), self-supervised (next-token prediction) and reinforcement learning">
+      <g class="sketch">
+        <rect class="stroke fill-gold" x="290" y="20" width="160" height="46" rx="8"></rect>
+        <rect class="stroke fill-green" x="20" y="120" width="160" height="46" rx="8"></rect>
+        <rect class="stroke fill-blue" x="200" y="120" width="160" height="46" rx="8"></rect>
+        <rect class="stroke fill-paper" x="380" y="120" width="160" height="46" rx="8"></rect>
+        <rect class="stroke fill-paper" x="560" y="120" width="160" height="46" rx="8"></rect>
+        <path class="stroke" d="M370 66 V92 H100 V112 M370 92 H640 V112 M280 92 V112 M460 92 V112" marker-end="url(#arrow)"></path>
+      </g>
+      <text x="370" y="48" text-anchor="middle">machine learning</text>
+      <text x="100" y="148" text-anchor="middle">supervised</text>
+      <text x="280" y="148" text-anchor="middle">unsupervised</text>
+      <text x="460" y="148" text-anchor="middle">self-supervised</text>
+      <text x="640" y="148" text-anchor="middle">reinforcement</text>
+      <text class="small" x="100" y="192" text-anchor="middle">labels given by people</text>
+      <text class="small" x="100" y="214" text-anchor="middle">regression: a number</text>
+      <text class="small" x="100" y="236" text-anchor="middle">classification: a category</text>
+      <text class="small" x="280" y="192" text-anchor="middle">no labels</text>
+      <text class="small" x="280" y="214" text-anchor="middle">clustering (k-means)</text>
+      <text class="small" x="280" y="236" text-anchor="middle">dimensionality reduction (PCA)</text>
+      <text class="small" x="460" y="192" text-anchor="middle">labels made from the data</text>
+      <text class="small" x="460" y="214" text-anchor="middle">predict the next token</text>
+      <text class="small label-red" x="460" y="236" text-anchor="middle">LLM pretraining</text>
+      <text class="small" x="640" y="192" text-anchor="middle">rewards, not labels</text>
+      <text class="small" x="640" y="214" text-anchor="middle">games, robots</text>
+      <text class="small" x="640" y="236" text-anchor="middle">RLHF for chat models</text>
+    </svg>
+  </Figure>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Kind</th><th>What the data looks like</th><th>Typical tasks</th><th>In these notes</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="term">Supervised</span></td>
+          <td>Features plus a human-provided label for each example</td>
+          <td><span class="term">Regression</span> predicts a number (price, temperature). <span class="term">Classification</span> predicts a category (spam or not, which digit).</td>
+          <td>Linear and logistic regression, trees, most of weeks 1–3</td>
+        </tr>
+        <tr>
+          <td><span class="term">Unsupervised</span></td>
+          <td>Features only, no labels</td>
+          <td><span class="term">Clustering</span> groups similar examples. <span class="term">Dimensionality reduction</span> compresses features while keeping structure.</td>
+          <td>k-means and PCA, week 4</td>
+        </tr>
+        <tr>
+          <td><span class="term">Self-supervised</span></td>
+          <td>Raw data, with labels manufactured from it</td>
+          <td>Predict a hidden part from the visible part: the next word, a masked word, a missing image patch.</td>
+          <td>LLM pretraining, weeks 7–9</td>
+        </tr>
+        <tr>
+          <td><span class="term">Reinforcement</span></td>
+          <td>An agent acting in an environment, receiving rewards</td>
+          <td>Learn a policy that maximizes long-run reward: games, control, and preference tuning of chat models.</td>
+          <td>RLHF and DPO, week 10, at the depth interviews need</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Two clarifications that interviewers like. First, regression and classification differ only in the type of the
+    label, and that changes the loss: squared error for numbers, cross-entropy for categories. The rest of the loop
+    is identical. Second, the question “is training an LLM supervised?” has a precise answer: the mechanics are
+    supervised (there is a label and a loss for every position), but the labels cost nothing because they are the
+    next tokens of the text itself. That is what “self-supervised” means, and it is why LLMs could be trained on the
+    whole internet without anyone labelling it.
+  </p>
+  <Source
+    kind="read"
+    href="https://developers.google.com/machine-learning/glossary"
+    title="Google Machine Learning Glossary"
+    meta="Bookmark it. When any term in these notes is unclear, its entry here is short, correct and has an example. Look up “supervised”, “unsupervised” and “self-supervised” now."
+  />
+  <Callout kind="say">
+    <p>
+      “Supervised learning uses labelled examples, with regression for numeric targets and classification for
+      categorical ones. Unsupervised learning finds structure without labels, such as clusters or low-dimensional
+      representations. Language-model pretraining is self-supervised: the next token serves as the label, so the loss
+      is ordinary supervised cross-entropy but the labels are free.”
+    </p>
+  </Callout>
+
+  <h2 id="workflow">The workflow around the loop</h2>
+  <Callout kind="plain">
+    <p>
+      The training loop is the engine, but a real project is a whole car around it. Before the loop runs you have to
+      decide what “good” means and get data you trust. After it runs you have to check the result on data the model
+      never saw, compare it with the dumbest possible alternative, and only then let it loose on real users, where
+      you keep watching it. Skipping any of these steps is how models that look great in a notebook fail in
+      production.
+    </p>
+  </Callout>
+  <Figure n={5} caption="The standard workflow. The training loop of Fig. 1 is only the fourth box. Evaluation always uses data that was set aside before training began." wide>
+    <svg viewBox="0 0 900 170" role="img" aria-label="Seven boxes in a row: define the task and metric, get and split data, baseline, train, evaluate on held-out data, iterate, deploy and monitor; with an arrow looping back from evaluate to train">
+      <g class="sketch">
+        {['define task', 'get + split data', 'baseline', 'train', 'evaluate', 'iterate', 'deploy + monitor'].map((_, i) => (
+          <rect class={`stroke ${i === 3 ? 'fill-gold' : i === 4 ? 'fill-green' : 'fill-paper'}`} x={20 + i * 125} y="50" width="110" height="56" rx="8" />
+        ))}
+        {[0, 1, 2, 3, 4, 5].map((i) => <path class="stroke" d={`M${130 + i * 125} 78 H${137 + i * 125}`} marker-end="url(#arrow)" />)}
+        <path class="stroke ink-red" d="M700 106 V136 H450 V114" stroke-dasharray="6 5" marker-end="url(#arrow)"></path>
+      </g>
+      {['define task', 'get + split data', 'baseline', 'train', 'evaluate', 'iterate', 'deploy + monitor'].map((label, i) => (
+        <text class="small" x={75 + i * 125} y="83" text-anchor="middle">{label}</text>
+      ))}
+      <text class="small" x="75" y="30" text-anchor="middle">and the metric</text>
+      <text class="small" x="200" y="30" text-anchor="middle">train / val / test</text>
+      <text class="small" x="325" y="30" text-anchor="middle">the dumb model</text>
+      <text class="small" x="450" y="30" text-anchor="middle">the loop of Fig. 1</text>
+      <text class="small" x="575" y="30" text-anchor="middle">on held-out data</text>
+      <text class="small label-red" x="575" y="160" text-anchor="middle">change one thing, train again</text>
+    </svg>
+  </Figure>
+  <ol>
+    <li>
+      <strong>Define the task and the metric.</strong> What is the input, what is the output, and what single number
+      will tell you the model is good enough? The <span class="term">metric</span> is what the business cares about
+      (accuracy, revenue, time saved) and is often different from the loss the optimizer minimizes. Decide it first,
+      or you will decide it after seeing results, which is cheating.
+    </li>
+    <li>
+      <strong>Get the data and split it.</strong> Training, validation and test sets, separated before you look too
+      closely. Clean it, and look at examples by hand; most project-ending bugs live in the data.
+    </li>
+    <li>
+      <strong>Build a baseline.</strong> The simplest thing that could work: predict the average, predict the most
+      common class, or use a rule of thumb. Every real model must beat the baseline on the validation set, and the
+      margin by which it does so is the honest measure of what you have gained.
+    </li>
+    <li><strong>Train.</strong> The loop of Fig. 1.</li>
+    <li>
+      <strong>Evaluate on held-out data.</strong> The validation set during development. The test set once, at the
+      end, for the number you report.
+    </li>
+    <li>
+      <strong>Iterate.</strong> Change one thing at a time: a feature, a model size, a hyperparameter. Measure again.
+      Keep a log; the log is where the interview stories come from.
+    </li>
+    <li>
+      <strong>Deploy and monitor.</strong> The world changes after you ship, and so does the data. A model that was
+      good in March can be bad in September. Monitoring is part of the job, and the production track in week 15 is
+      about it.
+    </li>
+  </ol>
+  <p>
+    This is also the structure of <a href="/projects/#ml-from-scratch">Project 0</a> and of every project after it.
+    Projects that follow this shape produce numbers you can defend; projects that skip the baseline and the split
+    produce numbers nobody should believe, including you.
+  </p>
+  <Source
+    kind="read"
+    href="https://www.kaggle.com/learn/intro-to-machine-learning"
+    title="Kaggle Learn: Intro to Machine Learning"
+    meta="A free, short, hands-on course that walks this exact workflow on a housing dataset in a notebook. About three hours in total; do the first four lessons this week."
+  />
+  <Callout kind="say">
+    <p>
+      “Define the task and the evaluation metric, split the data before anything else, establish a baseline, train,
+      evaluate on held-out data, iterate one change at a time, then deploy with monitoring. The metric is chosen up
+      front; the test set is touched once.”
+    </p>
+  </Callout>
+
+  <h2 id="vocabulary">The vocabulary, in one table</h2>
+  <p>
+    These are the words that will appear on every page from here on. Most confusion in interviews comes from using
+    two of them interchangeably when they are not, so the right-hand column gives the pairs to keep apart.
+  </p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Term</th><th>Meaning</th><th>Do not confuse with</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="term">Example</span> (sample, instance, row)</td><td>One data point: one house, one email, one image.</td><td>A <em>feature</em>, which is one column, one fact about every example.</td></tr>
+        <tr><td><span class="term">Feature</span></td><td>One measured input: size, word count, pixel value.</td><td>The <em>label</em>, which is the output we want to predict.</td></tr>
+        <tr><td><span class="term">Label</span> (target, ground truth)</td><td>The correct answer for an example, used only in training and evaluation.</td><td>The <em>prediction</em>, which is the model’s guess at it.</td></tr>
+        <tr><td><span class="term">Parameters</span> (weights)</td><td>Numbers inside the model that training changes.</td><td><em>Hyperparameters</em>: settings you choose before training (model size, learning rate, number of epochs). Training never changes them; you tune them on the validation set.</td></tr>
+        <tr><td><span class="term">Loss</span></td><td>The number the optimizer minimizes during training; must be smooth enough to optimize.</td><td>The <em>metric</em>: what you actually care about, often not smooth (accuracy, F1). You optimize the loss and report the metric.</td></tr>
+        <tr><td><span class="term">Training</span> (fitting)</td><td>Running the loop to set the parameters.</td><td><em>Inference</em>: using the trained model to predict on new inputs. Different cost, different code path.</td></tr>
+        <tr><td><span class="term">Epoch</span></td><td>One full pass over the training data.</td><td>A <em>step</em> (iteration), one parameter update, usually on one <em>batch</em> of examples. An epoch is many steps.</td></tr>
+        <tr><td><span class="term">Baseline</span></td><td>The simplest reference model, or a previous model, that a new one must beat.</td><td>A <em>benchmark</em>, which is a standard dataset and metric used to compare methods across papers.</td></tr>
+        <tr><td><span class="term">Generalization</span></td><td>Performance on data not seen in training.</td><td><em>Training performance</em>, which is only evidence of fitting, not of learning.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <Callout kind="say">
+    <p>
+      “Parameters are learned from data; hyperparameters are chosen beforehand and tuned on a validation set. The loss
+      is what the optimizer minimizes; the metric is what we report. Training sets the parameters; inference uses
+      them.”
+    </p>
+  </Callout>
+
+  <h2 id="nesting">AI, ML, deep learning, LLMs</h2>
+  <Callout kind="plain">
+    <p>
+      These words nest like boxes. Artificial intelligence is the biggest box, anything that makes a computer do
+      something that looks smart, including hand-written rules. Machine learning is the box inside it where the rules
+      are learned from data. Deep learning is the box inside that where the model is a neural network with many
+      layers. Large language models are a corner of the deep learning box: very large networks trained on text to
+      predict the next token.
+    </p>
+  </Callout>
+  <Figure n={6} caption="Nested boxes. Everything in this track lives in the machine learning box; the deep learning and LLM tracks go deeper into the inner boxes. The four-part loop is the same in all of them.">
+    <svg viewBox="0 0 720 340" role="img" aria-label="Four nested rounded rectangles labelled artificial intelligence, machine learning, deep learning and large language models">
+      <g class="sketch">
+        <rect class="stroke fill-paper" x="30" y="20" width="660" height="300" rx="14"></rect>
+        <rect class="stroke fill-gold" x="120" y="70" width="540" height="220" rx="12"></rect>
+        <rect class="stroke fill-green" x="230" y="120" width="400" height="140" rx="10"></rect>
+        <rect class="stroke fill-blue" x="360" y="165" width="240" height="60" rx="8"></rect>
+      </g>
+      <text x="50" y="52">artificial intelligence</text>
+      <text class="small" x="50" y="308">includes hand-written rules, search, planning</text>
+      <text x="140" y="100">machine learning</text>
+      <text class="small" x="140" y="280">rules learned from data: this track</text>
+      <text x="250" y="150">deep learning</text>
+      <text class="small" x="250" y="250">multi-layer neural networks: weeks 5–6</text>
+      <text x="380" y="190">large language models</text>
+      <text class="small" x="380" y="214">transformers trained on text: weeks 7+</text>
+    </svg>
+  </Figure>
+  <p>
+    The reason to be precise about the boxes is that interviewers use them to probe depth. “Deep learning” is not a
+    different kind of learning; it is machine learning with a particular, very flexible model and the same four parts.
+    “Classical” machine learning, the subject of this track, refers to the models that are not deep networks: linear
+    models, trees, nearest neighbours, clustering. They still win on most tabular business data, they train in
+    seconds on a laptop, and they are what interviewers reach for when they want to check that you understand the
+    fundamentals rather than only the fashion.
+  </p>
+  <Callout kind="say">
+    <p>
+      “Machine learning is the subset of AI where behaviour is learned from data; deep learning is the subset of ML
+      using multi-layer neural networks; LLMs are large transformers trained self-supervised on text. Classical ML
+      still dominates tabular problems and is the right baseline before reaching for a network.”
+    </p>
+  </Callout>
+
+  <h2 id="code">Code</h2>
+  <p>Type these out. The three programs are the same loop at three levels of automation.</p>
+  <h3>The four parts, by brute force</h3>
+  <CodeBlock code={bruteForceCode} />
+  <h3>The same model with scikit-learn</h3>
+  <CodeBlock code={sklearnCode} />
+  <h3>A real dataset, a split and a baseline</h3>
+  <CodeBlock code={splitCode} />
+  <Source
+    kind="read"
+    href="https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html"
+    title="scikit-learn documentation: LinearRegression"
+    meta="Read the Parameters, Attributes and Methods sections. Every scikit-learn model follows this same fit / predict pattern, so learning it once pays for the whole track."
+  />
+  <Source
+    kind="code"
+    href="https://github.com/rasbt/machine-learning-book/tree/main/ch02"
+    title="Raschka, Machine Learning with PyTorch and Scikit-Learn, chapter 2 code"
+    meta="A perceptron trained from scratch on the iris dataset: the four parts with no library hiding any of them. Read along with the chapter."
+  />
+
+  <h2 id="llm">Where this lives in an LLM</h2>
+  <p>Find the four parts in GPT-2 and the picture stays the same; only the sizes change.</p>
+  <ul>
+    <li><strong>Data.</strong> About 40 GB of web text. Each training example is a window of 1,024 tokens, and the label at each position is simply the next token. No human labelled anything: self-supervised.</li>
+    <li><strong>Model.</strong> A transformer with 124 million parameters (small) up to 1.5 billion (large). A function from a token sequence to a probability over the next token, with knobs.</li>
+    <li><strong>Loss.</strong> Cross-entropy, the <Math tex="-\log p" /> from the <a href="/notes/math/functions-exponents-logs/">logarithms note</a>, of the true next token, averaged over all positions.</li>
+    <li><strong>Optimizer.</strong> AdamW, a variant of gradient descent, run for hundreds of thousands of steps on batches of sequences.</li>
+    <li><strong>Hyperparameters.</strong> Number of layers, width, learning rate, batch size, context length. Chosen by people, before training, and reported in the paper.</li>
+    <li><strong>Inference.</strong> Run the trained model on a prompt, get a probability over the next token, pick one, append it, repeat. That is “generation”.</li>
+    <li><strong>Generalization.</strong> Measured as loss on held-out text the model never trained on; a model that memorized its training set would have low training loss and useless outputs on anything new, exactly the wiggly curve of Fig. 3.</li>
+  </ul>
+  <p>
+    Fine-tuning, RAG and agents, the subjects of the later tracks, are ways of adapting or wrapping this one trained
+    function. Keep locating the four parts and none of it will feel like magic.
+  </p>
+
+  <h2 id="interview">The full interview answer</h2>
+  <p>
+    The question usually comes as “explain machine learning to me as if I were not technical, then as if I were”.
+    Here is both, in about ninety seconds.
+  </p>
+  <Callout kind="interview">
+    <p>
+      “Plainly: in normal programming a person writes the rules; in machine learning we show the computer many
+      examples with the right answers and it adjusts its own internal settings until its answers match. The rules end
+      up inside those settings. We check that it learned something real, rather than memorizing, by testing it on
+      examples it never saw.
+    </p>
+    <p>
+      Precisely: every ML system has four parts. Training data, pairs of features and labels. A model, which is a
+      parameterized function from features to a prediction. A loss function, a single number measuring how wrong the
+      predictions are, such as mean squared error for regression or cross-entropy for classification. And an
+      optimizer, usually a form of gradient descent, that adjusts the parameters to minimize the loss. Training
+      iterates that loop; inference applies the learned parameters to new inputs. The actual objective is
+      generalization, performance on held-out data, so we split off a test set before training and tune any
+      hyperparameters, the settings we choose rather than learn, on a separate validation set. Supervised learning
+      has human labels; unsupervised learning finds structure without them; language-model pretraining is
+      self-supervised, because the next token is the label and the loss is ordinary cross-entropy.”
+    </p>
+  </Callout>
+  <p><strong>If they push further, be ready for:</strong></p>
+  <ul>
+    <li>“Give an example of a hyperparameter and how you would choose it.” Learning rate; try several values, pick the one with the best validation loss, never the test loss.</li>
+    <li>“Loss versus metric?” Loss is what you can optimize (smooth); the metric is what you report (accuracy, F1). They should agree in direction, but they are different numbers.</li>
+    <li>“Why not evaluate on the training data?” It measures memorization, not learning. The wiggly curve has zero training error and is useless.</li>
+    <li>“Is deep learning a different kind of ML?” No; same four parts with a neural network as the model.</li>
+    <li>“What would you do first on a new problem?” Define the metric, split the data, build the dumbest baseline, then try the simplest model that could work.</li>
+  </ul>
+
+  <h2 id="questions">Practice questions</h2>
+  <p>Answer each one out loud before opening it.</p>
+  <QA q="What are the four parts of every machine-learning system, and what does each do?">
+    <p>Data (examples to learn from), model (a parameterized function from features to predictions), loss (a number measuring how wrong the predictions are), optimizer (adjusts the parameters to reduce the loss). Training iterates the loop.</p>
+  </QA>
+  <QA q="What is the difference between a parameter and a hyperparameter? Give two examples of each.">
+    <p>Parameters are learned by the optimizer from data: the slope and intercept of a line, the weights of a network. Hyperparameters are chosen before training and tuned on validation data: learning rate, number of layers, number of epochs, regularization strength.</p>
+  </QA>
+  <QA q="Why is the training loss not the goal?">
+    <p>The goal is generalization: good predictions on unseen data. Training loss can be driven to zero by memorizing, which does not generalize. Held-out data is the only honest measure.</p>
+  </QA>
+  <QA q="Define regression and classification in one sentence each. What changes in the training loop between them?">
+    <p>Regression predicts a continuous number; classification predicts a category. Only the model’s output layer and the loss change: squared error for regression, cross-entropy for classification. Data, optimizer and loop are the same.</p>
+  </QA>
+  <QA q="Is training a language model supervised or unsupervised?">
+    <p>Self-supervised: the mechanics are supervised (a label and a cross-entropy loss at every position) but the labels are the next tokens of the text itself, so no human labelling is needed.</p>
+  </QA>
+  <QA q="What is a baseline and why do you build one first?">
+    <p>The simplest reference predictor, such as the training mean or the majority class. Without it you cannot tell whether a model’s score is good; the gain over the baseline is the real measure of what the model learned.</p>
+  </QA>
+  <QA q="What is the difference between the loss and the metric?">
+    <p>The loss is the smooth quantity the optimizer minimizes (MSE, cross-entropy). The metric is what the task cares about and what you report (accuracy, F1, revenue), often not differentiable. You optimize the loss and monitor the metric.</p>
+  </QA>
+  <QA q="What are the training, validation and test sets for?">
+    <p>Training: fitting parameters. Validation: choosing hyperparameters and models during development. Test: one final, untouched estimate of generalization. Tuning on the test set makes its number meaningless.</p>
+  </QA>
+  <QA q="What is an epoch? How does it differ from a step?">
+    <p>An epoch is one full pass over the training data. A step is one parameter update, usually on one batch. An epoch of 10,000 examples with batch size 100 is 100 steps.</p>
+  </QA>
+  <QA q="Name a task for each: supervised regression, supervised classification, unsupervised learning, self-supervised learning, reinforcement learning.">
+    <p>House price prediction; spam detection; customer clustering with k-means; next-token prediction for an LLM; learning to play a game from win/loss rewards (or RLHF for a chat model).</p>
+  </QA>
+  <QA q="Explain the relationship between AI, machine learning, deep learning and LLMs.">
+    <p>Nested subsets: ML is the part of AI where behaviour is learned from data; deep learning is ML with multi-layer neural networks; LLMs are large transformers trained self-supervised on text. All share the four-part loop.</p>
+  </QA>
+  <QA q="A model has training MSE 10 and test MSE 400. What do you suspect, and what is one thing you would try?">
+    <p>Overfitting: it fits the training data far better than new data. Try more data, a simpler model, regularization, or check for a data leak between the sets. The overfitting note covers the options.</p>
+  </QA>
+
+  <h2 id="practice">Practice problems</h2>
+  <p>Paper first, then check. Solutions are hidden under each problem.</p>
+  <h3>By hand</h3>
+  <QA q="1. For the three houses (1, 200), (1.5, 300), (2, 380), compute the MSE of the line ŷ = 160x + 60 and of ŷ = 180x + 20. Which is better?">
+    <p>
+      First: predictions 220, 300, 380; errors 20, 0, 0; MSE 400/3 = 133.3. Second: 200, 290, 380; errors 0, −10, 0;
+      MSE 100/3 = 33.3. The second. Neither is the least-squares optimum, which is <Math tex="w = 180, b = 23.3" /> with
+      MSE 22.2; the linear regression note derives it.
+    </p>
+  </QA>
+  <QA q="2. Classify each as a parameter or a hyperparameter: the slope of a regression line; the number of trees in a random forest; the learning rate; the bias of a neuron; the number of neurons in a layer; the entries of an embedding table.">
+    <p>Parameter, hyperparameter, hyperparameter, parameter, hyperparameter, parameter.</p>
+  </QA>
+  <QA q="3. Classify each task: predicting tomorrow’s temperature; deciding whether a transaction is fraud; grouping news articles by topic with no labels; predicting the masked word in a sentence; choosing ad placements to maximize clicks over time.">
+    <p>Supervised regression; supervised classification; unsupervised clustering; self-supervised; reinforcement learning (a bandit problem).</p>
+  </QA>
+  <QA q="4. A dataset has 1,000 rows and 12 columns, one of which is the label. How many examples, how many features? If the training set is 80% and batch size is 50, how many steps per epoch?">
+    <p>1,000 examples, 11 features. 800 training examples / 50 = 16 steps per epoch.</p>
+  </QA>
+  <QA q="5. Write down a sensible baseline for each: house prices; spam detection where 5% of email is spam; next-token prediction.">
+    <p>Predict the mean (or median) training price. Predict “not spam” for everything (95% accuracy, which shows why accuracy is a poor metric here). Predict the most frequent token, or a unigram frequency model.</p>
+  </QA>
+  <QA q="6. You tuned the learning rate by trying ten values and picking the one with the best test accuracy. What is wrong, and what should you have done?">
+    <p>The test set has been used for a choice, so its accuracy is now optimistically biased and no longer an honest estimate. Tune on a validation set (or cross-validation) and touch the test set once at the end.</p>
+  </QA>
+  <QA q="7. Describe the four parts for a spam filter built with logistic regression.">
+    <p>Data: emails with spam/not-spam labels, turned into feature vectors (word counts). Model: logistic regression, <Math tex="\sigma(\mathbf{w}\cdot\mathbf{x} + b)" />. Loss: cross-entropy (log loss). Optimizer: gradient descent on <Math tex="\mathbf{w}" /> and <Math tex="b" />.</p>
+  </QA>
+  <QA q="8. Describe the four parts for GPT-2 pretraining.">
+    <p>Data: web text in 1,024-token windows, label = next token. Model: a 124M-parameter transformer. Loss: cross-entropy of the true next token, averaged over positions. Optimizer: AdamW. Self-supervised because the labels come from the data.</p>
+  </QA>
+  <QA q="9. Explain, in two sentences a product manager would accept, why the model that scored 99% on the training data might be worthless.">
+    <p>It may have memorized the training examples instead of learning the pattern, like a student who memorized last year’s exam. The only score that counts is on examples it has never seen, and we have not measured that yet.</p>
+  </QA>
+  <QA q="10. Sketch the training loop of Fig. 1 from memory and label which arrow carries the gradient.">
+    <p>Data → model → prediction → loss (with the label entering the loss); loss → optimizer → model. The arrow from the optimizer back to the model carries the update, computed from the gradient of the loss with respect to the parameters.</p>
+  </QA>
+  <h3>Code</h3>
+  <QA q="11. Extend the brute-force search to a finer grid (step 0.5 for w and b) and report the best (w, b) and loss. Then plot the loss as a function of w with b fixed at 20. What shape is it?">
+    <CodeBlock
+      code={`import numpy as np
+import matplotlib.pyplot as plt
+
+sizes  = np.array([1.0, 1.5, 2.0]); prices = np.array([200.0, 300.0, 380.0])
+loss = lambda w, b: np.mean((w * sizes + b - prices) ** 2)
+
+ws = np.arange(150, 251, 0.5); bs = np.arange(-50, 51, 0.5)
+grid = np.array([[loss(w, b) for b in bs] for w in ws])
+i, j = np.unravel_index(grid.argmin(), grid.shape)
+print(ws[i], bs[j], grid[i, j])          # 180.0 23.5 22.25  (exact optimum: b = 23.33, MSE 22.22)
+
+plt.plot(ws, [loss(w, 23.33) for w in ws])
+plt.xlabel("w (with b = 23.33)"); plt.ylabel("MSE"); plt.title("a bowl: one minimum, no traps")
+plt.show()
+# The loss of a linear model under MSE is a parabola in each parameter (a bowl in both).
+# That is why gradient descent works so cleanly for it: roll downhill and you reach the bottom.`}
+    />
+  </QA>
+  <QA q="12. On the diabetes dataset, compare three baselines on the test set: predict the mean, predict the median, predict zero. Then fit LinearRegression and report how much of the gap it closes.">
+    <CodeBlock
+      code={`import numpy as np
+from sklearn.datasets import load_diabetes
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error as mse
+
+X, y = load_diabetes(return_X_y=True)
+Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=0)
+
+for name, value in [("mean", ytr.mean()), ("median", np.median(ytr)), ("zero", 0.0)]:
+    print(f"{name:>6} baseline MSE: {mse(yte, np.full_like(yte, value)):8.0f}")
+
+model = LinearRegression().fit(Xtr, ytr)
+m = mse(yte, model.predict(Xte))
+print(f"linear regression MSE: {m:8.0f}")
+print(f"improvement over mean baseline: {1 - m / mse(yte, np.full_like(yte, ytr.mean())):.0%}")
+# Always report the improvement over the baseline, not the raw number: raw MSE means nothing on its own.`}
+    />
+  </QA>
+  <QA q="13. Show overfitting in one experiment: fit polynomials of degree 1, 3 and 12 to 15 noisy points and print train and test MSE for each.">
+    <CodeBlock
+      code={`import numpy as np
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LinearRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.metrics import mean_squared_error as mse
+
+rng = np.random.default_rng(0)
+x = np.sort(rng.uniform(0, 10, 30)); y = 0.8 * x + 1 + rng.normal(0, 1, 30)
+x_tr, y_tr, x_te, y_te = x[::2], y[::2], x[1::2], y[1::2]          # 15 train, 15 test
+
+for degree in [1, 3, 12]:
+    model = make_pipeline(PolynomialFeatures(degree), LinearRegression()).fit(x_tr[:, None], y_tr)
+    print(f"degree {degree:>2}: train MSE {mse(y_tr, model.predict(x_tr[:, None])):6.2f}   "
+          f"test MSE {mse(y_te, model.predict(x_te[:, None])):8.2f}")
+# degree  1: train ~1   test ~1      fits the pattern
+# degree  3: train ~0.9 test ~1.2    slightly worse on test
+# degree 12: train ~0.3 test huge    memorized the noise: Fig. 3, left panel`}
+    />
+  </QA>
+  <QA q="14. Write a function train_val_test_split(X, y, 0.7, 0.15, 0.15, seed) by hand with NumPy. Assert the three parts are disjoint and cover every row.">
+    <CodeBlock
+      code={`import numpy as np
+
+def train_val_test_split(X, y, train=0.7, val=0.15, test=0.15, seed=0):
+    assert abs(train + val + test - 1) < 1e-9
+    n = len(X)
+    idx = np.random.default_rng(seed).permutation(n)        # shuffle once, then cut
+    n_tr, n_val = int(n * train), int(n * val)
+    tr, va, te = idx[:n_tr], idx[n_tr:n_tr + n_val], idx[n_tr + n_val:]
+    return (X[tr], y[tr]), (X[va], y[va]), (X[te], y[te]), (tr, va, te)
+
+X = np.arange(200).reshape(100, 2); y = np.arange(100)
+(_, _), (_, _), (_, _), (tr, va, te) = train_val_test_split(X, y)
+assert len(set(tr) & set(va)) == len(set(tr) & set(te)) == len(set(va) & set(te)) == 0
+assert sorted(np.concatenate([tr, va, te])) == list(range(100))
+print(len(tr), len(va), len(te))     # 70 15 15
+# Shuffling before cutting matters: if the rows were sorted by label, an unshuffled split would be useless.`}
+    />
+  </QA>
+
+  <h2 id="mistakes">Common mistakes</h2>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Reporting training performance as if it were performance.</strong> It measures fit, not learning. Only
+      held-out numbers count, and the test set counts once.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Calling the learning rate a parameter.</strong> It is a hyperparameter: chosen, not learned. Interviewers
+      notice this one.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Skipping the baseline.</strong> “92% accuracy” is meaningless until you know that always guessing the
+      majority class gets 91%.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Saying LLM pretraining is unsupervised.</strong> It is self-supervised: a supervised loss with labels
+      taken from the data. “Unsupervised” suggests no labels and no loss on a target, which is wrong.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Treating the loss as the goal.</strong> The loss is a proxy chosen because it can be optimized. The goal
+      is the metric on new data. A model can lower the loss while the metric you care about gets worse.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Reaching for deep learning on a small table of numbers.</strong> On tabular data a linear model or
+      gradient-boosted trees usually win, train in seconds, and are easier to explain. Start simple; the baseline is
+      often the answer.
+    </p>
+  </Callout>
+
+  <h2 id="sources">All sources</h2>
+  <p>Everything linked above, in the order to use it, plus the two books for the track.</p>
+  <ol>
+    <li>
+      <a href="https://www.youtube.com/watch?v=Gv9_4yMHFhI" target="_blank" rel="noopener noreferrer">StatQuest, “A Gentle Introduction to Machine Learning”</a>
+      (video, 12 min). Start here.
+    </li>
+    <li>
+      <a href="https://www.coursera.org/learn/machine-learning" target="_blank" rel="noopener noreferrer">Andrew Ng, Supervised Machine Learning: Regression and Classification</a>
+      (Coursera, course 1 of the Machine Learning Specialization; free to audit). Week 1 of the course matches this note and the next two.
+    </li>
+    <li>
+      <a href="https://developers.google.com/machine-learning/crash-course/overfitting/generalization" target="_blank" rel="noopener noreferrer">Google ML Crash Course, Generalization</a>
+      and the <a href="https://developers.google.com/machine-learning/glossary" target="_blank" rel="noopener noreferrer">ML Glossary</a>.
+    </li>
+    <li>
+      <a href="https://www.kaggle.com/learn/intro-to-machine-learning" target="_blank" rel="noopener noreferrer">Kaggle Learn, Intro to Machine Learning</a>
+      (hands-on, about 3 hours).
+    </li>
+    <li>
+      <a href="https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LinearRegression.html" target="_blank" rel="noopener noreferrer">scikit-learn, LinearRegression</a>
+      and <a href="https://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_diabetes.html" target="_blank" rel="noopener noreferrer">load_diabetes</a>
+      (documentation).
+    </li>
+    <li>
+      <a href="https://github.com/rasbt/machine-learning-book/tree/main/ch02" target="_blank" rel="noopener noreferrer">Raschka, <em>Machine Learning with PyTorch and Scikit-Learn</em>, chapter 2 code</a>.
+      Chapters 1–2 of the book are the reading for this note.
+    </li>
+    <li>
+      <a href="https://www.statlearning.com/" target="_blank" rel="noopener noreferrer">James, Witten, Hastie and Tibshirani, <em>An Introduction to Statistical Learning</em></a>
+      (free PDF), chapter 2: “Statistical Learning”. The careful version of generalization, with the bias-variance picture you will meet next week.
+    </li>
+  </ol>
+
+  <h2 id="revision">One-minute revision</h2>
+  <Callout kind="revision">
+    <ul>
+      <li>ML = programming by example: data in, rules learned into parameters.</li>
+      <li>Four parts: data (features + labels), model <Math tex="f_\theta" />, loss <Math tex="L" />, optimizer. Loop: predict → loss → update.</li>
+      <li>House line: <Math tex="\hat{y} = wx + b" />, MSE loss; best fit for the three houses is <Math tex="w = 180,\ b \approx 23.3" /> (MSE 22.2).</li>
+      <li>Goal is generalization. Train/validation/test. Test set is touched once. Training loss is not evidence.</li>
+      <li>Overfit = memorized noise (low train, high test). Underfit = too simple (high both).</li>
+      <li>Supervised (regression: number; classification: category), unsupervised (clusters, PCA), self-supervised (next token = LLM pretraining), reinforcement (rewards).</li>
+      <li>Parameters learned; hyperparameters chosen and tuned on validation. Loss optimized; metric reported. Training sets θ; inference uses θ. Epoch = full pass; step = one update.</li>
+      <li>Workflow: metric → split → baseline → train → evaluate held-out → iterate one change → deploy and monitor.</li>
+      <li>AI ⊃ ML ⊃ DL ⊃ LLMs. Same four parts everywhere. Classical ML still wins on tables.</li>
+    </ul>
+  </Callout>
+</Note>

@@ -267,12 +267,11 @@ for d in [3, 30, 300, 768]:
         <circle class="stroke fill-paper" cx={sx(balls, 0)} cy={sy(balls, 1)} r="5"></circle>
         <circle class="stroke fill-paper" cx={sx(balls, 0.6)} cy={sy(balls, 0.8)} r="5"></circle>
       </g>
-      <text class="small" x={sx(balls, 1.05)} y={sy(balls, 1.05)}>L∞ = 1 (square)</text>
+      <text class="small" x={sx(balls, 0.62)} y={sy(balls, -1.2)}>L∞ = 1 (square)</text>
       <text class="small label-red" x={sx(balls, 0.75)} y={sy(balls, -0.85)}>L2 = 1 (circle)</text>
-      <text class="small" x={sx(balls, -1.45)} y={sy(balls, -0.3)}>L1 = 1</text>
-      <text class="small" x={sx(balls, -1.45)} y={sy(balls, -0.45)}>(diamond)</text>
-      <text class="small" x={sx(balls, 0.08)} y={sy(balls, 1.22)}>(0, 1): on an axis</text>
-      <text class="small" x={sx(balls, 0.66)} y={sy(balls, 0.9)}>(0.6, 0.8)</text>
+      <text class="small" x={sx(balls, -1.45)} y={sy(balls, -1.25)}>L1 = 1 (diamond)</text>
+      <text class="small" x={sx(balls, -0.08)} y={sy(balls, 1.2)} text-anchor="end">(0, 1): on an axis</text>
+      <text class="small" x={sx(balls, 0.7)} y={sy(balls, 0.72)}>(0.6, 0.8)</text>
       <text class="small" x="500" y="90">(3, 4):</text>
       <text class="small" x="500" y="116">L1 = 3 + 4 = 7</text>
       <text class="small" x="500" y="142">L2 = √(9 + 16) = 5</text>
@@ -474,7 +473,7 @@ for d in [3, 30, 300, 768]:
         ))}
       </g>
       {docs.map((d) => (
-        <text class={`small ${d.red ? 'label-red' : ''}`} x={sx(rank, d.v[0]) + (d.name === 'd₂' ? -34 : 8)} y={sy(rank, d.v[1]) + (d.name === 'd₂' ? -8 : 4)}>
+        <text class={`small ${d.red ? 'label-red' : ''}`} x={sx(rank, d.v[0]) + (d.name === 'd₂' ? -78 : 8)} y={sy(rank, d.v[1]) + (d.name === 'd₂' ? -16 : 4)}>
           {d.name} ({d.v[0]}, {d.v[1]})
         </text>
       ))}
@@ -617,7 +616,7 @@ for d in [3, 30, 300, 768]:
     </p>
   </Callout>
   <Figure n={5} caption="Cosine similarity between pairs of random vectors. In 3 dimensions it spreads over the whole range; in 768 it is piled up within a few hundredths of zero. The spread shrinks like 1/√d.">
-    <svg viewBox="0 0 720 290" role="img" aria-label="Three bell-shaped curves centred at zero cosine, becoming narrower as the dimension increases">
+    <svg viewBox="0 0 720 312" role="img" aria-label="Three bell-shaped curves centred at zero cosine, becoming narrower as the dimension increases">
       <g class="sketch">
         <path class="stroke-soft" d={`M${conc.x} ${sy(conc, 0)} H${conc.x + conc.w}`}></path>
         <path class="stroke" d={curve(conc, bump(0.5))} stroke-width="2" stroke-dasharray="7 5"></path>
