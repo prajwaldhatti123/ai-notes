@@ -1,0 +1,1060 @@
+---
+import Note from '../../../layouts/Note.astro';
+import CodeBlock from '../../../components/CodeBlock.astro';
+import Callout from '../../../components/Callout.astro';
+import QA from '../../../components/QA.astro';
+import Figure from '../../../components/Figure.astro';
+import Math from '../../../components/Math.astro';
+import Source from '../../../components/Source.astro';
+
+const sections = [
+  { id: 'why', label: 'Why this note matters' },
+  { id: 'plain', label: 'In plain words' },
+  { id: 'norm', label: 'The norm: how big a vector is' },
+  { id: 'other-norms', label: 'L1, L2 and L∞' },
+  { id: 'distance', label: 'Distance between two vectors' },
+  { id: 'cosine', label: 'Cosine similarity: direction only' },
+  { id: 'which', label: 'Dot product, cosine or distance?' },
+  { id: 'normalize', label: 'Normalizing: three things with one name' },
+  { id: 'high-dim', label: 'What changes in 768 dimensions' },
+  { id: 'code', label: 'Code' },
+  { id: 'llm', label: 'Where this lives in an LLM' },
+  { id: 'interview', label: 'The full interview answer' },
+  { id: 'questions', label: 'Practice questions' },
+  { id: 'practice', label: 'Practice problems' },
+  { id: 'mistakes', label: 'Common mistakes' },
+  { id: 'sources', label: 'All sources' },
+  { id: 'revision', label: 'One-minute revision' },
+];
+
+const M = globalThis.Math;
+interface Panel { x: number; y: number; w: number; h: number; xr: [number, number]; yr: [number, number] }
+const sx = (p: Panel, vx: number) => p.x + ((vx - p.xr[0]) / (p.xr[1] - p.xr[0])) * p.w;
+const sy = (p: Panel, vy: number) => p.y + p.h - ((vy - p.yr[0]) / (p.yr[1] - p.yr[0])) * p.h;
+const axes = (p: Panel) => `M${p.x} ${sy(p, 0).toFixed(1)} H${p.x + p.w} M${sx(p, 0).toFixed(1)} ${p.y} V${p.y + p.h}`;
+const arrow = (p: Panel, from: [number, number], to: [number, number]) =>
+  `M${sx(p, from[0]).toFixed(1)} ${sy(p, from[1]).toFixed(1)} L${sx(p, to[0]).toFixed(1)} ${sy(p, to[1]).toFixed(1)}`;
+const poly = (p: Panel, pts: [number, number][]) => pts.map(([a, b], i) => `${i ? 'L' : 'M'}${sx(p, a).toFixed(1)} ${sy(p, b).toFixed(1)}`).join(' ') + ' Z';
+const curve = (p: Panel, f: (x: number) => number, n = 160) =>
+  Array.from({ length: n + 1 }, (_, i) => {
+    const vx = p.xr[0] + ((p.xr[1] - p.xr[0]) * i) / n;
+    return `${i ? 'L' : 'M'}${sx(p, vx).toFixed(1)} ${sy(p, f(vx)).toFixed(1)}`;
+  }).join(' ');
+
+// Fig. 1: the unit "circles" of three norms.
+const balls: Panel = { x: 210, y: 20, w: 240, h: 240, xr: [-1.5, 1.5], yr: [-1.5, 1.5] };
+const circle = Array.from({ length: 73 }, (_, i) => [M.cos((i * M.PI) / 36), M.sin((i * M.PI) / 36)] as [number, number]);
+// Fig. 2: Euclidean vs Manhattan.
+const dist: Panel = { x: 80, y: 30, w: 300, h: 250, xr: [0, 5], yr: [0, 7] };
+// Fig. 3: cosine vs distance.
+const cosP: Panel = { x: 80, y: 30, w: 300, h: 260, xr: [-0.3, 3], yr: [-0.3, 4.5] };
+// Fig. 4: three metrics, three rankings.
+const rank: Panel = { x: 70, y: 30, w: 300, h: 260, xr: [-0.3, 4.6], yr: [-0.3, 4.6] };
+const docs = [
+  { name: 'q', v: [1, 1] as [number, number], red: true },
+  { name: 'd₁', v: [4, 4] as [number, number], red: false },
+  { name: 'd₂', v: [0.8, 1.2] as [number, number], red: false },
+  { name: 'd₃', v: [3, 0.3] as [number, number], red: false },
+];
+// Fig. 5: cosine between random vectors concentrates near 0 as d grows.
+const conc: Panel = { x: 80, y: 30, w: 560, h: 220, xr: [-1, 1], yr: [0, 1.1] };
+const bump = (s: number) => (x: number) => M.exp(-(x * x) / (2 * s * s));
+const spreads = [
+  { d: 3, s: 0.5, label: 'd = 3' },
+  { d: 30, s: 0.18, label: 'd = 30' },
+  { d: 768, s: 0.036, label: 'd = 768' },
+];
+
+const normsCode = `import numpy as np
+
+v = np.array([3.0, -4.0])
+print(np.linalg.norm(v))             # 5.0   L2 (default): sqrt(9 + 16)
+print(np.linalg.norm(v, ord=1))      # 7.0   L1: |3| + |-4|
+print(np.linalg.norm(v, ord=np.inf)) # 4.0   L-infinity: the largest |component|
+print(np.sqrt(v @ v))                # 5.0   the L2 norm is the square root of the self dot product
+
+a, b = np.array([1.0, 2.0]), np.array([4.0, 6.0])
+print(np.linalg.norm(a - b))         # 5.0   Euclidean distance: the norm of the difference
+print(np.abs(a - b).sum())           # 7.0   Manhattan distance
+
+def cosine(a, b):
+    return (a @ b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+print(cosine(np.array([1.0, 2.0]), np.array([2.0, 4.0])))   # 1.0   same direction, different length
+print(cosine(np.array([1.0, 2.0]), np.array([2.0, 1.0])))   # 0.8
+print(cosine(np.array([1.0, 2.0]), np.array([-2.0, 1.0])))  # 0.0   orthogonal
+print(cosine(np.array([1.0, 2.0]), np.array([-1.0, -2.0]))) # -1.0  opposite`;
+
+const rankingCode = `import numpy as np
+
+q = np.array([1.0, 1.0])
+D = np.array([[4.0, 4.0],      # d1: same direction as q, four times as long
+              [0.8, 1.2],      # d2: very close to q as a point
+              [3.0, 0.3]])     # d3: long, pointing elsewhere
+
+dot = D @ q
+cos = dot / (np.linalg.norm(D, axis=1) * np.linalg.norm(q))
+euc = np.linalg.norm(D - q, axis=1)
+
+for name, scores, best_is in [("dot", dot, "largest"), ("cosine", cos, "largest"), ("euclidean", euc, "smallest")]:
+    order = np.argsort(-scores) if best_is == "largest" else np.argsort(scores)
+    print(f"{name:>9}: {np.round(scores, 2)}  ranking: {['d'+str(i+1) for i in order]}")
+#       dot: [8.   2.   3.3 ]  ranking: ['d1', 'd3', 'd2']
+#    cosine: [1.   0.98 0.77]  ranking: ['d1', 'd2', 'd3']
+# euclidean: [4.24 0.28 2.12]  ranking: ['d2', 'd3', 'd1']
+
+# Normalize everything to unit length and the three metrics agree:
+Dn = D / np.linalg.norm(D, axis=1, keepdims=True)
+qn = q / np.linalg.norm(q)
+print(np.argsort(-(Dn @ qn)), np.argsort(np.linalg.norm(Dn - qn, axis=1)))   # same order`;
+
+const libraryCode = `import numpy as np
+import torch
+import torch.nn.functional as F
+from sklearn.metrics.pairwise import cosine_similarity
+
+E = np.random.default_rng(0).normal(size=(5, 8))      # five "embeddings"
+
+S = cosine_similarity(E)                              # (5, 5): every pair, scikit-learn
+En = F.normalize(torch.tensor(E), dim=1)              # unit vectors, PyTorch
+S2 = (En @ En.T).numpy()                              # cosine = dot product of unit vectors
+assert np.allclose(S, S2)
+
+# Gradient clipping by global norm: the single most common use of a norm in training code.
+params = [torch.nn.Parameter(torch.randn(3, 3)) for _ in range(2)]
+for p in params:
+    p.grad = torch.randn(3, 3) * 10                   # pretend we just ran backward()
+total = torch.nn.utils.clip_grad_norm_(params, max_norm=1.0)
+print(float(total))                                   # the norm before clipping (large)
+print(float(torch.sqrt(sum((p.grad ** 2).sum() for p in params))))   # 1.0 after clipping`;
+
+const concentrationCode = `import numpy as np
+
+rng = np.random.default_rng(0)
+for d in [3, 30, 300, 768]:
+    A = rng.normal(size=(5000, d))
+    B = rng.normal(size=(5000, d))
+    cos = np.sum(A * B, axis=1) / (np.linalg.norm(A, axis=1) * np.linalg.norm(B, axis=1))
+    print(f"d={d:>4}  mean={cos.mean():+.3f}  std={cos.std():.3f}  1/sqrt(d)={1/np.sqrt(d):.3f}")
+# d=   3  mean=+0.00x  std=0.577  1/sqrt(d)=0.577
+# d=  30  mean=+0.00x  std=0.18   1/sqrt(d)=0.183
+# d= 300  mean=+0.00x  std=0.058  1/sqrt(d)=0.058
+# d= 768  mean=+0.00x  std=0.036  1/sqrt(d)=0.036
+# Unrelated random directions in 768-D have cosine within about +-0.04 of zero.
+# A cosine of 0.3 between two real embeddings is therefore a strong signal, not a weak one.`;
+---
+
+<Note
+  track="math"
+  slug="norms-distance-cosine"
+  lede="A norm measures how big a vector is, a distance measures how far apart two vectors are, and cosine similarity measures only whether they point the same way. The three answer different questions, and choosing the wrong one is the most common mistake in similarity search. This note gives you the pictures, the numbers and the rule for choosing."
+  sections={sections}
+>
+  <h2 id="why">Why this note matters</h2>
+  <p>
+    Every system that searches by meaning, from RAG to recommendations, ends with one line of code that compares two
+    vectors, and that line uses either a dot product, a cosine similarity or a Euclidean distance. They rank results
+    differently. Picking one without knowing why is how people ship retrieval that returns long documents instead of
+    relevant ones. Norms also hide inside training: weight decay is a norm penalty, gradient clipping caps a norm, and
+    LayerNorm and RMSNorm literally divide by one.
+  </p>
+  <p>Interview questions that are really this note:</p>
+  <ul>
+    <li>“Cosine similarity or dot product for embeddings? When would they rank differently?”</li>
+    <li>“What is the difference between L1 and L2 regularization, and why does L1 produce zeros?”</li>
+    <li>“Why do we normalize embeddings before storing them in a vector database?”</li>
+    <li>“What does gradient clipping do, exactly?”</li>
+    <li>“Is a cosine similarity of 0.3 high or low?”</li>
+  </ul>
+  <Callout kind="note" label="The scope rule">
+    <p>
+      The L1, L2 and L∞ norms, Euclidean and Manhattan distance, cosine similarity, normalization, and what happens in
+      high dimensions. No metric-space theory, no other similarity measures (Jaccard, Mahalanobis) beyond a mention.
+    </p>
+  </Callout>
+
+  <h2 id="plain">In plain words</h2>
+  <Callout kind="plain">
+    <p>
+      Think of each vector as an arrow from a shared starting point. Three questions you can ask:
+    </p>
+    <p>
+      <strong>How long is this arrow?</strong> That is its <em>norm</em>. A vector of all small numbers has a small norm;
+      make every number bigger and the norm grows.
+    </p>
+    <p>
+      <strong>How far apart are the two arrow tips?</strong> That is the <em>distance</em> between the vectors. Two long
+      arrows pointing the same way have tips close together; a long arrow and a short one pointing the same way do not.
+    </p>
+    <p>
+      <strong>Do the arrows point the same way, ignoring length?</strong> That is <em>cosine similarity</em>. A short
+      arrow and a long arrow in the same direction score a perfect 1, even though their tips are far apart.
+    </p>
+    <p>
+      Similarity search is choosing which of these three questions you actually mean.
+    </p>
+  </Callout>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Everyday idea</th><th>Technical term</th><th>Symbol or code</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>How long the arrow is</td><td><span class="term">norm</span>, specifically the <span class="term">L2 norm</span></td><td><Math tex="\lVert\mathbf{a}\rVert" /> or <Math tex="\lVert\mathbf{a}\rVert_2" />; <code>np.linalg.norm(a)</code></td></tr>
+        <tr><td>Total of the absolute values</td><td><span class="term">L1 norm</span> (Manhattan, taxicab)</td><td><Math tex="\lVert\mathbf{a}\rVert_1" />; <code>norm(a, ord=1)</code></td></tr>
+        <tr><td>The single biggest entry</td><td><span class="term">L∞ norm</span> (max norm)</td><td><Math tex="\lVert\mathbf{a}\rVert_\infty" />; <code>norm(a, ord=np.inf)</code></td></tr>
+        <tr><td>Straight-line gap between two tips</td><td><span class="term">Euclidean distance</span></td><td><Math tex="\lVert\mathbf{a}-\mathbf{b}\rVert" /></td></tr>
+        <tr><td>Gap walking along the grid</td><td><span class="term">Manhattan distance</span></td><td><Math tex="\lVert\mathbf{a}-\mathbf{b}\rVert_1" /></td></tr>
+        <tr><td>Same direction, length ignored</td><td><span class="term">cosine similarity</span></td><td><Math tex="\cos\theta = \dfrac{\mathbf{a}\cdot\mathbf{b}}{\lVert\mathbf{a}\rVert\lVert\mathbf{b}\rVert}" /></td></tr>
+        <tr><td>Shrink or stretch to length 1</td><td><span class="term">L2-normalize</span></td><td><Math tex="\mathbf{a}/\lVert\mathbf{a}\rVert" />; <code>F.normalize</code></td></tr>
+        <tr><td>Cap how big a step can be</td><td><span class="term">gradient clipping</span></td><td><code>clip_grad_norm_</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="norm">The norm: how big a vector is</h2>
+  <Callout kind="plain">
+    <p>
+      The length of the arrow (3, 4) is 5, by the right-triangle rule you learned at school: square the sides, add,
+      take the square root. In more dimensions there is no triangle to draw, but the rule keeps working: square every
+      entry, add them all, square-root. That number is the norm. It is zero only for the all-zero vector, it doubles
+      when you double the vector, and it ignores signs because squaring removes them.
+    </p>
+  </Callout>
+  <p>The <span class="term">L2 norm</span> (also Euclidean norm, length, or magnitude) of a vector is</p>
+  <Math block tex="\lVert\mathbf{a}\rVert_2 = \sqrt{a_1^2 + a_2^2 + \dots + a_n^2} = \sqrt{\mathbf{a}\cdot\mathbf{a}}" />
+  <p>
+    When the subscript is missing, <Math tex="\lVert\mathbf{a}\rVert" /> means the L2 norm. Three worked values:
+    <Math tex="\lVert(3, 4)\rVert = 5" />; <Math tex="\lVert(1, -2, 2)\rVert = \sqrt{1 + 4 + 4} = 3" />;
+    <Math tex="\lVert(1, 1, 1, 1)\rVert = 2" />. Four properties, each with a one-line reason:
+  </p>
+  <ul>
+    <li><strong>Never negative, and zero only for the zero vector.</strong> Squares cannot be negative, and the sum is zero only when every entry is.</li>
+    <li><strong>Scaling.</strong> <Math tex="\lVert c\,\mathbf{a}\rVert = |c|\,\lVert\mathbf{a}\rVert" />. Doubling the arrow doubles its length; flipping it leaves the length alone.</li>
+    <li><strong>Triangle inequality.</strong> <Math tex="\lVert\mathbf{a} + \mathbf{b}\rVert \le \lVert\mathbf{a}\rVert + \lVert\mathbf{b}\rVert" />. Walking two arrows tip to tail is never shorter than the straight line.</li>
+    <li><strong>The squared norm is a dot product.</strong> <Math tex="\lVert\mathbf{a}\rVert^2 = \mathbf{a}\cdot\mathbf{a}" />. This is why L2 penalties and MSE are so easy to differentiate: the derivative of <Math tex="\mathbf{a}\cdot\mathbf{a}" /> with respect to <Math tex="\mathbf{a}" /> is simply <Math tex="2\mathbf{a}" />.</li>
+  </ul>
+  <p>
+    The norm of a weight vector is “how big the weights are”. The norm of a gradient is “how big a step training is
+    about to take”. Both get controlled directly: weight decay pushes the first down; gradient clipping caps the
+    second.
+  </p>
+  <Callout kind="say">
+    <p>
+      “The L2 norm is the square root of the sum of squares, equivalently the square root of the vector’s dot product
+      with itself. It is non-negative, scales linearly, and satisfies the triangle inequality. Its square is
+      differentiable with gradient <Math tex="2\mathbf{a}" />, which is why L2 regularization and squared error are
+      convenient.”
+    </p>
+  </Callout>
+
+  <h2 id="other-norms">L1, L2 and L∞</h2>
+  <Callout kind="plain">
+    <p>
+      “How big is this vector?” has more than one sensible answer. You could add up the absolute values, as if walking
+      along city blocks. You could take the straight-line length. Or you could just report the largest single entry.
+      All three agree that the zero vector has size zero and that doubling the vector doubles its size; they disagree
+      about everything in between, and the disagreement shows up as different shapes for “all the vectors of size 1”.
+    </p>
+  </Callout>
+  <Figure n={1} caption="Every vector of norm 1, under three norms. L1 gives a diamond, L2 a circle, L∞ a square. The corners of the diamond lie on the axes, which is why L1 penalties push weights to exactly zero.">
+    <svg viewBox="0 0 720 290" role="img" aria-label="A diamond, a circle and a square centred at the origin, the unit balls of the L1, L2 and L-infinity norms">
+      <g class="sketch">
+        <path class="stroke-soft" d={axes(balls)}></path>
+        <path class="stroke" d={poly(balls, [[1, 1], [-1, 1], [-1, -1], [1, -1]])} stroke-dasharray="7 5" stroke-width="2"></path>
+        <path class="stroke ink-red" d={poly(balls, circle)} stroke-width="3"></path>
+        <path class="stroke" d={poly(balls, [[1, 0], [0, 1], [-1, 0], [0, -1]])} stroke-width="2.5"></path>
+        <circle class="stroke fill-paper" cx={sx(balls, 0)} cy={sy(balls, 1)} r="5"></circle>
+        <circle class="stroke fill-paper" cx={sx(balls, 0.6)} cy={sy(balls, 0.8)} r="5"></circle>
+      </g>
+      <text class="small" x={sx(balls, 1.05)} y={sy(balls, 1.05)}>L∞ = 1 (square)</text>
+      <text class="small label-red" x={sx(balls, 0.75)} y={sy(balls, -0.85)}>L2 = 1 (circle)</text>
+      <text class="small" x={sx(balls, -1.45)} y={sy(balls, -0.3)}>L1 = 1</text>
+      <text class="small" x={sx(balls, -1.45)} y={sy(balls, -0.45)}>(diamond)</text>
+      <text class="small" x={sx(balls, 0.08)} y={sy(balls, 1.22)}>(0, 1): on an axis</text>
+      <text class="small" x={sx(balls, 0.66)} y={sy(balls, 0.9)}>(0.6, 0.8)</text>
+      <text class="small" x="500" y="90">(3, 4):</text>
+      <text class="small" x="500" y="116">L1 = 3 + 4 = 7</text>
+      <text class="small" x="500" y="142">L2 = √(9 + 16) = 5</text>
+      <text class="small" x="500" y="168">L∞ = max(3, 4) = 4</text>
+      <text class="small" x="500" y="210">always L∞ ≤ L2 ≤ L1</text>
+    </svg>
+  </Figure>
+  <p>The three norms you will meet, all for the example <Math tex="\mathbf{a} = (3, -4)" />:</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Norm</th><th>Formula</th><th>For (3, −4)</th><th>Picture of “size 1”</th><th>Where it appears</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>L1</td><td><Math tex="\sum_i |a_i|" /></td><td>3 + 4 = 7</td><td>diamond</td><td>L1 regularization (Lasso), mean absolute error, sparsity</td></tr>
+        <tr><td>L2</td><td><Math tex="\sqrt{\sum_i a_i^2}" /></td><td>√25 = 5</td><td>circle</td><td>L2 regularization (weight decay), MSE, gradient clipping, distances, cosine</td></tr>
+        <tr><td>L∞</td><td><Math tex="\max_i |a_i|" /></td><td>4</td><td>square</td><td>“largest change in any weight”, adversarial perturbation budgets</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    These are all members of one family, the <span class="term">Lp norms</span>
+    <Math tex="\lVert\mathbf{a}\rVert_p = (\sum_i |a_i|^p)^{1/p}" />, with <Math tex="p = 1" />, <Math tex="2" /> and
+    <Math tex="\infty" />. Only those three matter here. The important difference between L1 and L2 is visible in
+    Fig. 1 and is the answer to a classic interview question. The L1 diamond has <em>corners on the axes</em>, where
+    one coordinate is exactly zero. When a training procedure tries to keep weights small under an L1 penalty, the
+    solution tends to land on a corner, which means some weights become exactly zero and the model becomes
+    <span class="term">sparse</span>. The L2 circle has no corners, so an L2 penalty shrinks all weights towards zero
+    smoothly but rarely makes any of them exactly zero. The <a href="/notes/ml/regularization/">regularization note</a>
+    in week 3 draws the full picture with the loss contours added; the shape of the ball is the half you need now.
+  </p>
+  <Source
+    kind="read"
+    href="https://en.wikipedia.org/wiki/Norm_(mathematics)"
+    title="Wikipedia: Norm (mathematics)"
+    meta="Only the sections “Euclidean norm”, “Taxicab norm” and “Maximum norm”, and the picture of unit circles for different p. Ignore the general definitions."
+  />
+  <Callout kind="say">
+    <p>
+      “L1 is the sum of absolute values, L2 the square root of the sum of squares, L∞ the maximum absolute entry.
+      The L1 unit ball is a diamond with corners on the axes, which is why L1 regularization yields sparse weights;
+      the L2 ball is a sphere, so L2 regularization shrinks weights without zeroing them.”
+    </p>
+  </Callout>
+
+  <h2 id="distance">Distance between two vectors</h2>
+  <Callout kind="plain">
+    <p>
+      Two points on a map: (1, 2) and (4, 6). A crow flies the straight line between them; a taxi drives along the
+      streets, 3 blocks east then 4 blocks north. The crow’s distance is the length of the arrow from one point to the
+      other, 5. The taxi’s is 3 + 4 = 7. Distance is always “the norm of the difference”, and which norm you use decides
+      whether you are the crow or the taxi.
+    </p>
+  </Callout>
+  <Figure n={2} caption="Distance is the norm of the difference vector a − b = (3, 4). Euclidean (L2) distance is the straight line, 5. Manhattan (L1) distance follows the grid, 3 + 4 = 7.">
+    <svg viewBox="0 0 720 300" role="img" aria-label="Two points with a straight line between them and a grid path, labelled with the two distances">
+      <g class="sketch">
+        <path class="stroke-soft" d={axes(dist)}></path>
+        <path class="stroke" d={arrow(dist, [1, 2], [4, 2])} stroke-width="2.5" stroke-dasharray="7 5"></path>
+        <path class="stroke" d={arrow(dist, [4, 2], [4, 6])} stroke-width="2.5" stroke-dasharray="7 5"></path>
+        <path class="stroke ink-red" d={arrow(dist, [1, 2], [4, 6])} stroke-width="3" marker-end="url(#arrow)"></path>
+        <circle class="stroke fill-paper" cx={sx(dist, 1)} cy={sy(dist, 2)} r="6"></circle>
+        <circle class="stroke fill-paper" cx={sx(dist, 4)} cy={sy(dist, 6)} r="6"></circle>
+      </g>
+      <text class="small" x={sx(dist, 1) - 10} y={sy(dist, 2) + 22} text-anchor="end">b = (1, 2)</text>
+      <text class="small" x={sx(dist, 4) + 10} y={sy(dist, 6) - 6}>a = (4, 6)</text>
+      <text class="small label-red" x={sx(dist, 1.9)} y={sy(dist, 4.4)} text-anchor="end">‖a − b‖₂ = 5</text>
+      <text class="small" x={sx(dist, 2.5)} y={sy(dist, 2) + 22} text-anchor="middle">3</text>
+      <text class="small" x={sx(dist, 4) + 10} y={sy(dist, 4)}>4</text>
+      <text class="small" x="440" y="90">a − b = (4 − 1, 6 − 2) = (3, 4)</text>
+      <text class="small label-red" x="440" y="130">Euclidean: √(3² + 4²) = 5</text>
+      <text class="small" x="440" y="160">Manhattan: |3| + |4| = 7</text>
+      <text class="small" x="440" y="200">crow vs taxi</text>
+    </svg>
+  </Figure>
+  <p>
+    The <span class="term">Euclidean distance</span> between <Math tex="\mathbf{a}" /> and <Math tex="\mathbf{b}" /> is
+    the L2 norm of their difference:
+  </p>
+  <Math block tex="d(\mathbf{a}, \mathbf{b}) = \lVert\mathbf{a} - \mathbf{b}\rVert_2 = \sqrt{\sum_i (a_i - b_i)^2}" />
+  <p>
+    and the <span class="term">Manhattan distance</span> is the L1 norm of the difference,
+    <Math tex="\sum_i |a_i - b_i|" />. Notice that distance depends on <em>where the tips are</em>, not on where the
+    arrows point. Two vectors in exactly the same direction can be far apart if one is longer, and that is the whole
+    difference between distance and cosine, coming next.
+  </p>
+  <p>
+    One identity ties distance to the dot product and is worth being able to derive on a whiteboard. Expand the
+    squared distance with the dot product rules from the <a href="/notes/math/vectors-dot-product/">vectors note</a>:
+  </p>
+  <Math block tex="\lVert\mathbf{a} - \mathbf{b}\rVert^2 = (\mathbf{a} - \mathbf{b})\cdot(\mathbf{a} - \mathbf{b}) = \lVert\mathbf{a}\rVert^2 - 2\,\mathbf{a}\cdot\mathbf{b} + \lVert\mathbf{b}\rVert^2" />
+  <p>
+    So for a fixed pair of lengths, a <em>bigger dot product means a smaller distance</em>. When both vectors have
+    length 1 this becomes <Math tex="\lVert\mathbf{a} - \mathbf{b}\rVert^2 = 2 - 2\cos\theta" />, which says that for
+    unit vectors, ranking by Euclidean distance and ranking by cosine similarity give the same order. That fact is
+    used by every vector database.
+  </p>
+  <p>
+    Euclidean distance is what k-nearest-neighbours and k-means use by default in week 4, and “mean squared error” in
+    week 2 is the squared Euclidean distance between the vector of predictions and the vector of true values, divided
+    by the count.
+  </p>
+  <Source
+    kind="read"
+    href="https://www.khanacademy.org/math/geometry/hs-geo-analytic-geometry/hs-geo-distance-and-midpoints/v/distance-formula"
+    title="Khan Academy: The distance formula"
+    meta="Only if the 2-D case is rusty. Five minutes, then do the exercise set under it."
+  />
+  <Callout kind="say">
+    <p>
+      “Euclidean distance is the L2 norm of the difference vector. Expanding the square gives
+      <Math tex="\lVert\mathbf{a}\rVert^2 + \lVert\mathbf{b}\rVert^2 - 2\,\mathbf{a}\cdot\mathbf{b}" />, so for
+      unit vectors distance and cosine similarity induce the same ranking.”
+    </p>
+  </Callout>
+
+  <h2 id="cosine">Cosine similarity: direction only</h2>
+  <Callout kind="plain">
+    <p>
+      Two people describe a film. One writes three sentences, the other writes three pages, but they make the same
+      points in the same proportions. As vectors of “how much they said about each theme”, one is simply a longer copy
+      of the other: same direction, different length. Distance says they are far apart; the dot product is big because
+      of the long review; but cosine similarity says 1.0, identical in direction. When you want to compare
+      <em>what</em> is being said and not <em>how much</em>, cosine is the measure.
+    </p>
+  </Callout>
+  <p>
+    <span class="term">Cosine similarity</span> is the dot product with both lengths divided out, which by the
+    geometry of the <a href="/notes/math/vectors-dot-product/#geometry">previous note</a> is the cosine of the angle
+    between the vectors:
+  </p>
+  <Math block tex="\cos\theta = \frac{\mathbf{a}\cdot\mathbf{b}}{\lVert\mathbf{a}\rVert\,\lVert\mathbf{b}\rVert}" />
+  <p>
+    It is always between −1 and 1. It is 1 for the same direction, 0 for orthogonal, −1 for opposite. And it is
+    <em>scale-invariant</em>: multiply either vector by any positive number and the cosine does not move.
+  </p>
+  <Figure n={3} caption="a = (1, 2), b = (2, 4) and c = (2, 1). By cosine, b is identical to a (same direction) and c is less similar (0.8). By distance, c is the closer one (1.41 vs 2.24). Neither is wrong; they answer different questions.">
+    <svg viewBox="0 0 720 310" role="img" aria-label="Three arrows from the origin: a and b pointing the same way with b twice as long, and c at an angle, with distances and cosines labelled">
+      <g class="sketch">
+        <path class="stroke-soft" d={axes(cosP)}></path>
+        <path class="stroke" d={arrow(cosP, [0, 0], [2, 4])} stroke-width="2.5" marker-end="url(#arrow)"></path>
+        <path class="stroke ink-red" d={arrow(cosP, [0, 0], [1, 2])} stroke-width="3" marker-end="url(#arrow)"></path>
+        <path class="stroke" d={arrow(cosP, [0, 0], [2, 1])} stroke-width="2.5" marker-end="url(#arrow)"></path>
+        <path class="stroke-soft" d={arrow(cosP, [1, 2], [2, 4])} stroke-dasharray="4 4"></path>
+        <path class="stroke-soft" d={arrow(cosP, [1, 2], [2, 1])} stroke-dasharray="4 4"></path>
+      </g>
+      <text class="small label-red" x={sx(cosP, 1) - 10} y={sy(cosP, 2) - 6} text-anchor="end">a = (1, 2)</text>
+      <text class="small" x={sx(cosP, 2) + 8} y={sy(cosP, 4)}>b = (2, 4)</text>
+      <text class="small" x={sx(cosP, 2) + 8} y={sy(cosP, 1) + 4}>c = (2, 1)</text>
+      <text class="small" x={sx(cosP, 1.65)} y={sy(cosP, 3.2)} text-anchor="end">gap 2.24</text>
+      <text class="small" x={sx(cosP, 1.6)} y={sy(cosP, 1.3)}>gap 1.41</text>
+      <text class="small" x="440" y="80">cos(a, b) = 10 / (√5 · √20) = 1.0</text>
+      <text class="small" x="440" y="106">cos(a, c) = 4 / (√5 · √5) = 0.8</text>
+      <text class="small label-red" x="440" y="150">by cosine: b wins</text>
+      <text class="small" x="440" y="190">‖a − b‖ = ‖(−1, −2)‖ = 2.24</text>
+      <text class="small" x="440" y="216">‖a − c‖ = ‖(−1, 1)‖ = 1.41</text>
+      <text class="small label-red" x="440" y="260">by distance: c wins</text>
+    </svg>
+  </Figure>
+  <p>Work the numbers in Fig. 3 once by hand; they are the kind an interviewer asks for.</p>
+  <ul>
+    <li><Math tex="\mathbf{a}\cdot\mathbf{b} = 2 + 8 = 10" />, <Math tex="\lVert\mathbf{a}\rVert = \sqrt{5}" />, <Math tex="\lVert\mathbf{b}\rVert = \sqrt{20}" />, so <Math tex="\cos = 10/\sqrt{100} = 1" />.</li>
+    <li><Math tex="\mathbf{a}\cdot\mathbf{c} = 2 + 2 = 4" />, <Math tex="\lVert\mathbf{c}\rVert = \sqrt{5}" />, so <Math tex="\cos = 4/5 = 0.8" />, an angle of about 37°.</li>
+    <li><Math tex="\lVert\mathbf{a} - \mathbf{b}\rVert = \lVert(-1, -2)\rVert = \sqrt{5} = 2.24" /> and <Math tex="\lVert\mathbf{a} - \mathbf{c}\rVert = \lVert(-1, 1)\rVert = \sqrt{2} = 1.41" />.</li>
+  </ul>
+  <p>
+    You will also meet <span class="term">cosine distance</span>, defined as <Math tex="1 - \cos\theta" />, which runs
+    from 0 (same direction) to 2 (opposite) and lets “smaller is closer” libraries treat cosine like a distance. It is
+    the same information with the sign flipped.
+  </p>
+  <Source
+    kind="watch"
+    href="https://www.youtube.com/watch?v=e9U0QAFbfLI"
+    title="StatQuest: Cosine Similarity, Clearly Explained"
+    meta="About 10 minutes. Uses word counts in short and long documents, which is exactly the film-review story, and works the arithmetic on screen."
+  />
+  <Callout kind="say">
+    <p>
+      “Cosine similarity is the dot product divided by both norms, so it is the cosine of the angle between the
+      vectors: it lies in [−1, 1] and is invariant to scaling either vector. It measures direction only, which is what
+      you want when vector length reflects something irrelevant such as document length.”
+    </p>
+  </Callout>
+
+  <h2 id="which">Dot product, cosine or distance?</h2>
+  <Callout kind="plain">
+    <p>
+      Here is a tiny search engine with one query and three documents, in two dimensions so you can see it. Score the
+      documents three ways and you get three different winners. Nothing is broken; each measure is answering its own
+      question, and the engineer’s job is to know which question the product is asking.
+    </p>
+  </Callout>
+  <Figure n={4} caption="One query, three documents, three rankings. Dot product favours the long d₁. Cosine ranks by angle: d₁, d₂, d₃. Euclidean distance favours the nearby point d₂.">
+    <svg viewBox="0 0 720 310" role="img" aria-label="A query arrow and three document arrows from the origin, with a table of dot product, cosine and distance scores and the resulting rankings">
+      <g class="sketch">
+        <path class="stroke-soft" d={axes(rank)}></path>
+        {docs.map((d) => (
+          <path class={`stroke ${d.red ? 'ink-red' : ''}`} d={arrow(rank, [0, 0], d.v)} stroke-width={d.red ? 3.5 : 2.5} marker-end="url(#arrow)" />
+        ))}
+      </g>
+      {docs.map((d) => (
+        <text class={`small ${d.red ? 'label-red' : ''}`} x={sx(rank, d.v[0]) + (d.name === 'd₂' ? -34 : 8)} y={sy(rank, d.v[1]) + (d.name === 'd₂' ? -8 : 4)}>
+          {d.name} ({d.v[0]}, {d.v[1]})
+        </text>
+      ))}
+      <text class="small" x="400" y="60" font-weight="700">score</text>
+      <text class="small" x="500" y="60" font-weight="700">d₁</text>
+      <text class="small" x="560" y="60" font-weight="700">d₂</text>
+      <text class="small" x="620" y="60" font-weight="700">d₃</text>
+      <text class="small" x="400" y="90">dot</text>
+      <text class="small" x="500" y="90">8.0</text><text class="small" x="560" y="90">2.0</text><text class="small" x="620" y="90">3.3</text>
+      <text class="small" x="400" y="120">cosine</text>
+      <text class="small" x="500" y="120">1.00</text><text class="small" x="560" y="120">0.98</text><text class="small" x="620" y="120">0.77</text>
+      <text class="small" x="400" y="150">distance</text>
+      <text class="small" x="500" y="150">4.24</text><text class="small" x="560" y="150">0.28</text><text class="small" x="620" y="150">2.12</text>
+      <text class="small label-red" x="400" y="200">dot: d₁, d₃, d₂</text>
+      <text class="small label-red" x="400" y="226">cosine: d₁, d₂, d₃</text>
+      <text class="small label-red" x="400" y="252">distance: d₂, d₃, d₁</text>
+      <text class="small" x="400" y="290">three measures, three orders</text>
+    </svg>
+  </Figure>
+  <p>
+    Query <Math tex="\mathbf{q} = (1, 1)" />. Document <Math tex="\mathbf{d}_1 = (4, 4)" /> points exactly like the
+    query but is four times longer, like a long article on the right topic. <Math tex="\mathbf{d}_2 = (0.8, 1.2)" />
+    is a short document very near the query. <Math tex="\mathbf{d}_3 = (3, 0.3)" /> is long and mostly about
+    something else. The dot product rewards length, so it ranks the off-topic <Math tex="\mathbf{d}_3" /> above the
+    on-topic <Math tex="\mathbf{d}_2" />. Cosine ranks purely by angle. Euclidean distance rewards being nearby as a
+    point, so it demotes the long on-topic <Math tex="\mathbf{d}_1" />.
+  </p>
+  <p>The rule for choosing:</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Measure</th><th>Sensitive to length?</th><th>Use it when</th><th>Typical place</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Dot product</td><td>Yes, rewards long vectors</td><td>Length carries meaning you want, such as popularity or confidence, or vectors are already normalized</td><td>Recommendation scores, attention, models trained with a dot-product objective</td></tr>
+        <tr><td>Cosine</td><td>No</td><td>Only direction matters; lengths vary for irrelevant reasons (document length, token count)</td><td>Text embedding search, duplicate detection</td></tr>
+        <tr><td>Euclidean</td><td>Yes, as position</td><td>Vectors are points in a space where absolute position matters, usually after feature scaling</td><td>k-nearest neighbours, k-means, tabular data</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    And the fact that dissolves most of the debate: <strong>if you L2-normalize every vector first, all three measures
+    give the same ranking</strong>. For unit vectors the dot product <em>is</em> the cosine, and by the identity in
+    the distance section, Euclidean distance is a decreasing function of it. This is why embedding models usually ship
+    normalized vectors and why vector databases offer “cosine” as an option: internally they normalize once and then
+    use the cheaper dot product. The honest answer to “cosine or dot?” is therefore often “normalize, then it does not
+    matter; if you cannot normalize, decide whether length means something”.
+  </p>
+  <Source
+    kind="read"
+    href="https://www.pinecone.io/learn/vector-similarity/"
+    title="Pinecone: Vector similarity explained"
+    meta="A vendor article, but a clear one: Euclidean, cosine and dot product side by side with pictures, and the advice to match the metric to how the embedding model was trained."
+  />
+  <Source
+    kind="read"
+    href="https://www.sbert.net/examples/applications/semantic-search/README.html"
+    title="Sentence-Transformers: Semantic search"
+    meta="Scroll to the paragraph on cosine similarity versus dot product and the note that normalized embeddings make them equivalent. This is the library most RAG projects start with."
+  />
+  <Callout kind="say">
+    <p>
+      “Dot product rewards vector length, cosine ignores it, Euclidean distance measures position. For text
+      embeddings I use cosine, or equivalently L2-normalize and use the dot product, because document length should
+      not affect relevance. I would use the raw dot product when the model was trained for it or when magnitude
+      encodes something meaningful.”
+    </p>
+  </Callout>
+
+  <h2 id="normalize">Normalizing: three things with one name</h2>
+  <Callout kind="plain">
+    <p>
+      “Normalize the data” is said in three different situations and means three different operations. One rescales
+      a single arrow to length 1. One rescales each <em>column</em> of a data table so that features measured in
+      different units become comparable. One rescales each <em>row</em> of activations inside a network so that
+      training stays stable. People mix these up constantly, including in interviews, so keep the three apart by name.
+    </p>
+  </Callout>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Name</th><th>What is rescaled</th><th>How</th><th>Why</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="term">L2 normalization</span> (unit vectors)</td>
+          <td>One vector</td>
+          <td><Math tex="\mathbf{a} / \lVert\mathbf{a}\rVert_2" />; <code>F.normalize(x, dim=-1)</code></td>
+          <td>So that dot product = cosine and length cannot bias similarity</td>
+        </tr>
+        <tr>
+          <td><span class="term">Standardization</span> (z-scoring, feature scaling)</td>
+          <td>Each feature column of a data table</td>
+          <td><Math tex="(x - \text{mean}) / \text{std}" /> per column; <code>StandardScaler</code></td>
+          <td>So that a feature in dollars and one in years count equally in distances and gradients</td>
+        </tr>
+        <tr>
+          <td><span class="term">LayerNorm</span> / <span class="term">RMSNorm</span></td>
+          <td>Each activation vector inside the network, per example</td>
+          <td>LayerNorm: subtract the mean, divide by the std of the entries. RMSNorm: divide by <Math tex="\sqrt{\text{mean}(x_i^2)}" /></td>
+          <td>So that the scale of activations stays steady from layer to layer during training</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Two of these are norms in disguise. L2 normalization divides by the L2 norm. RMSNorm divides by the
+    <em>root mean square</em> of the entries, which is <Math tex="\lVert\mathbf{x}\rVert_2 / \sqrt{d}" />; so RMSNorm,
+    used in Llama-style models, is L2 normalization scaled by <Math tex="\sqrt{d}" />, followed by a learned per-entry
+    gain. Standardization is the odd one out: it is per column, not per vector, and it belongs to the
+    <a href="/notes/ml/feature-scaling-encoding/">feature scaling note</a> this week.
+  </p>
+  <p>
+    The habit to build: whenever someone says “normalize”, ask “which axis?”. Per vector (a row) or per feature (a
+    column)? The answer changes the code and the meaning.
+  </p>
+  <Source
+    kind="read"
+    href="https://pytorch.org/docs/stable/generated/torch.nn.functional.normalize.html"
+    title="PyTorch documentation: torch.nn.functional.normalize"
+    meta="Note the dim argument: it is the axis along which the norm is taken. dim=-1 normalizes each row (each vector); dim=0 would normalize each column."
+  />
+  <Callout kind="say">
+    <p>
+      “L2 normalization scales each vector to unit length. Standardization rescales each feature column to zero mean
+      and unit variance. LayerNorm and RMSNorm rescale each activation vector per example; RMSNorm divides by the
+      root mean square, which is the L2 norm over <Math tex="\sqrt{d}" />. They are different operations on different
+      axes.”
+    </p>
+  </Callout>
+
+  <h2 id="high-dim">What changes in 768 dimensions</h2>
+  <Callout kind="plain">
+    <p>
+      In two dimensions, two random arrows are quite likely to point roughly the same way; there are only so many
+      directions. In 768 dimensions there are astronomically many directions, and two random arrows are almost
+      certainly nearly at right angles. That changes what a cosine score means: a value that would be unremarkable in
+      2-D is a strong signal in 768-D. It also means distances between random points all come out about the same,
+      which is why nearest-neighbour search in high dimensions needs clever data structures rather than brute force.
+    </p>
+  </Callout>
+  <Figure n={5} caption="Cosine similarity between pairs of random vectors. In 3 dimensions it spreads over the whole range; in 768 it is piled up within a few hundredths of zero. The spread shrinks like 1/√d.">
+    <svg viewBox="0 0 720 290" role="img" aria-label="Three bell-shaped curves centred at zero cosine, becoming narrower as the dimension increases">
+      <g class="sketch">
+        <path class="stroke-soft" d={`M${conc.x} ${sy(conc, 0)} H${conc.x + conc.w}`}></path>
+        <path class="stroke" d={curve(conc, bump(0.5))} stroke-width="2" stroke-dasharray="7 5"></path>
+        <path class="stroke" d={curve(conc, bump(0.18))} stroke-width="2.5"></path>
+        <path class="stroke ink-red" d={curve(conc, bump(0.036), 400)} stroke-width="3"></path>
+      </g>
+      <text class="small" x={sx(conc, -1)} y={sy(conc, 0) + 22} text-anchor="middle">−1</text>
+      <text class="small" x={sx(conc, 0)} y={sy(conc, 0) + 22} text-anchor="middle">0</text>
+      <text class="small" x={sx(conc, 1)} y={sy(conc, 0) + 22} text-anchor="middle">1</text>
+      <text class="small" x={sx(conc, 0)} y={sy(conc, 0) + 44} text-anchor="middle">cosine similarity of two random vectors</text>
+      <text class="small" x={sx(conc, 0.72)} y={sy(conc, 0.4)}>d = 3</text>
+      <text class="small" x={sx(conc, 0.28)} y={sy(conc, 0.45)}>d = 30</text>
+      <text class="small label-red" x={sx(conc, 0.06)} y={sy(conc, 1.02)}>d = 768: spread ≈ 0.036</text>
+    </svg>
+  </Figure>
+  <p>
+    For two random vectors with independent entries, the cosine similarity has mean 0 and a spread (standard
+    deviation) of about <Math tex="1/\sqrt{d}" />. In 768 dimensions that is 0.036. Two <em>unrelated</em> embeddings
+    would therefore sit within a few hundredths of zero if the embedding space were random, so a cosine of 0.3 is
+    already far outside chance. Two practical cautions follow:
+  </p>
+  <ul>
+    <li>
+      <strong>Thresholds are model-specific.</strong> Real embedding models are not random: many produce vectors that
+      all share a common direction, so even unrelated texts can score 0.5 or more. A threshold like “0.8 means
+      duplicate” has to be calibrated on your own data for your own model; it does not transfer.
+    </li>
+    <li>
+      <strong>Distances concentrate.</strong> In high dimensions the nearest and farthest neighbours of a point are
+      often not very different in distance, which makes brute-force nearest-neighbour search both slow and fragile.
+      This is one face of the <span class="term">curse of dimensionality</span>, and it is why week 11’s vector
+      databases use approximate search structures.
+    </li>
+  </ul>
+  <p>
+    The <Math tex="1/\sqrt{d}" /> fact has one more consequence you will meet in week 8: dot products between random
+    <Math tex="d" />-dimensional vectors have a spread of about <Math tex="\sqrt{d}" />, which is why attention divides
+    its scores by <Math tex="\sqrt{d_k}" /> before the softmax. Problem 14 in the previous note measured exactly this.
+  </p>
+  <Source
+    kind="read"
+    href="https://en.wikipedia.org/wiki/Curse_of_dimensionality"
+    title="Wikipedia: Curse of dimensionality"
+    meta="Read only the “Distance functions” section. Two paragraphs, and it is the formal statement of “distances concentrate”."
+  />
+  <Callout kind="say">
+    <p>
+      “In high dimensions random vectors are nearly orthogonal, with cosine spread about <Math tex="1/\sqrt{d}" />,
+      so moderate cosine values are meaningful and distances concentrate. Similarity thresholds must be calibrated per
+      embedding model, and exact nearest-neighbour search becomes expensive, which motivates approximate indexes.”
+    </p>
+  </Callout>
+
+  <h2 id="code">Code</h2>
+  <p>Type these out. Predict every printed number before running.</p>
+  <h3>Norms, distances and cosine by hand and by library</h3>
+  <CodeBlock code={normsCode} />
+  <h3>Three measures, three rankings, and how normalization reconciles them</h3>
+  <CodeBlock code={rankingCode} />
+  <h3>Library versions, and gradient clipping by norm</h3>
+  <CodeBlock code={libraryCode} />
+  <h3>Cosine between random vectors as the dimension grows</h3>
+  <CodeBlock code={concentrationCode} />
+  <Source
+    kind="read"
+    href="https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html"
+    title="NumPy documentation: numpy.linalg.norm"
+    meta="Check the table of ord values. Note the default is L2 for vectors, and that axis= lets you take the norm of every row of a matrix at once."
+  />
+  <Source
+    kind="read"
+    href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise.cosine_similarity.html"
+    title="scikit-learn documentation: cosine_similarity"
+    meta="The pairwise version: pass one matrix and get every pair. Two minutes."
+  />
+
+  <h2 id="llm">Where this lives in an LLM</h2>
+  <ul>
+    <li>
+      <strong>Retrieval.</strong> A RAG system embeds chunks and queries, usually L2-normalizes them, and ranks by
+      cosine (as a dot product of unit vectors). The vector database’s “metric” setting is the choice in the
+      <a href="#which">which-measure section</a>.
+    </li>
+    <li>
+      <strong>Gradient clipping.</strong> GPT-2 and almost every modern model are trained with the global gradient norm
+      clipped to 1.0: compute the L2 norm of all gradients stacked together, and if it exceeds 1, scale them all down to
+      norm 1. It prevents one bad batch from taking a huge step.
+    </li>
+    <li>
+      <strong>Weight decay.</strong> AdamW’s weight decay is an L2 penalty on the weights: every step, every weight is
+      shrunk by a tiny fraction. Week 6 covers why it is applied separately from the gradient in AdamW.
+    </li>
+    <li>
+      <strong>LayerNorm and RMSNorm.</strong> Each token’s 768-dimensional activation vector is rescaled before
+      attention and before the feed-forward block. RMSNorm divides by the vector’s root mean square, an L2 norm in
+      disguise.
+    </li>
+    <li>
+      <strong>Attention scaling.</strong> The <Math tex="\sqrt{d_k}" /> in scaled dot-product attention exists because
+      dot products of <Math tex="d_k" />-dimensional vectors have spread <Math tex="\sqrt{d_k}" />.
+    </li>
+    <li>
+      <strong>Output logits.</strong> The dot product between the final hidden state and each token embedding is
+      length-sensitive on purpose: a confident hidden state with a large norm produces sharper probabilities.
+    </li>
+  </ul>
+
+  <h2 id="interview">The full interview answer</h2>
+  <p>
+    The most common form is “cosine similarity versus dot product versus Euclidean distance, and which one would you
+    use for embeddings?”. Here is a complete answer in about seventy seconds.
+  </p>
+  <Callout kind="interview">
+    <p>
+      “All three compare two vectors but answer different questions. The dot product is the sum of element-wise
+      products; it grows with the vectors’ lengths, so a long vector scores highly against everything. Cosine
+      similarity divides the dot product by both L2 norms, so it is the cosine of the angle between the vectors, lies
+      in minus one to one, and ignores length entirely. Euclidean distance is the L2 norm of the difference and
+      measures how far apart the vectors are as points.
+    </p>
+    <p>
+      For text embeddings I default to cosine, because vector length usually reflects things like document length or
+      token count that should not affect relevance. In practice I L2-normalize the embeddings once at indexing time
+      and use the dot product, which is identical to cosine for unit vectors and cheaper; for unit vectors Euclidean
+      distance gives the same ranking too, since the squared distance is two minus twice the cosine. I would keep the
+      raw dot product when the embedding model was trained with a dot-product objective or when magnitude carries
+      signal, such as confidence or popularity. One caveat: in high dimensions random vectors are nearly orthogonal,
+      so what counts as a ‘high’ cosine depends on the model and must be calibrated on your own data.”
+    </p>
+  </Callout>
+  <p><strong>If they push further, be ready for:</strong></p>
+  <ul>
+    <li>“Why does L1 regularization give sparse weights and L2 not?” The L1 ball has corners on the axes; optima land on corners where coordinates are exactly zero. The L2 ball is round.</li>
+    <li>“What does clip_grad_norm_ do?” Computes the L2 norm of all gradients together; if it exceeds the threshold, scales every gradient by threshold/norm so the total norm equals the threshold. Direction unchanged, size capped.</li>
+    <li>“Is a cosine of 0.3 high?” For random 768-D vectors the spread is about 0.036, so 0.3 is far from chance; but real models have a shared component, so calibrate per model.</li>
+    <li>“Cosine distance?” <Math tex="1 - \cos\theta" />, in [0, 2]. Not a true metric (fails the triangle inequality), which some libraries care about.</li>
+  </ul>
+
+  <h2 id="questions">Practice questions</h2>
+  <p>Answer each one out loud before opening it.</p>
+  <QA q="Define the L1, L2 and L∞ norms and give all three for (3, −4).">
+    <p>Sum of absolute values: 7. Square root of the sum of squares: 5. Largest absolute entry: 4. Always L∞ ≤ L2 ≤ L1.</p>
+  </QA>
+  <QA q="What is the relationship between the L2 norm and the dot product?">
+    <p><Math tex="\lVert\mathbf{a}\rVert_2 = \sqrt{\mathbf{a}\cdot\mathbf{a}}" />, so the squared norm is the self dot product and its gradient is <Math tex="2\mathbf{a}" />.</p>
+  </QA>
+  <QA q="How do you compute the Euclidean distance between two vectors, and how does it relate to the dot product?">
+    <p>The L2 norm of the difference. <Math tex="\lVert\mathbf{a}-\mathbf{b}\rVert^2 = \lVert\mathbf{a}\rVert^2 + \lVert\mathbf{b}\rVert^2 - 2\,\mathbf{a}\cdot\mathbf{b}" />: larger dot product, smaller distance, for fixed lengths.</p>
+  </QA>
+  <QA q="Two vectors have cosine similarity 1 but Euclidean distance 10. How?">
+    <p>They point in the same direction but have different lengths, for example (1, 0) and (11, 0). Cosine ignores length; distance does not.</p>
+  </QA>
+  <QA q="Why do vector databases often normalize embeddings and then use the dot product?">
+    <p>For unit vectors the dot product equals the cosine similarity and Euclidean distance is a decreasing function of it, so all three rankings agree, and the dot product is the cheapest to compute.</p>
+  </QA>
+  <QA q="When would you deliberately keep the raw dot product instead of cosine?">
+    <p>When vector length carries meaning you want to rank by (popularity, confidence) or when the embedding model was trained with a dot-product objective and its documentation says to use it.</p>
+  </QA>
+  <QA q="Why does L1 regularization lead to sparse models?">
+    <p>The L1 unit ball is a diamond with corners on the coordinate axes. Minimizing a loss subject to a small L1 norm tends to hit a corner, where some coordinates are exactly zero. The L2 ball is a sphere with no corners, so L2 shrinks weights smoothly without zeroing them.</p>
+  </QA>
+  <QA q="What exactly does gradient clipping by global norm do?">
+    <p>It computes the L2 norm of all gradients concatenated into one vector. If that norm exceeds a threshold <Math tex="c" />, every gradient is multiplied by <Math tex="c / \text{norm}" />, so the total norm becomes <Math tex="c" /> and the direction is unchanged.</p>
+  </QA>
+  <QA q="Name three operations people call “normalization” and the axis each acts on.">
+    <p>L2 normalization: one vector, scaled to unit length (per row). Standardization: each feature column, to zero mean and unit variance (per column). LayerNorm/RMSNorm: each activation vector inside a network, per example (per row).</p>
+  </QA>
+  <QA q="What is RMSNorm in terms of the L2 norm?">
+    <p>It divides a <Math tex="d" />-dimensional vector by <Math tex="\sqrt{\text{mean}(x_i^2)} = \lVert\mathbf{x}\rVert_2/\sqrt{d}" />, then multiplies by a learned gain. It is L2 normalization up to the factor <Math tex="\sqrt{d}" />.</p>
+  </QA>
+  <QA q="What happens to the cosine similarity of random vectors as the dimension grows?">
+    <p>It concentrates around zero with spread about <Math tex="1/\sqrt{d}" />; in 768 dimensions that is about 0.036. Random high-dimensional vectors are nearly orthogonal.</p>
+  </QA>
+  <QA q="Is cosine distance a true distance metric?">
+    <p>No. <Math tex="1 - \cos\theta" /> is non-negative and symmetric but can violate the triangle inequality. Libraries that need a metric use the angle itself or Euclidean distance on normalized vectors instead.</p>
+  </QA>
+
+  <h2 id="practice">Practice problems</h2>
+  <p>Paper first, then check. Solutions are hidden under each problem.</p>
+  <h3>By hand</h3>
+  <QA q="1. Compute L1, L2 and L∞ norms of (1, −2, 2), (0, 0, 5), (−1, −1, −1, −1) and (0.6, 0.8).">
+    <p>
+      (1, −2, 2): 5, 3, 2. (0, 0, 5): 5, 5, 5. (−1, −1, −1, −1): 4, 2, 1. (0.6, 0.8): 1.4, 1, 0.8.
+    </p>
+  </QA>
+  <QA q="2. Normalize (2, −2, 1) and (3, 0, 4) to unit length. Then compute their cosine similarity in two ways: from the originals and as a dot product of the unit vectors.">
+    <p>
+      Norms 3 and 5, so <Math tex="(2/3, -2/3, 1/3)" /> and <Math tex="(0.6, 0, 0.8)" />. Dot product of originals
+      <Math tex="6 + 0 + 4 = 10" />, over <Math tex="3 \cdot 5" />, gives 0.667. Unit vectors:
+      <Math tex="0.4 + 0 + 0.267 = 0.667" />. Same.
+    </p>
+  </QA>
+  <QA q="3. Euclidean and Manhattan distances between (1, 2, 3) and (4, 6, 3), and between (0, 0) and (−3, −4).">
+    <p>
+      Differences (3, 4, 0): Euclidean 5, Manhattan 7. Differences (−3, −4): Euclidean 5, Manhattan 7. Signs do not
+      matter to either.
+    </p>
+  </QA>
+  <QA q="4. Verify ‖a − b‖² = ‖a‖² + ‖b‖² − 2 a·b for a = (1, 2) and b = (3, 1).">
+    <p>
+      Left: <Math tex="\lVert(-2, 1)\rVert^2 = 5" />. Right: <Math tex="5 + 10 - 2 \cdot 5 = 5" />. ✓
+    </p>
+  </QA>
+  <QA q="5. Two unit vectors have cosine similarity 0.5. What is the Euclidean distance between them? And if the cosine is −1?">
+    <p>
+      <Math tex="\lVert\mathbf{a}-\mathbf{b}\rVert^2 = 2 - 2(0.5) = 1" />, so distance 1. For cosine −1:
+      <Math tex="2 + 2 = 4" />, distance 2, the diameter of the unit sphere.
+    </p>
+  </QA>
+  <QA q="6. Query (2, 1), documents A = (4, 2), B = (1, 1), C = (0, 3). Rank by dot product, cosine and Euclidean distance.">
+    <p>
+      Dot: A 10, B 3, C 3. Cosine: A 1.0, B <Math tex="3/(\sqrt5\sqrt2) = 0.949" />, C <Math tex="3/(\sqrt5 \cdot 3) = 0.447" />.
+      Distance: A <Math tex="\sqrt5 = 2.24" />, B 1, C <Math tex="\sqrt8 = 2.83" />. Rankings: dot A, then B and C tied;
+      cosine A, B, C; distance B, A, C.
+    </p>
+  </QA>
+  <QA q="7. The gradient vector is (3, 4, 12) and the clipping threshold is 1.0. What gradient is actually applied?">
+    <p>
+      Norm <Math tex="\sqrt{9 + 16 + 144} = 13" />. Scale by <Math tex="1/13" />: <Math tex="(0.231, 0.308, 0.923)" />,
+      which has norm 1. Same direction, capped size.
+    </p>
+  </QA>
+  <QA q="8. Which points have L1 norm exactly 1 in 2-D? Sketch them. Where on that shape is the point with the most zeros?">
+    <p>
+      The diamond with corners (1, 0), (0, 1), (−1, 0), (0, −1). The corners have one coordinate equal to zero; every
+      other point on the diamond has both coordinates non-zero. That is the geometric reason for L1 sparsity.
+    </p>
+  </QA>
+  <QA q="9. Data column: heights in centimetres (160, 170, 180) and a column of incomes (20,000, 50,000, 80,000). Standardize both columns. Why would k-nearest neighbours be useless without this step?">
+    <p>
+      Heights: mean 170, std 8.16 → (−1.22, 0, 1.22). Incomes: mean 50,000, std 24,495 → (−1.22, 0, 1.22). Without
+      scaling, a 10 cm height difference is 10 units while a 30,000 income difference is 30,000 units, so Euclidean
+      distance would depend almost entirely on income. (Population standard deviation used.)
+    </p>
+  </QA>
+  <QA q="10. RMSNorm with no learned gain is applied to x = (1, 2, 3, 6). What comes out? Check that the result has root mean square 1.">
+    <p>
+      Mean of squares <Math tex="(1 + 4 + 9 + 36)/4 = 12.5" />, root 3.536. Output
+      <Math tex="(0.283, 0.566, 0.849, 1.697)" />. Squares sum to 4, mean 1. ✓
+    </p>
+  </QA>
+  <QA q="11. In 100 dimensions, roughly what cosine similarity would you expect between two unrelated random vectors, and what range covers most pairs?">
+    <p>
+      Mean 0, spread about <Math tex="1/\sqrt{100} = 0.1" />. Most pairs fall within about ±0.2. A cosine of 0.5 would
+      be five spreads away from chance.
+    </p>
+  </QA>
+  <QA q="12. Show that cosine similarity is unchanged when a is replaced by 3a, and flips sign when a is replaced by −a.">
+    <p>
+      <Math tex="(3\mathbf{a})\cdot\mathbf{b} / (\lVert 3\mathbf{a}\rVert\lVert\mathbf{b}\rVert) = 3\,\mathbf{a}\cdot\mathbf{b} / (3\lVert\mathbf{a}\rVert\lVert\mathbf{b}\rVert)" />,
+      the 3s cancel. With −1 the numerator flips sign but the norm uses <Math tex="|{-1}| = 1" />, so the cosine flips.
+    </p>
+  </QA>
+  <h3>Code</h3>
+  <QA q="13. Implement norms for p = 1, 2, ∞, Euclidean and Manhattan distance, and cosine similarity, with plain Python loops. Test against NumPy on random vectors, including the property L∞ ≤ L2 ≤ L1.">
+    <CodeBlock
+      code={`import numpy as np
+
+def norm(a, p=2):
+    if p == 1:   return sum(abs(x) for x in a)
+    if p == 2:   return sum(x * x for x in a) ** 0.5
+    if p == float("inf"): return max(abs(x) for x in a)
+    raise ValueError(p)
+
+def distance(a, b, p=2):     return norm([x - y for x, y in zip(a, b)], p)
+def cosine(a, b):            return sum(x * y for x, y in zip(a, b)) / (norm(a) * norm(b))
+
+rng = np.random.default_rng(0)
+for _ in range(500):
+    a, b = rng.normal(size=20), rng.normal(size=20)
+    assert np.isclose(norm(a, 1), np.linalg.norm(a, 1))
+    assert np.isclose(norm(a, 2), np.linalg.norm(a))
+    assert np.isclose(norm(a, float("inf")), np.linalg.norm(a, np.inf))
+    assert norm(a, float("inf")) <= norm(a, 2) <= norm(a, 1)
+    assert np.isclose(distance(a, b), np.linalg.norm(a - b))
+    assert np.isclose(distance(a, b, 1), np.abs(a - b).sum())
+    assert np.isclose(cosine(a, b), (a @ b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+print("ok")`}
+    />
+  </QA>
+  <QA q="14. Load the iris dataset, pick one flower as the query, and find its 5 nearest neighbours by Euclidean distance (a) on raw features and (b) after standardizing each column. Compare the two neighbour lists.">
+    <CodeBlock
+      code={`import numpy as np
+from sklearn.datasets import load_iris
+
+X = load_iris().data                       # (150, 4): four measurements in centimetres
+q_idx = 10
+def neighbours(M):
+    d = np.linalg.norm(M - M[q_idx], axis=1)
+    return np.argsort(d)[1:6]              # skip index 0, which is the query itself
+
+raw = neighbours(X)
+Xs = (X - X.mean(axis=0)) / X.std(axis=0)  # standardize each COLUMN (axis=0)
+std = neighbours(Xs)
+print("raw         :", raw)
+print("standardized:", std)
+print("overlap     :", len(set(raw) & set(std)), "of 5")
+# Iris features are all in cm with similar ranges, so the lists overlap a lot.
+# Repeat with X[:, 0] *= 100 (pretend one column is in metres x 100) and watch the raw list collapse
+# to whichever flowers match on that one column.`}
+    />
+  </QA>
+  <QA q="15. Sentence embeddings without a model: represent 6 short sentences as bag-of-words count vectors, compute pairwise dot products and cosine similarities, and show one pair where the two measures disagree about which sentence is most similar to the first.">
+    <CodeBlock
+      code={`import numpy as np
+from collections import Counter
+
+sents = ["the cat sat on the mat",
+         "the cat sat on the mat the cat sat on the mat the cat sat on the mat",   # same words, three times
+         "a dog sat on a rug",
+         "the cat",
+         "stocks fell sharply on the news",
+         "the mat"]
+vocab = sorted({w for s in sents for w in s.split()})
+V = np.array([[Counter(s.split())[w] for w in vocab] for s in sents], dtype=float)   # (6, len(vocab))
+
+dot = V @ V[0]
+cos = dot / (np.linalg.norm(V, axis=1) * np.linalg.norm(V[0]))
+for i, s in enumerate(sents):
+    print(f"{i}: dot={dot[i]:5.1f}  cos={cos[i]:.2f}  {s[:40]}")
+# Sentence 1 (the triple repeat) has the largest dot product by far because it is long,
+# but its cosine with sentence 0 is exactly 1.0, the same as... itself: direction is identical.
+# Sentence 3 ("the cat") has a small dot product but a high cosine. Cosine is the sensible measure here.`}
+    />
+  </QA>
+  <QA q="16. Implement gradient clipping by global norm yourself for a list of gradient arrays, then verify against torch.nn.utils.clip_grad_norm_ on the same values.">
+    <CodeBlock
+      code={`import numpy as np
+import torch
+
+def clip_by_global_norm(grads, max_norm):
+    total = np.sqrt(sum((g ** 2).sum() for g in grads))      # norm of all gradients stacked together
+    scale = min(1.0, max_norm / (total + 1e-12))             # only shrink, never grow
+    return [g * scale for g in grads], total
+
+rng = np.random.default_rng(0)
+grads = [rng.normal(size=(3, 3)) * 5, rng.normal(size=(4,)) * 5]
+clipped, before = clip_by_global_norm(grads, 1.0)
+print(before, np.sqrt(sum((g ** 2).sum() for g in clipped)))    # (large), 1.0
+
+params = [torch.nn.Parameter(torch.zeros(3, 3)), torch.nn.Parameter(torch.zeros(4))]
+for p, g in zip(params, grads):
+    p.grad = torch.tensor(g)
+torch.nn.utils.clip_grad_norm_(params, 1.0)
+for p, g in zip(params, clipped):
+    assert np.allclose(p.grad.numpy(), g)
+print("matches PyTorch")`}
+    />
+  </QA>
+
+  <h2 id="mistakes">Common mistakes</h2>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Using the dot product on unnormalized embeddings and wondering why long documents always win.</strong>
+      Length leaks into the score. Normalize, or use cosine.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Treating a cosine of 0.9 as “very similar” for every model.</strong> Some embedding models give 0.7 to
+      unrelated texts. Calibrate thresholds on your own labelled pairs.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Normalizing along the wrong axis.</strong> <code>F.normalize(x, dim=0)</code> on a (batch, d) tensor
+      normalizes each <em>feature column</em> across the batch, not each vector. For unit vectors use <code>dim=-1</code>.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Confusing standardization with L2 normalization.</strong> One is per column (features), the other per row
+      (vectors). Applying the wrong one to tabular data or to embeddings silently destroys the information you needed.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Running k-nearest neighbours on raw features with different units.</strong> The feature with the biggest
+      numbers decides every distance. Standardize first.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Saying “L2 regularization makes weights zero”.</strong> It shrinks them towards zero; L1 is the one that
+      makes them exactly zero. The diamond versus the circle.
+    </p>
+  </Callout>
+
+  <h2 id="sources">All sources</h2>
+  <p>Everything linked above, in the order to use it, plus one reference.</p>
+  <ol>
+    <li>
+      <a href="https://www.youtube.com/watch?v=e9U0QAFbfLI" target="_blank" rel="noopener noreferrer">StatQuest, “Cosine Similarity, Clearly Explained”</a>
+      (video, 10 min). Start here.
+    </li>
+    <li>
+      <a href="https://en.wikipedia.org/wiki/Norm_(mathematics)" target="_blank" rel="noopener noreferrer">Wikipedia, Norm (mathematics)</a>,
+      the three named norms and the unit-circle picture, and
+      <a href="https://en.wikipedia.org/wiki/Cosine_similarity" target="_blank" rel="noopener noreferrer">Cosine similarity</a>.
+    </li>
+    <li>
+      <a href="https://www.khanacademy.org/math/geometry/hs-geo-analytic-geometry/hs-geo-distance-and-midpoints/v/distance-formula" target="_blank" rel="noopener noreferrer">Khan Academy, The distance formula</a>
+      (video and exercises), if needed.
+    </li>
+    <li>
+      <a href="https://www.pinecone.io/learn/vector-similarity/" target="_blank" rel="noopener noreferrer">Pinecone, “Vector similarity explained”</a>
+      and <a href="https://www.sbert.net/examples/applications/semantic-search/README.html" target="_blank" rel="noopener noreferrer">Sentence-Transformers, Semantic search</a>
+      (articles), for choosing a measure in practice.
+    </li>
+    <li>
+      <a href="https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html" target="_blank" rel="noopener noreferrer">NumPy, linalg.norm</a>,
+      <a href="https://pytorch.org/docs/stable/generated/torch.nn.functional.normalize.html" target="_blank" rel="noopener noreferrer">PyTorch, F.normalize</a>
+      and <a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise.cosine_similarity.html" target="_blank" rel="noopener noreferrer">scikit-learn, cosine_similarity</a>
+      (documentation).
+    </li>
+    <li>
+      <a href="https://en.wikipedia.org/wiki/Curse_of_dimensionality" target="_blank" rel="noopener noreferrer">Wikipedia, Curse of dimensionality</a>,
+      the “Distance functions” section.
+    </li>
+    <li>
+      <a href="https://mml-book.github.io/" target="_blank" rel="noopener noreferrer">Deisenroth, Faisal and Ong, <em>Mathematics for Machine Learning</em></a>,
+      sections 3.1–3.4 (free PDF): norms, inner products, lengths and distances, angles.
+    </li>
+  </ol>
+
+  <h2 id="revision">One-minute revision</h2>
+  <Callout kind="revision">
+    <ul>
+      <li>L2 norm <Math tex="= \sqrt{\sum a_i^2} = \sqrt{\mathbf{a}\cdot\mathbf{a}}" />. L1 <Math tex="= \sum|a_i|" />. L∞ <Math tex="= \max|a_i|" />. For (3, 4): 5, 7, 4.</li>
+      <li>Unit balls: L1 diamond (corners → sparsity), L2 circle (smooth shrinkage), L∞ square.</li>
+      <li>Distance = norm of the difference. <Math tex="\lVert\mathbf{a}-\mathbf{b}\rVert^2 = \lVert\mathbf{a}\rVert^2 + \lVert\mathbf{b}\rVert^2 - 2\,\mathbf{a}\cdot\mathbf{b}" />.</li>
+      <li>Cosine <Math tex="= \mathbf{a}\cdot\mathbf{b}/(\lVert\mathbf{a}\rVert\lVert\mathbf{b}\rVert)" />, in [−1, 1], ignores length.</li>
+      <li>Dot rewards length; cosine ignores it; Euclidean measures position. Text embeddings: cosine.</li>
+      <li>Normalize to unit length and all three rankings agree; dot = cosine; distance² = 2 − 2cos.</li>
+      <li>“Normalize” means three things: per vector (L2), per feature column (standardize), per activation (LayerNorm/RMSNorm). Ask which axis.</li>
+      <li>RMSNorm divides by <Math tex="\lVert\mathbf{x}\rVert/\sqrt{d}" />. Gradient clipping scales all gradients so their joint L2 norm ≤ threshold.</li>
+      <li>High dimensions: random cosines ≈ 0 ± <Math tex="1/\sqrt{d}" />; distances concentrate; thresholds are model-specific.</li>
+    </ul>
+  </Callout>
+</Note>

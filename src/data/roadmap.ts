@@ -46,8 +46,8 @@ export const tracks: Track[] = [
     notes: [
       { slug: 'functions-exponents-logs', title: 'Functions, exponents and logarithms', week: 1, ready: true },
       { slug: 'vectors-dot-product', title: 'Vectors and the dot product', week: 1, ready: true },
-      { slug: 'matrices-and-shapes', title: 'Matrices, matrix multiplication and shapes', week: 1 },
-      { slug: 'norms-distance-cosine', title: 'Norms, distance and cosine similarity', week: 1 },
+      { slug: 'matrices-and-shapes', title: 'Matrices, matrix multiplication and shapes', week: 1, ready: true },
+      { slug: 'norms-distance-cosine', title: 'Norms, distance and cosine similarity', week: 1, ready: true },
       { slug: 'derivatives', title: 'Derivatives: slope and rate of change', week: 2 },
       { slug: 'partial-derivatives-gradient', title: 'Partial derivatives and the gradient', week: 2 },
       { slug: 'chain-rule', title: 'The chain rule', week: 2 },

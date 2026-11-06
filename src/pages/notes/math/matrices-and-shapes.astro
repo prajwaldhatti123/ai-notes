@@ -1,0 +1,1166 @@
+---
+import Note from '../../../layouts/Note.astro';
+import CodeBlock from '../../../components/CodeBlock.astro';
+import Callout from '../../../components/Callout.astro';
+import QA from '../../../components/QA.astro';
+import Figure from '../../../components/Figure.astro';
+import Math from '../../../components/Math.astro';
+import Source from '../../../components/Source.astro';
+
+const sections = [
+  { id: 'why', label: 'Why this note matters' },
+  { id: 'plain', label: 'In plain words' },
+  { id: 'matrix', label: 'What a matrix is' },
+  { id: 'matvec', label: 'Matrix times vector: a stack of dot products' },
+  { id: 'matmul', label: 'Matrix times matrix and the shape rule' },
+  { id: 'properties', label: 'Order matters, grouping does not' },
+  { id: 'transform', label: 'A matrix is a function' },
+  { id: 'batch', label: 'Batches: many inputs at once' },
+  { id: 'transpose', label: 'Transpose, and all pairwise dot products' },
+  { id: 'cost', label: 'How much work a multiplication is' },
+  { id: 'elementwise', label: 'Element-wise operations and broadcasting' },
+  { id: 'code', label: 'Code' },
+  { id: 'llm', label: 'Where this lives in an LLM' },
+  { id: 'interview', label: 'The full interview answer' },
+  { id: 'questions', label: 'Practice questions' },
+  { id: 'practice', label: 'Practice problems' },
+  { id: 'mistakes', label: 'Common mistakes' },
+  { id: 'sources', label: 'All sources' },
+  { id: 'revision', label: 'One-minute revision' },
+];
+
+// Grid-drawing helper: cells of a matrix as SVG rectangles with their values.
+interface Cell { x: number; y: number; r: number; c: number; v: string }
+const cells = (x0: number, y0: number, values: (string | number)[][], cw = 44, ch = 40): Cell[] =>
+  values.flatMap((row, r) => row.map((v, c) => ({ x: x0 + c * cw, y: y0 + r * ch, r, c, v: String(v) })));
+
+// Fig. 1: anatomy of a 2x3 matrix.
+const A = [[1, 2, 3], [4, 5, 6]];
+const anatomy = cells(120, 70, A, 56, 48);
+// Fig. 2: matrix-vector product, the walk layer.
+const Wcells = cells(60, 60, [[3, -2, -4], [1, -1, 0]], 50, 44);
+const xcells = cells(290, 40, [[1], [0], [1]], 50, 44);
+const zcells = cells(470, 60, [[-1], [1]], 50, 44);
+// Fig. 4: a matrix as a transformation of the plane.
+interface Panel { x: number; y: number; w: number; h: number; xr: [number, number]; yr: [number, number] }
+const sx = (p: Panel, vx: number) => p.x + ((vx - p.xr[0]) / (p.xr[1] - p.xr[0])) * p.w;
+const sy = (p: Panel, vy: number) => p.y + p.h - ((vy - p.yr[0]) / (p.yr[1] - p.yr[0])) * p.h;
+const before: Panel = { x: 50, y: 40, w: 240, h: 200, xr: [-0.5, 3.5], yr: [-0.5, 2.5] };
+const after: Panel = { x: 420, y: 40, w: 240, h: 200, xr: [-0.5, 3.5], yr: [-0.5, 2.5] };
+const poly = (p: Panel, pts: [number, number][]) => pts.map(([a, b], i) => `${i ? 'L' : 'M'}${sx(p, a).toFixed(1)} ${sy(p, b).toFixed(1)}`).join(' ') + ' Z';
+const arrow = (p: Panel, to: [number, number]) => `M${sx(p, 0).toFixed(1)} ${sy(p, 0).toFixed(1)} L${sx(p, to[0]).toFixed(1)} ${sy(p, to[1]).toFixed(1)}`;
+// M = [[2, 1], [0, 1]] sends (1,0) -> (2,0) and (0,1) -> (1,1).
+const square: [number, number][] = [[0, 0], [1, 0], [1, 1], [0, 1]];
+const image: [number, number][] = [[0, 0], [2, 0], [3, 1], [1, 1]];
+// Fig. 5: Q K^T.
+const q = cells(40, 60, Array.from({ length: 4 }, () => Array(8).fill('')), 22, 26);
+const kT = cells(290, 20, Array.from({ length: 8 }, () => Array(4).fill('')), 26, 22);
+const scores = cells(480, 60, Array.from({ length: 4 }, () => Array(4).fill('')), 26, 26);
+
+const shapesCode = `import numpy as np
+
+A = np.array([[1, 2, 3],
+              [4, 5, 6]])            # shape (2, 3): 2 rows, 3 columns
+B = np.array([[7, 8],
+              [9, 10],
+              [11, 12]])             # shape (3, 2)
+
+print(A.shape, B.shape)             # (2, 3) (3, 2)
+print(A @ B)                        # [[ 58  64]
+                                    #  [139 154]]      shape (2, 2): inner 3s matched
+print(B @ A)                        # a different 3x3 matrix: order matters
+print(A.T)                          # [[1 4] [2 5] [3 6]]   shape (3, 2)
+print(A[0], A[:, 1])                # row 0: [1 2 3]      column 1: [2 5]
+print(A[1, 2])                      # 6   (row 1, column 2, counting from 0)
+
+try:
+    A @ A                           # (2, 3) @ (2, 3): inner 3 and 2 do not match
+except ValueError as e:
+    print(e)                        # matmul: Input operand 1 has a mismatch in its core dimension 0 ...`;
+
+const batchCode = `import numpy as np
+
+# Four days (rows) x three features (columns): sunny, cold, tired.
+X = np.array([[1, 0, 0],
+              [1, 1, 0],
+              [0, 0, 1],
+              [1, 0, 1]], dtype=float)           # (4, 3)
+W = np.array([[3, -2, -4],                         # neuron 1 (the walk neuron)
+              [1, -1,  0]], dtype=float)          # neuron 2          -> (2, 3) = (out, in)
+b = np.array([-1, 0], dtype=float)                 # one bias per neuron -> (2,)
+
+Z = X @ W.T + b                                    # (4,3) @ (3,2) -> (4,2); b broadcasts across rows
+print(Z)
+# [[ 2.  1.]
+#  [ 0.  0.]
+#  [-5.  0.]
+#  [-2.  1.]]
+print(Z.shape)                                     # (4, 2): one row per day, one column per neuron
+
+# The same thing in PyTorch, where nn.Linear stores W as (out, in) and does x @ W.T + b for you:
+import torch
+layer = torch.nn.Linear(in_features=3, out_features=2)
+print(layer.weight.shape, layer.bias.shape)       # torch.Size([2, 3]) torch.Size([2])
+with torch.no_grad():
+    layer.weight.copy_(torch.tensor(W)); layer.bias.copy_(torch.tensor(b))
+print(layer(torch.tensor(X, dtype=torch.float32)))   # same four rows as Z`;
+
+const mlpShapesCode = `import torch, torch.nn as nn
+
+batch, d_in, d_hidden, d_out = 32, 3, 4, 2
+x = torch.randn(batch, d_in)                      # (32, 3)
+layer1 = nn.Linear(d_in, d_hidden)                # weight (4, 3), bias (4,)
+layer2 = nn.Linear(d_hidden, d_out)               # weight (2, 4), bias (2,)
+
+h = layer1(x);        print(h.shape)              # (32, 4)   only the last dimension changed
+h = torch.relu(h);    print(h.shape)              # (32, 4)   element-wise: shape unchanged
+y = layer2(h);        print(y.shape)              # (32, 2)
+
+n_params = sum(p.numel() for p in [*layer1.parameters(), *layer2.parameters()])
+print(n_params)                                   # 26 = (3*4 + 4) + (4*2 + 2)
+
+# A transformer carries one more leading dimension and nothing else changes:
+tokens = torch.randn(8, 128, 768)                 # (batch, sequence, embedding)
+ffn = nn.Linear(768, 3072)
+print(ffn(tokens).shape)                          # (8, 128, 3072): still only the last axis`;
+
+const pairwiseCode = `import torch
+
+n_tokens, d = 4, 8
+Q = torch.randn(n_tokens, d)                      # one query vector per token
+K = torch.randn(n_tokens, d)                      # one key vector per token
+
+scores = Q @ K.T                                  # (4, 8) @ (8, 4) -> (4, 4)
+print(scores.shape)
+
+# Entry (i, j) is the dot product of query i with key j. Check one by hand:
+i, j = 1, 2
+print(torch.isclose(scores[i, j], Q[i] @ K[j]))   # True
+
+# The same with einsum, which names the axes instead of relying on transposes:
+print(torch.allclose(scores, torch.einsum("id,jd->ij", Q, K)))   # True`;
+
+const broadcastCode = `import numpy as np
+
+Z = np.zeros((4, 2))
+b = np.array([-1.0, 0.0])          # shape (2,)
+print((Z + b).shape)               # (4, 2): b is stretched across the 4 rows
+
+col = np.array([[10.0], [20.0], [30.0], [40.0]])    # shape (4, 1)
+print((Z + col).shape)             # (4, 2): the column is stretched across the 2 columns
+
+row_means = Z.mean(axis=1)         # (4,)   one number per row
+print((Z - row_means[:, None]).shape)   # (4, 2): add an axis so (4,1) broadcasts against (4,2)
+
+try:
+    Z + np.array([1.0, 2.0, 3.0])  # (4,2) vs (3,): last dimensions 2 and 3 do not match
+except ValueError as e:
+    print(e)                       # operands could not be broadcast together with shapes (4,2) (3,)`;
+---
+
+<Note
+  track="math"
+  slug="matrices-and-shapes"
+  lede="A matrix is a table of numbers, and multiplying one by a vector is doing a dot product with every row at once. That single idea, plus a rule about which shapes fit together, is all the matrix algebra a neural network uses. This note builds it with small tables and ends with the shape bookkeeping that catches most bugs."
+  sections={sections}
+>
+  <h2 id="why">Why this note matters</h2>
+  <p>
+    Every layer of a neural network is a matrix multiplication followed by something simple. Every attention head is
+    three matrix multiplications and a softmax. The number everyone quotes for a model, its parameter count, is the
+    size of its matrices added up. And the error you will see most often while learning, some version of “shapes
+    (32, 3) and (4, 3) not aligned”, is a matrix whose rows and columns do not fit the thing next to it.
+  </p>
+  <p>Interview questions that are really this note:</p>
+  <ul>
+    <li>“What is the shape of the weight in a linear layer from 768 to 3072 features, and how many parameters is that?”</li>
+    <li>“A batch of 32 sentences, 128 tokens each, 768-dimensional embeddings. What is the shape after a linear layer? After attention scores?”</li>
+    <li>“Why is <Math tex="QK^\top" /> an <Math tex="n \times n" /> matrix, and what does entry <Math tex="(i, j)" /> mean?”</li>
+    <li>“How many floating-point operations does one matrix multiply cost? Why do GPUs help?”</li>
+    <li>“Why can LoRA store a 768 × 768 update in two small matrices, and in which order should you multiply them?”</li>
+  </ul>
+  <Callout kind="note" label="The scope rule">
+    <p>
+      Matrices as tables, the matrix-vector and matrix-matrix products, the shape rule, transpose, batches,
+      broadcasting and the cost of a multiply. No determinants, no inverses, no row reduction, no rank beyond the word
+      itself. If an interview mentions eigenvectors or SVD, the <a href="/notes/math/eigen-svd-intuition/">week 4 note</a>
+      has exactly as much as you need.
+    </p>
+  </Callout>
+
+  <h2 id="plain">In plain words</h2>
+  <Callout kind="plain">
+    <p>
+      <strong>A matrix</strong> is a spreadsheet: numbers in rows and columns. Each row is a vector, so a matrix is a
+      stack of vectors. In machine learning a matrix is usually one of two things: a <em>data table</em>, one row per
+      example and one column per feature, or a <em>layer’s weights</em>, one row per neuron and one column per input.
+    </p>
+    <p>
+      <strong>Multiplying a matrix by a vector</strong> means: take every row, dot it with the vector, write down the
+      answers. The result is a new, usually shorter or longer, vector. Multiplying a matrix by a <em>matrix</em> means
+      doing that for many vectors at once, one per column of the second table. The only rule is that the things being
+      dotted must have the same length, and that rule is the famous shape rule.
+    </p>
+  </Callout>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Everyday idea</th><th>Technical term</th><th>Symbol or code</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>A table of numbers</td><td><span class="term">matrix</span></td><td><Math tex="A" />, <Math tex="W" /> (capital letters)</td></tr>
+        <tr><td>How many rows by how many columns</td><td><span class="term">shape</span> (dimensions)</td><td><Math tex="m \times n" />; <code>A.shape == (m, n)</code></td></tr>
+        <tr><td>The number in row <Math tex="i" />, column <Math tex="j" /></td><td><span class="term">entry</span> (element)</td><td><Math tex="A_{ij}" />; <code>A[i, j]</code></td></tr>
+        <tr><td>Flip the table over its diagonal</td><td><span class="term">transpose</span></td><td><Math tex="A^\top" />; <code>A.T</code></td></tr>
+        <tr><td>Dot every row with a vector</td><td><span class="term">matrix-vector product</span></td><td><Math tex="A\mathbf{x}" />; <code>A @ x</code></td></tr>
+        <tr><td>Dot every row of one with every column of another</td><td><span class="term">matrix multiplication</span> (matmul)</td><td><Math tex="AB" />; <code>A @ B</code></td></tr>
+        <tr><td>Multiply matching cells, no summing</td><td><span class="term">element-wise</span> (Hadamard) product</td><td><Math tex="A \odot B" />; <code>A * B</code></td></tr>
+        <tr><td>Stretch a smaller array to fit a bigger one</td><td><span class="term">broadcasting</span></td><td><code>Z + b</code></td></tr>
+        <tr><td>The table that changes nothing</td><td><span class="term">identity matrix</span></td><td><Math tex="I" />; <code>np.eye(n)</code></td></tr>
+        <tr><td>Many examples processed together</td><td><span class="term">batch</span></td><td>the first axis, <code>(batch, …)</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="matrix">What a matrix is</h2>
+  <Callout kind="plain">
+    <p>
+      Here is a 2-row, 3-column table. Row 1 is (1, 2, 3), row 2 is (4, 5, 6). You can also read it by columns:
+      column 1 is (1, 4), column 2 is (2, 5), column 3 is (3, 6). To name one number you say its row and then its
+      column, like a seat number: “row 1, column 2” is the 2. Rows first, columns second, always, in math and in code.
+    </p>
+  </Callout>
+  <Figure n={1} caption="Anatomy of a 2 × 3 matrix. Shape is rows × columns. The entry A₁₂ sits in row 1, column 2. Each row is a 3-vector; each column is a 2-vector.">
+    <svg viewBox="0 0 720 240" role="img" aria-label="A two by three grid of numbers with one row and one column highlighted and the entry notation labelled">
+      <g class="sketch">
+        {anatomy.map((c) => (
+          <rect class={`stroke ${c.r === 0 ? 'fill-gold' : c.c === 1 ? 'fill-blue' : 'fill-paper'}`} x={c.x} y={c.y} width="56" height="48" />
+        ))}
+        <path class="stroke" d="M112 62 V174" stroke-width="2.5"></path>
+        <path class="stroke" d="M296 62 V174" stroke-width="2.5"></path>
+        <path class="stroke-soft" d="M400 94 L306 94" marker-end="url(#arrow)"></path>
+        <path class="stroke-soft" d="M204 200 V124" marker-end="url(#arrow)"></path>
+      </g>
+      {anatomy.map((c) => (
+        <text x={c.x + 28} y={c.y + 31} text-anchor="middle" font-size="22">{c.v}</text>
+      ))}
+      <text class="small label-blue" x="410" y="98">row 1: the vector (1, 2, 3)</text>
+      <text class="small label-blue" x="204" y="222" text-anchor="middle">column 2: (2, 5)</text>
+      <text class="small" x="410" y="140">A₁₂ = 2  (row 1, column 2)</text>
+      <text class="small" x="410" y="166">shape: 2 × 3 (rows × columns)</text>
+      <text class="small label-red" x="410" y="192">in code A[0, 1], counting from 0</text>
+      <text x="60" y="124" font-size="26">A =</text>
+    </svg>
+  </Figure>
+  <p>
+    A <span class="term">matrix</span> is a rectangular grid of numbers with <Math tex="m" /> rows and
+    <Math tex="n" /> columns; we say its <span class="term">shape</span> is <Math tex="m \times n" />, read “m by n”,
+    rows first. Matrices get capital letters, <Math tex="A" /> or <Math tex="W" />, and entries get two subscripts,
+    <Math tex="A_{ij}" /> for row <Math tex="i" /> and column <Math tex="j" />. Math counts from 1; NumPy and PyTorch
+    count from 0, so the 2 in Fig. 1 is <Math tex="A_{12}" /> on paper and <code>A[0, 1]</code> in code.
+  </p>
+  <p>
+    A vector fits into this picture as a matrix with one column: a <span class="term">column vector</span> of shape
+    <Math tex="n \times 1" />. Written flat, it is a <span class="term">row vector</span> of shape
+    <Math tex="1 \times n" />. Mathematicians default to columns, which is why formulas say <Math tex="W\mathbf{x}" />
+    with the vector on the right. NumPy adds a third option, the plain 1-D array of shape <code>(n,)</code> with no
+    second number at all, and treats it as whichever one makes the multiplication work. Most shape bugs come from
+    mixing up these three; the <a href="#mistakes">common mistakes</a> list has the specifics.
+  </p>
+  <p>You will meet matrices in three roles, and it helps to name the role each time:</p>
+  <ul>
+    <li>
+      <strong>A data matrix</strong> <Math tex="X" />: one row per example, one column per feature. Four days of walk
+      inputs is a <Math tex="4 \times 3" /> matrix. A batch of 32 images flattened to 784 pixels is
+      <Math tex="32 \times 784" />.
+    </li>
+    <li>
+      <strong>A weight matrix</strong> <Math tex="W" />: one row per neuron, one column per input. The two-neuron walk
+      layer from the previous note is <Math tex="2 \times 3" />.
+    </li>
+    <li>
+      <strong>A lookup table</strong>: GPT-2’s embedding matrix is <Math tex="50{,}257 \times 768" />, one row per token
+      in the vocabulary, and “embedding a token” means reading its row.
+    </li>
+  </ul>
+  <Callout kind="say">
+    <p>
+      “A matrix is an <Math tex="m \times n" /> array of numbers, rows by columns. In ML, data matrices hold one
+      example per row and one feature per column, and a linear layer’s weight matrix holds one output unit per row and
+      one input feature per column, so its shape is (out_features, in_features).”
+    </p>
+  </Callout>
+
+  <h2 id="matvec">Matrix times vector: a stack of dot products</h2>
+  <Callout kind="plain">
+    <p>
+      Two neurons read the same day. Neuron 1 has weights (3, −2, −4); neuron 2 has weights (1, −1, 0). Today is
+      (1, 0, 1). Neuron 1’s total is <Math tex="3 - 4 = -1" />; neuron 2’s is <Math tex="1" />. Write the two weight
+      rows as a table, the day as a column, and the two totals as a column, and you have written a matrix-vector
+      product. Nothing new was computed; two dot products were done side by side.
+    </p>
+  </Callout>
+  <Figure n={2} caption="W x: each row of W is dotted with x to give one entry of the result. Row 1 gives −1, row 2 gives 1. The inner 3s must match; the result has as many entries as W has rows.">
+    <svg viewBox="0 0 800 230" role="img" aria-label="A two by three weight matrix times a three-entry column vector giving a two-entry column, with the first row and the vector highlighted">
+      <g class="sketch">
+        {Wcells.map((c) => <rect class={`stroke ${c.r === 0 ? 'fill-gold' : 'fill-paper'}`} x={c.x} y={c.y} width="50" height="44" />)}
+        {xcells.map((c) => <rect class="stroke fill-blue" x={c.x} y={c.y} width="50" height="44" />)}
+        {zcells.map((c) => <rect class={`stroke ${c.r === 0 ? 'fill-green' : 'fill-paper'}`} x={c.x} y={c.y} width="50" height="44" />)}
+        <path class="stroke-soft" d="M212 82 C 260 82, 300 60, 340 60" stroke-dasharray="5 4"></path>
+        <path class="stroke-soft" d="M342 100 C 400 110, 420 82, 468 82" stroke-dasharray="5 4" marker-end="url(#arrow)"></path>
+      </g>
+      {Wcells.map((c) => <text x={c.x + 25} y={c.y + 29} text-anchor="middle" font-size="20">{c.v}</text>)}
+      {xcells.map((c) => <text x={c.x + 25} y={c.y + 29} text-anchor="middle" font-size="20">{c.v}</text>)}
+      {zcells.map((c) => <text x={c.x + 25} y={c.y + 29} text-anchor="middle" font-size="20">{c.v}</text>)}
+      <text x="20" y="110" font-size="24">W</text>
+      <text x="262" y="110" font-size="24">·</text>
+      <text x="315" y="196" text-anchor="middle" font-size="22">x</text>
+      <text x="405" y="110" font-size="24">=</text>
+      <text class="small" x="135" y="172" text-anchor="middle">2 × 3</text>
+      <text class="small" x="315" y="218" text-anchor="middle">3 × 1</text>
+      <text class="small" x="495" y="172" text-anchor="middle">2 × 1</text>
+      <text class="small label-red" x="560" y="80">(3)(1) + (−2)(0) + (−4)(1) = −1</text>
+      <text class="small label-red" x="560" y="124">(1)(1) + (−1)(0) + (0)(1) = 1</text>
+    </svg>
+  </Figure>
+  <p>
+    The <span class="term">matrix-vector product</span> <Math tex="W\mathbf{x}" /> is defined entry by entry: entry
+    <Math tex="i" /> of the result is the dot product of row <Math tex="i" /> of <Math tex="W" /> with
+    <Math tex="\mathbf{x}" />.
+  </p>
+  <Math block tex="(W\mathbf{x})_i = \sum_j W_{ij}\, x_j = \mathbf{w}_i \cdot \mathbf{x}" />
+  <p>
+    Two consequences fall straight out of the definition. First, the vector must have as many entries as each row
+    has, so a <Math tex="2 \times 3" /> matrix can only multiply a 3-vector. Second, the result has one entry per row,
+    so it is a 2-vector. In shape language: <Math tex="(2 \times 3)(3 \times 1) = (2 \times 1)" />. The 3s touch and
+    cancel; the 2 and the 1 survive. That is the shape rule, and the next section says it in full.
+  </p>
+  <p>
+    There is a second way to read the same product, and it is worth seeing once because it is how 3Blue1Brown and
+    many textbooks present it. Instead of “each row dotted with <Math tex="\mathbf{x}" />”, read it as “the columns of
+    <Math tex="W" />, mixed in the amounts given by <Math tex="\mathbf{x}" />”:
+  </p>
+  <Math block tex={String.raw`W\mathbf{x} = x_1 \begin{pmatrix} 3 \\ 1 \end{pmatrix} + x_2 \begin{pmatrix} -2 \\ -1 \end{pmatrix} + x_3 \begin{pmatrix} -4 \\ 0 \end{pmatrix} = 1\begin{pmatrix} 3 \\ 1 \end{pmatrix} + 0\begin{pmatrix} -2 \\ -1 \end{pmatrix} + 1\begin{pmatrix} -4 \\ 0 \end{pmatrix} = \begin{pmatrix} -1 \\ 1 \end{pmatrix}`} />
+  <p>
+    The result is a linear combination of the columns, with the input’s entries as the coefficients. Both readings
+    give the same numbers; use the row reading for computing and the column reading for the “matrix as a function”
+    picture in a moment.
+  </p>
+  <Callout kind="say">
+    <p>
+      “A matrix-vector product computes the dot product of every row with the vector, so an <Math tex="m \times n" />
+      matrix maps an <Math tex="n" />-vector to an <Math tex="m" />-vector. Equivalently it is a linear combination of
+      the matrix’s columns weighted by the vector’s entries. A linear layer is exactly this, plus a bias.”
+    </p>
+  </Callout>
+
+  <h2 id="matmul">Matrix times matrix and the shape rule</h2>
+  <Callout kind="plain">
+    <p>
+      If multiplying a table by one column gives one column of answers, then multiplying it by several columns side by
+      side gives several columns of answers side by side. That is all matrix-matrix multiplication is: the second
+      table is a bundle of columns, each gets the row-by-row treatment, and the answers are bundled back up in the same
+      order. The only thing that can go wrong is lengths not matching, and the shape rule is how you check before you
+      start.
+    </p>
+  </Callout>
+  <p>
+    For <Math tex="A" /> of shape <Math tex="m \times n" /> and <Math tex="B" /> of shape <Math tex="n \times p" />,
+    the product <Math tex="C = AB" /> has shape <Math tex="m \times p" />, and each entry is a dot product of a row
+    of <Math tex="A" /> with a column of <Math tex="B" />:
+  </p>
+  <Math block tex="C_{ij} = \sum_{k=1}^{n} A_{ik}\, B_{kj} = (\text{row } i \text{ of } A) \cdot (\text{column } j \text{ of } B)" />
+  <Figure n={3} caption="The shape rule. Inner dimensions must match and disappear; outer dimensions survive. (2 × 3)(3 × 2) works and gives 2 × 2. (2 × 3)(2 × 3) fails because 3 ≠ 2." wide>
+    <svg viewBox="0 0 760 250" role="img" aria-label="Rectangles showing matrix shapes: a 2 by 3 times a 3 by 2 gives a 2 by 2; a 2 by 3 times a 2 by 3 is crossed out">
+      <g class="sketch">
+        <rect class="stroke fill-gold" x="40" y="60" width="120" height="80" rx="4"></rect>
+        <rect class="stroke fill-blue" x="200" y="40" width="80" height="120" rx="4"></rect>
+        <rect class="stroke fill-green" x="330" y="60" width="80" height="80" rx="4"></rect>
+        <path class="stroke ink-red" d="M150 170 C 150 200, 210 200, 210 170" stroke-width="2"></path>
+        <rect class="stroke fill-gold" x="480" y="60" width="120" height="80" rx="4"></rect>
+        <rect class="stroke fill-blue" x="640" y="60" width="120" height="80" rx="4"></rect>
+        <path class="stroke ink-red" d="M590 170 C 590 200, 650 200, 650 170" stroke-width="2"></path>
+        <path class="stroke ink-red" d="M470 40 L770 160 M770 40 L470 160" stroke-width="3" opacity="0.6"></path>
+      </g>
+      <text x="100" y="106" text-anchor="middle" font-size="20">A</text>
+      <text class="small" x="100" y="160" text-anchor="middle">2 × 3</text>
+      <text x="240" y="106" text-anchor="middle" font-size="20">B</text>
+      <text class="small" x="240" y="180" text-anchor="middle">3 × 2</text>
+      <text x="300" y="106" text-anchor="middle" font-size="22">=</text>
+      <text x="370" y="106" text-anchor="middle" font-size="20">AB</text>
+      <text class="small" x="370" y="160" text-anchor="middle">2 × 2</text>
+      <text class="small label-red" x="180" y="222" text-anchor="middle">inner 3 = 3: match, they cancel</text>
+      <text class="small" x="160" y="36" text-anchor="end">outer 2 survives as rows</text>
+      <text class="small" x="200" y="22" text-anchor="start">outer 2 survives as columns</text>
+      <text x="540" y="106" text-anchor="middle" font-size="20">A</text>
+      <text class="small" x="540" y="160" text-anchor="middle">2 × 3</text>
+      <text x="700" y="106" text-anchor="middle" font-size="20">A</text>
+      <text class="small" x="700" y="160" text-anchor="middle">2 × 3</text>
+      <text class="small label-red" x="620" y="222" text-anchor="middle">inner 3 ≠ 2: not defined</text>
+    </svg>
+  </Figure>
+  <p>Work one fully. Say every step out loud the first time; it is the only way the row-column dance becomes automatic.</p>
+  <Math block tex={String.raw`A = \begin{pmatrix} 1 & 2 & 3 \\ 4 & 5 & 6 \end{pmatrix}_{2\times3} \qquad B = \begin{pmatrix} 7 & 8 \\ 9 & 10 \\ 11 & 12 \end{pmatrix}_{3\times2}`} />
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Entry</th><th>Row of A</th><th>Column of B</th><th>Dot product</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><Math tex="C_{11}" /></td><td>(1, 2, 3)</td><td>(7, 9, 11)</td><td>7 + 18 + 33 = <strong>58</strong></td></tr>
+        <tr><td><Math tex="C_{12}" /></td><td>(1, 2, 3)</td><td>(8, 10, 12)</td><td>8 + 20 + 36 = <strong>64</strong></td></tr>
+        <tr><td><Math tex="C_{21}" /></td><td>(4, 5, 6)</td><td>(7, 9, 11)</td><td>28 + 45 + 66 = <strong>139</strong></td></tr>
+        <tr><td><Math tex="C_{22}" /></td><td>(4, 5, 6)</td><td>(8, 10, 12)</td><td>32 + 50 + 72 = <strong>154</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <Math block tex={String.raw`AB = \begin{pmatrix} 58 & 64 \\ 139 & 154 \end{pmatrix}_{2\times2}`} />
+  <p>
+    The habit that prevents bugs: <strong>write the shapes before you compute</strong>. “(2 × 3) times (3 × 2): inner
+    3s match, result is 2 × 2.” Do this for every multiplication in every formula until it is reflex. Interviewers
+    watch for it, and it is how you will debug your own code: print the shapes, line them up, find the pair that does
+    not touch.
+  </p>
+  <Source
+    kind="try"
+    href="http://matrixmultiplication.xyz/"
+    title="matrixmultiplication.xyz"
+    meta="An animation of the row-by-column dance for any shapes you type in. Enter the A and B above and watch each entry of AB being formed. Five minutes makes the definition physical."
+  />
+  <Source
+    kind="read"
+    href="https://www.khanacademy.org/math/precalculus/x9e81a4f98389efdf:matrices"
+    title="Khan Academy: Matrices (Precalculus)"
+    meta="Do the exercise sets “Multiplying matrices by matrices” and “Properties of matrix multiplication”. Skip determinants and inverses entirely; they are out of scope."
+  />
+  <Callout kind="say">
+    <p>
+      “To multiply <Math tex="A" /> (<Math tex="m \times n" />) by <Math tex="B" /> (<Math tex="n \times p" />) the
+      inner dimensions must agree, and the result is <Math tex="m \times p" /> with
+      <Math tex="C_{ij}" /> equal to the dot product of row <Math tex="i" /> of <Math tex="A" /> with column
+      <Math tex="j" /> of <Math tex="B" />. I always write the shapes first.”
+    </p>
+  </Callout>
+
+  <h2 id="properties">Order matters, grouping does not</h2>
+  <Callout kind="plain">
+    <p>
+      Putting on socks then shoes is not the same as shoes then socks. Matrix multiplication is like that: the order
+      of the two matrices matters, and swapping them usually gives a different answer or no answer at all. But
+      <em>where you put the brackets</em> in a chain does not matter: (socks, then shoes), then coat is the same as
+      socks, then (shoes, then coat). That second fact is a free lunch, because different bracketings can cost very
+      different amounts of work.
+    </p>
+  </Callout>
+  <p><strong>Not commutative.</strong> <Math tex="AB \ne BA" /> in general. With the <Math tex="A" /> and <Math tex="B" /> above, <Math tex="AB" /> is <Math tex="2 \times 2" /> but <Math tex="BA" /> is <Math tex="3 \times 3" />: not even the same shape. Even for square matrices the entries differ:</p>
+  <Math block tex={String.raw`\begin{pmatrix} 1 & 2 \\ 3 & 4 \end{pmatrix}\begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix} = \begin{pmatrix} 2 & 1 \\ 4 & 3 \end{pmatrix} \qquad \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix}\begin{pmatrix} 1 & 2 \\ 3 & 4 \end{pmatrix} = \begin{pmatrix} 3 & 4 \\ 1 & 2 \end{pmatrix}`} />
+  <p>
+    (Multiplying by that 0-1 matrix on the right swaps the <em>columns</em> of the other matrix; on the left it swaps
+    the <em>rows</em>. Which side you multiply on decides which axis you act on. This is why formulas are careful to
+    write <Math tex="XW^\top" /> and not <Math tex="W^\top X" />.)
+  </p>
+  <p><strong>Associative.</strong> <Math tex="(AB)C = A(BC)" />, always. The answer is identical; the <em>cost</em> is not. Take LoRA, which replaces a weight update of shape <Math tex="768 \times 768" /> with two thin matrices <Math tex="B" /> (<Math tex="768 \times 8" />) and <Math tex="A" /> (<Math tex="8 \times 768" />), so the update is <Math tex="BA" />. To apply it to one input vector <Math tex="\mathbf{x}" /> you can compute:</p>
+  <ul>
+    <li><Math tex="(BA)\mathbf{x}" />: first form <Math tex="BA" />, which is <Math tex="768 \cdot 8 \cdot 768 \approx 4.7" /> million multiplications, then multiply the vector.</li>
+    <li><Math tex="B(A\mathbf{x})" />: first <Math tex="A\mathbf{x}" /> (<Math tex="8 \times 768 = 6{,}144" /> multiplications, giving an 8-vector), then <Math tex="B" /> times that (another 6,144). About 12 thousand in total.</li>
+  </ul>
+  <p>Same result, four hundred times less work. Choosing the bracketing is a real engineering decision, and associativity is what makes it legal.</p>
+  <p>
+    <strong>Distributive.</strong> <Math tex="A(B + C) = AB + AC" />. This is what lets LoRA write
+    <Math tex="(W + BA)\mathbf{x} = W\mathbf{x} + BA\mathbf{x}" /> and compute the two halves separately.
+  </p>
+  <p>
+    <strong>The identity.</strong> The square matrix with 1s on the diagonal and 0s elsewhere, <Math tex="I" />,
+    leaves anything it multiplies unchanged: <Math tex="I\mathbf{x} = \mathbf{x}" /> and <Math tex="IA = AI = A" />.
+    It is the matrix version of the number 1, and you will see it in “add a residual connection” diagrams and in
+    initialization tricks.
+  </p>
+  <Callout kind="say">
+    <p>
+      “Matrix multiplication is associative and distributive but not commutative. Associativity lets you choose the
+      cheapest bracketing: for a low-rank product like LoRA’s <Math tex="BA\mathbf{x}" /> you compute
+      <Math tex="B(A\mathbf{x})" /> and never materialize the full matrix.”
+    </p>
+  </Callout>
+
+  <h2 id="transform">A matrix is a function</h2>
+  <Callout kind="plain">
+    <p>
+      So far a matrix has been a table. Here is the other face: a matrix is a <em>machine that moves arrows</em>. Feed
+      it a vector, it gives you back a vector. The whole plane gets stretched, squashed, rotated or sheared, all at
+      once, and straight grid lines stay straight and evenly spaced. The columns of the matrix tell you exactly where
+      the two basic arrows, “one step right” and “one step up”, land. Everything else follows from that.
+    </p>
+  </Callout>
+  <Figure n={4} caption="The matrix M = [[2, 1], [0, 1]] as a function of the plane. It sends (1, 0) to (2, 0) and (0, 1) to (1, 1), which are its columns. The unit square becomes a parallelogram; the point (1, 1) lands at (3, 1).">
+    <svg viewBox="0 0 720 280" role="img" aria-label="Before and after panels: the unit square with basis arrows, and its image under a shear-and-stretch matrix">
+      <g class="sketch">
+        <path class="stroke-soft" d={`M${before.x} ${sy(before, 0)} H${before.x + before.w} M${sx(before, 0)} ${before.y} V${before.y + before.h}`}></path>
+        <path class="stroke fill-gold" d={poly(before, square)} opacity="0.9"></path>
+        <path class="stroke ink-red" d={arrow(before, [1, 0])} stroke-width="3" marker-end="url(#arrow)"></path>
+        <path class="stroke" d={arrow(before, [0, 1])} stroke-width="3" marker-end="url(#arrow)"></path>
+        <path class="stroke-soft" d={`M${after.x} ${sy(after, 0)} H${after.x + after.w} M${sx(after, 0)} ${after.y} V${after.y + after.h}`}></path>
+        <path class="stroke fill-gold" d={poly(after, image)} opacity="0.9"></path>
+        <path class="stroke ink-red" d={arrow(after, [2, 0])} stroke-width="3" marker-end="url(#arrow)"></path>
+        <path class="stroke" d={arrow(after, [1, 1])} stroke-width="3" marker-end="url(#arrow)"></path>
+        <path class="stroke" d="M300 140 H400" stroke-width="2" marker-end="url(#arrow)"></path>
+        <circle class="stroke fill-paper" cx={sx(before, 1)} cy={sy(before, 1)} r="5"></circle>
+        <circle class="stroke fill-paper" cx={sx(after, 3)} cy={sy(after, 1)} r="5"></circle>
+      </g>
+      <text class="small label-red" x={sx(before, 1) + 6} y={sy(before, 0) + 18}>(1, 0)</text>
+      <text class="small" x={sx(before, 0) - 8} y={sy(before, 1) - 6} text-anchor="end">(0, 1)</text>
+      <text class="small" x={sx(before, 1) + 8} y={sy(before, 1) - 6}>(1, 1)</text>
+      <text class="small label-red" x={sx(after, 2) + 6} y={sy(after, 0) + 18}>(2, 0) = column 1</text>
+      <text class="small" x={sx(after, 1) - 6} y={sy(after, 1) - 8} text-anchor="end">(1, 1) = column 2</text>
+      <text class="small" x={sx(after, 3) + 8} y={sy(after, 1) - 6}>(3, 1)</text>
+      <text x="350" y="128" text-anchor="middle" font-size="22">M</text>
+      <text class="small" x={before.x + before.w / 2} y="268" text-anchor="middle">before</text>
+      <text class="small" x={after.x + after.w / 2} y="268" text-anchor="middle">after: M x for every x</text>
+    </svg>
+  </Figure>
+  <p>
+    A matrix defines a function <Math tex="\mathbf{x} \mapsto M\mathbf{x}" />, and it is a special kind of function
+    called a <span class="term">linear transformation</span>: it respects addition and scaling,
+    <Math tex="M(\mathbf{u} + \mathbf{v}) = M\mathbf{u} + M\mathbf{v}" /> and <Math tex="M(c\mathbf{v}) = cM\mathbf{v}" />.
+    That is exactly the property the <a href="/notes/dl/what-is-a-neural-network/#activation">neural network note</a>
+    used when it showed that two linear layers in a row collapse into one: composing two linear functions gives a
+    linear function, and in matrix language <em>composing the functions is multiplying the matrices</em>. Apply
+    <Math tex="A" /> then <Math tex="B" /> and you have applied <Math tex="BA" /> (note the order: the first applied is
+    on the right, nearest the vector).
+  </p>
+  <p>
+    Read off where the two basis arrows go and you know the whole matrix. In Fig. 4, “one step right” lands at
+    <Math tex="(2, 0)" /> and “one step up” lands at <Math tex="(1, 1)" />; those are the two columns of
+    <Math tex="M" />. Any other point is a combination of those two steps, so it goes to the same combination of the
+    two landing spots: <Math tex="(1, 1)" /> is one right plus one up, so it goes to <Math tex="(2, 0) + (1, 1) = (3, 1)" />.
+    This is the column reading from the matrix-vector section, now as a picture.
+  </p>
+  <p>
+    The picture is what lets you think about a weight matrix as something that <em>reshapes the space</em> the data
+    lives in, so that the next layer finds the classes easier to separate. The eigenvector note in week 4 asks the
+    natural follow-up: are there directions a given matrix only stretches, without turning? That question is PCA.
+  </p>
+  <Source
+    kind="watch"
+    href="https://www.youtube.com/watch?v=kYB8IZa5AuE"
+    title="3Blue1Brown: Linear transformations and matrices | Chapter 3"
+    meta="About 11 minutes. The animated version of Fig. 4. After it, matrix multiplication stops being a recipe and becomes a picture."
+  />
+  <Source
+    kind="watch"
+    href="https://www.youtube.com/watch?v=XkY2DOUCWMU"
+    title="3Blue1Brown: Matrix multiplication as composition | Chapter 4"
+    meta="About 10 minutes. Why multiplying matrices means composing transformations, and a visual reason the order matters."
+  />
+  <Callout kind="say">
+    <p>
+      “A matrix represents a linear map; its columns are the images of the basis vectors. Multiplying matrices
+      composes the maps, which is why a stack of linear layers without non-linearities is itself a single linear
+      layer.”
+    </p>
+  </Callout>
+
+  <h2 id="batch">Batches: many inputs at once</h2>
+  <Callout kind="plain">
+    <p>
+      One day through the two-neuron layer is a matrix times a column. Four days through it would be four of those.
+      Instead, stack the four days as the <em>rows</em> of a table and push the whole table through in one go. Out
+      comes a table with four rows, one per day, and two columns, one per neuron. The table of inputs is a batch; the
+      layer does not care how many rows it has.
+    </p>
+  </Callout>
+  <p>Four walk days as a data matrix, the two neurons as a weight matrix, the biases as a vector:</p>
+  <Math block tex={String.raw`X = \begin{pmatrix} 1 & 0 & 0 \\ 1 & 1 & 0 \\ 0 & 0 & 1 \\ 1 & 0 & 1 \end{pmatrix}_{4\times3} \qquad W = \begin{pmatrix} 3 & -2 & -4 \\ 1 & -1 & 0 \end{pmatrix}_{2\times3} \qquad \mathbf{b} = (-1,\ 0)`} />
+  <p>
+    We want each day (a row of <Math tex="X" />) dotted with each neuron (a row of <Math tex="W" />). Row-with-row
+    is not what matmul does; it does row-with-<em>column</em>. So flip <Math tex="W" /> on its side first, turning its
+    rows into columns, and multiply:
+  </p>
+  <Math block tex={String.raw`Z = XW^\top + \mathbf{b} = \begin{pmatrix} 1 & 0 & 0 \\ 1 & 1 & 0 \\ 0 & 0 & 1 \\ 1 & 0 & 1 \end{pmatrix}\begin{pmatrix} 3 & 1 \\ -2 & -1 \\ -4 & 0 \end{pmatrix} + \begin{pmatrix} -1 & 0 \end{pmatrix} = \begin{pmatrix} 2 & 1 \\ 0 & 0 \\ -5 & 0 \\ -2 & 1 \end{pmatrix}_{4\times2}`} />
+  <p>
+    Check the shapes: <Math tex="(4 \times 3)(3 \times 2) = 4 \times 2" />. Check one entry: day 4 is
+    <Math tex="(1, 0, 1)" />, neuron 1 is <Math tex="(3, -2, -4)" />, dot product <Math tex="-1" />, plus bias
+    <Math tex="-1" />, gives <Math tex="-2" />, the bottom-left entry. Check the bias: it is a 2-vector, one per
+    neuron, and it was added to <em>every row</em>. That silent stretching of a <Math tex="(2,)" /> vector across a
+    <Math tex="(4, 2)" /> matrix is <span class="term">broadcasting</span>, covered below.
+  </p>
+  <p>
+    This is precisely what <code>torch.nn.Linear</code> does. It stores <Math tex="W" /> with shape
+    <code>(out_features, in_features)</code>, one row per output unit, and computes <Math tex="XW^\top + \mathbf{b}" />.
+    Two facts to memorize:
+  </p>
+  <ul>
+    <li><strong>The weight shape is (out, in).</strong> <code>nn.Linear(768, 3072).weight.shape</code> is <code>(3072, 768)</code>. Parameters: <Math tex="3072 \times 768 + 3072 = 2{,}362{,}368" />.</li>
+    <li><strong>A linear layer changes only the last axis.</strong> Input <code>(batch, in)</code> becomes <code>(batch, out)</code>. Input <code>(batch, seq, in)</code>, as in a transformer, becomes <code>(batch, seq, out)</code>. Every leading axis is left alone.</li>
+  </ul>
+  <p>A complete two-layer network on a batch, as a shape table. Nothing in it is new; it is the shape rule applied four times.</p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Step</th><th>Operation</th><th>Shapes</th><th>Result</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>input</td><td>batch of 32 examples, 3 features</td><td></td><td><code>(32, 3)</code></td></tr>
+        <tr><td>layer 1</td><td><Math tex="XW_1^\top + \mathbf{b}_1" />, <Math tex="W_1" /> is <code>(4, 3)</code></td><td>(32, 3)(3, 4)</td><td><code>(32, 4)</code></td></tr>
+        <tr><td>ReLU</td><td>element-wise</td><td>no change</td><td><code>(32, 4)</code></td></tr>
+        <tr><td>layer 2</td><td><Math tex="HW_2^\top + \mathbf{b}_2" />, <Math tex="W_2" /> is <code>(2, 4)</code></td><td>(32, 4)(4, 2)</td><td><code>(32, 2)</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <Source
+    kind="read"
+    href="https://pytorch.org/docs/stable/generated/torch.nn.Linear.html"
+    title="PyTorch documentation: torch.nn.Linear"
+    meta="Read the “Shape” section and the description of weight and bias. It says in two lines what this section said in twenty."
+  />
+  <Callout kind="say">
+    <p>
+      “With a batch, the data matrix is (batch, in_features) and the layer computes <Math tex="XW^\top + \mathbf{b}" />
+      with <Math tex="W" /> stored as (out_features, in_features), giving (batch, out_features). Only the last axis
+      changes, so the same layer works on (batch, seq, features) in a transformer. The bias broadcasts across rows.”
+    </p>
+  </Callout>
+
+  <h2 id="transpose">Transpose, and all pairwise dot products</h2>
+  <Callout kind="plain">
+    <p>
+      Transposing is flipping the table over its diagonal: rows become columns and columns become rows. It is the move
+      you make when matmul wants a column but you have a row. And it unlocks one trick that attention is built on: if
+      you have a stack of vectors and you want the dot product of <em>every</em> one with <em>every</em> other, multiply
+      the stack by its own transpose. One operation, all the pairs.
+    </p>
+  </Callout>
+  <p>
+    The <span class="term">transpose</span> <Math tex="A^\top" /> of an <Math tex="m \times n" /> matrix is the
+    <Math tex="n \times m" /> matrix with <Math tex="(A^\top)_{ij} = A_{ji}" />:
+  </p>
+  <Math block tex={String.raw`\begin{pmatrix} 1 & 2 & 3 \\ 4 & 5 & 6 \end{pmatrix}^{\!\top} = \begin{pmatrix} 1 & 4 \\ 2 & 5 \\ 3 & 6 \end{pmatrix}`} />
+  <p>Three rules, each checkable by shapes alone:</p>
+  <ul>
+    <li><Math tex="(A^\top)^\top = A" />. Flip twice, back where you started.</li>
+    <li><Math tex="(AB)^\top = B^\top A^\top" />. The order reverses. Check: <Math tex="A" /> is <Math tex="2 \times 3" />, <Math tex="B" /> is <Math tex="3 \times 2" />, so <Math tex="(AB)^\top" /> is <Math tex="2 \times 2" />; and <Math tex="B^\top A^\top" /> is <Math tex="(2 \times 3)(3 \times 2) = 2 \times 2" />. The other order, <Math tex="A^\top B^\top" />, would be <Math tex="(3 \times 2)(2 \times 3)" />, a different shape entirely.</li>
+    <li><Math tex="\mathbf{x}^\top \mathbf{y}" /> is the dot product. A column <Math tex="\mathbf{x}" /> (<Math tex="n \times 1" />) transposed is a row (<Math tex="1 \times n" />), times a column (<Math tex="n \times 1" />) gives <Math tex="1 \times 1" />: one number. This is why papers write <Math tex="\mathbf{w}^\top\mathbf{x}" /> for <Math tex="\mathbf{w}\cdot\mathbf{x}" />.</li>
+  </ul>
+  <Figure n={5} caption="All pairwise dot products at once. Q holds 4 query vectors as rows, K holds 4 key vectors as rows. Q Kᵀ is 4 × 4 and its entry (i, j) is qᵢ · kⱼ. This is the score matrix of attention." wide>
+    <svg viewBox="0 0 760 260" role="img" aria-label="A 4 by 8 matrix Q times an 8 by 4 matrix K transpose giving a 4 by 4 score matrix, with one row, one column and the resulting cell highlighted">
+      <g class="sketch">
+        {q.map((c) => <rect class={`stroke ${c.r === 1 ? 'fill-gold' : 'fill-paper'}`} x={c.x} y={c.y} width="22" height="26" />)}
+        {kT.map((c) => <rect class={`stroke ${c.c === 2 ? 'fill-blue' : 'fill-paper'}`} x={c.x} y={c.y} width="26" height="22" />)}
+        {scores.map((c) => <rect class={`stroke ${c.r === 1 && c.c === 2 ? 'fill-green' : 'fill-paper'}`} x={c.x} y={c.y} width="26" height="26" />)}
+      </g>
+      <text x="128" y="190" text-anchor="middle" font-size="22">Q</text>
+      <text class="small" x="128" y="214" text-anchor="middle">n × d = 4 × 8</text>
+      <text class="small" x="128" y="236" text-anchor="middle">row i = query of token i</text>
+      <text x="342" y="235" text-anchor="middle" font-size="22">Kᵀ</text>
+      <text class="small" x="342" y="256" text-anchor="middle">d × n = 8 × 4, column j = key of token j</text>
+      <text x="440" y="120" text-anchor="middle" font-size="22">=</text>
+      <text x="532" y="190" text-anchor="middle" font-size="22">Q Kᵀ</text>
+      <text class="small" x="532" y="214" text-anchor="middle">n × n = 4 × 4</text>
+      <text class="small label-red" x="600" y="100">entry (2, 3)</text>
+      <text class="small label-red" x="600" y="122">= q₂ · k₃</text>
+      <text class="small label-red" x="600" y="144">= how much token 2</text>
+      <text class="small label-red" x="600" y="166">  attends to token 3</text>
+      <text x="262" y="120" text-anchor="middle" font-size="22">·</text>
+    </svg>
+  </Figure>
+  <p>
+    Fig. 5 is the single most important shape in the LLM track, so make sure it is clear now. Put <Math tex="n" />
+    vectors of dimension <Math tex="d" /> as the rows of a matrix <Math tex="Q" /> (<Math tex="n \times d" />) and
+    another <Math tex="n" /> as the rows of <Math tex="K" /> (also <Math tex="n \times d" />). Then
+    <Math tex="QK^\top" /> is <Math tex="(n \times d)(d \times n) = n \times n" />, and by the definition of matmul its
+    entry <Math tex="(i, j)" /> is row <Math tex="i" /> of <Math tex="Q" /> dotted with column <Math tex="j" /> of
+    <Math tex="K^\top" />, which is row <Math tex="j" /> of <Math tex="K" />. So entry <Math tex="(i, j)" /> is
+    <Math tex="\mathbf{q}_i \cdot \mathbf{k}_j" />: the similarity between token <Math tex="i" />’s query and token
+    <Math tex="j" />’s key. All <Math tex="n^2" /> pairs in one multiplication. Week 8 scales this matrix, masks it
+    and softmaxes each row; the shape work is done here.
+  </p>
+  <p>
+    The same trick with one matrix and itself, <Math tex="XX^\top" />, gives every example’s dot product with every
+    other example, a <span class="term">Gram matrix</span>. It is how you would compute all pairwise similarities
+    between a thousand embeddings in one line: <code>E @ E.T</code>.
+  </p>
+  <Callout kind="say">
+    <p>
+      “<Math tex="(AB)^\top = B^\top A^\top" />, and <Math tex="\mathbf{x}^\top\mathbf{y}" /> is the dot product.
+      Stacking vectors as rows and multiplying by the transpose of another stack gives every pairwise dot product at
+      once; attention’s score matrix <Math tex="QK^\top" /> is <Math tex="n \times n" /> with entry
+      <Math tex="(i, j) = \mathbf{q}_i \cdot \mathbf{k}_j" />.”
+    </p>
+  </Callout>
+
+  <h2 id="cost">How much work a multiplication is</h2>
+  <Callout kind="plain">
+    <p>
+      Count the arithmetic in the worked example. Four entries, each a dot product of three pairs: twelve
+      multiplications and about as many additions. The pattern is rows of the first, times columns of the second,
+      times the length they share. For big matrices this number is enormous, and it is what the model spends almost all
+      of its time doing. That is why the hardware story of deep learning is the story of doing this one operation
+      faster.
+    </p>
+  </Callout>
+  <p>
+    Multiplying <Math tex="m \times n" /> by <Math tex="n \times p" /> computes <Math tex="mp" /> entries, each a dot
+    product of length <Math tex="n" />: <Math tex="mnp" /> multiplications and about <Math tex="mnp" /> additions, so
+    roughly <Math tex="2mnp" /> <span class="term">FLOPs</span> (floating-point operations). For GPT-2’s first
+    feed-forward layer on a 1,024-token sequence, that is <Math tex="2 \times 1024 \times 768 \times 3072 \approx 4.8" />
+    billion FLOPs for one layer of one forward pass. Multiply by the number of layers, the number of training tokens
+    and a factor of three for the backward pass, and you have the training cost estimates you see in papers.
+  </p>
+  <p>Three facts that follow:</p>
+  <ul>
+    <li>
+      <strong>Why GPUs.</strong> The <Math tex="mp" /> dot products do not depend on each other, so they can all run at
+      the same time. A GPU is thousands of small arithmetic units built to do exactly that, and modern ones have
+      dedicated matrix-multiply hardware (tensor cores).
+    </li>
+    <li>
+      <strong>Why memory, not arithmetic, is often the limit.</strong> Reading <Math tex="mn + np" /> numbers and
+      writing <Math tex="mp" /> can take longer than the arithmetic when <Math tex="n" /> is small. Batching exists
+      largely so that each weight read from memory is used for many rows at once.
+    </li>
+    <li>
+      <strong>Why parameter count ≈ FLOPs per token.</strong> A weight matrix of <Math tex="mn" /> entries costs
+      <Math tex="2mn" /> FLOPs per input vector. So a forward pass through a model with <Math tex="N" /> parameters is
+      about <Math tex="2N" /> FLOPs per token. That rule of thumb answers a whole family of interview questions about
+      inference cost.
+    </li>
+  </ul>
+  <Callout kind="say">
+    <p>
+      “A matmul of <Math tex="m \times n" /> by <Math tex="n \times p" /> is about <Math tex="2mnp" /> FLOPs, all
+      independent dot products, which is why GPUs accelerate it. A forward pass costs roughly 2 FLOPs per parameter per
+      token.”
+    </p>
+  </Callout>
+
+  <h2 id="elementwise">Element-wise operations and broadcasting</h2>
+  <Callout kind="plain">
+    <p>
+      Not everything done to a table is a matrix multiply. Adding two tables of the same shape cell by cell, or
+      applying ReLU to every cell, leaves the shape alone. And when the shapes do not match but one of them is a
+      single row or column, NumPy quietly copies the small one across the big one so the cell-by-cell operation can
+      happen. That copying is broadcasting, and it is how one bias vector gets added to every example in a batch.
+    </p>
+  </Callout>
+  <p>
+    <span class="term">Element-wise</span> operations pair up matching entries and never mix rows with columns.
+    <Math tex="A + B" />, <Math tex="A \odot B" /> (<code>A * B</code> in code), <Math tex="\text{ReLU}(A)" />,
+    <Math tex="A / 2" /> are all element-wise, and all keep the shape. The trap: <code>A * B</code> in NumPy is
+    element-wise, <em>not</em> matrix multiplication. Matmul is <code>A @ B</code>. In the last note the same trap was
+    <code>w * x</code> versus <code>w @ x</code>; here it costs you a wrong answer with no error message, because two
+    matrices of the same shape can be either <code>*</code>-ed or, if square, <code>@</code>-ed.
+  </p>
+  <p>
+    <span class="term">Broadcasting</span> is the rule for element-wise operations between arrays of different shapes.
+    Line the shapes up from the <em>right</em>. Two dimensions are compatible if they are equal or one of them is 1
+    (or missing). The size-1 dimension is stretched to match. So:
+  </p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Shapes</th><th>Aligned from the right</th><th>Result</th><th>What happened</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>(4, 2) + (2,)</code></td><td>(4, 2) and (–, 2)</td><td><code>(4, 2)</code></td><td>the bias vector is copied onto each of the 4 rows</td></tr>
+        <tr><td><code>(4, 2) + (4, 1)</code></td><td>(4, 2) and (4, 1)</td><td><code>(4, 2)</code></td><td>the column is copied across the 2 columns</td></tr>
+        <tr><td><code>(4, 2) + (1, 2)</code></td><td>(4, 2) and (1, 2)</td><td><code>(4, 2)</code></td><td>the row is copied down the 4 rows</td></tr>
+        <tr><td><code>(4, 2) + (3,)</code></td><td>(4, 2) and (–, 3)</td><td>error</td><td>2 and 3 are neither equal nor 1</td></tr>
+        <tr><td><code>(4, 2) + (4,)</code></td><td>(4, 2) and (–, 4)</td><td>error</td><td>alignment is from the right, so 2 is compared with 4, not 4 with 4</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    The last row is the one that bites. To subtract a per-row mean of shape <code>(4,)</code> from a <code>(4, 2)</code>
+    matrix you must first make it <code>(4, 1)</code> with <code>means[:, None]</code> or <code>keepdims=True</code>.
+    Every LayerNorm implementation does exactly this.
+  </p>
+  <Source
+    kind="read"
+    href="https://numpy.org/doc/stable/user/basics.broadcasting.html"
+    title="NumPy documentation: Broadcasting"
+    meta="Read “General Broadcasting Rules” and look at the pictures. PyTorch follows the same rules."
+  />
+  <Callout kind="say">
+    <p>
+      “Element-wise operations keep the shape; <code>*</code> is element-wise and <code>@</code> is matmul.
+      Broadcasting aligns shapes from the right and stretches size-1 axes, which is how a bias of shape (out,) is added
+      to activations of shape (batch, out).”
+    </p>
+  </Callout>
+
+  <h2 id="code">Code</h2>
+  <p>Type these out. Before running each line that prints a shape, write down the shape you expect.</p>
+  <h3>Shapes, indexing, transpose and the error you will see</h3>
+  <CodeBlock code={shapesCode} />
+  <h3>A batch through a linear layer, in NumPy and in PyTorch</h3>
+  <CodeBlock code={batchCode} />
+  <h3>Shape table of a two-layer network, and the transformer case</h3>
+  <CodeBlock code={mlpShapesCode} />
+  <h3>All pairwise dot products: the attention score shape</h3>
+  <CodeBlock code={pairwiseCode} />
+  <h3>Broadcasting, including the case that fails</h3>
+  <CodeBlock code={broadcastCode} />
+  <Source
+    kind="read"
+    href="https://numpy.org/doc/stable/reference/generated/numpy.matmul.html"
+    title="NumPy documentation: numpy.matmul (the @ operator)"
+    meta="Read the first paragraph and the note on how 1-D arrays are promoted. That note explains why a (3,) vector works on either side of @."
+  />
+  <Source
+    kind="read"
+    href="https://numpy.org/doc/stable/reference/generated/numpy.einsum.html"
+    title="NumPy documentation: numpy.einsum"
+    meta="Optional. einsum names each axis with a letter, so “id,jd->ij” reads as “dot the d axes, keep i and j”. Many transformer implementations use it to avoid transpose errors."
+  />
+
+  <h2 id="llm">Where this lives in an LLM</h2>
+  <ul>
+    <li>
+      <strong>The embedding matrix</strong> is <Math tex="V \times d" /> (50,257 × 768 for GPT-2). Looking up a token is
+      reading one row. Equivalently it is a one-hot row vector of length <Math tex="V" /> times the matrix:
+      <Math tex="(1 \times V)(V \times d) = 1 \times d" />.
+    </li>
+    <li>
+      <strong>Every linear layer</strong> is <Math tex="XW^\top + \mathbf{b}" /> on an input of shape
+      <Math tex="(\text{batch}, \text{seq}, d)" />. The feed-forward block goes <Math tex="d \to 4d \to d" />, so its
+      two weight matrices are <Math tex="4d \times d" /> and <Math tex="d \times 4d" />.
+    </li>
+    <li>
+      <strong>Attention</strong> makes <Math tex="Q" />, <Math tex="K" /> and <Math tex="V" /> with three linear layers,
+      forms the <Math tex="n \times n" /> score matrix <Math tex="QK^\top" /> from Fig. 5, and then multiplies the
+      softmaxed scores (<Math tex="n \times n" />) by <Math tex="V" /> (<Math tex="n \times d" />) to get
+      <Math tex="n \times d" /> again. Three matmuls, and the shape rule tells you the shape at every step.
+    </li>
+    <li>
+      <strong>The KV cache</strong> is literally the <Math tex="K" /> and <Math tex="V" /> matrices of past tokens kept
+      in memory so they are not recomputed. Its size is rows × columns × layers × bytes, a shape calculation.
+    </li>
+    <li>
+      <strong>Parameter counts</strong> are sums of <Math tex="mn + m" /> over the linear layers, and the
+      <strong>2 FLOPs per parameter per token</strong> rule prices a forward pass.
+    </li>
+    <li>
+      <strong>LoRA</strong> adds <Math tex="BA" /> to a frozen <Math tex="W" />, with <Math tex="B" /> of shape
+      <Math tex="d \times r" /> and <Math tex="A" /> of shape <Math tex="r \times d" /> for a small rank <Math tex="r" />,
+      and uses associativity to apply it cheaply.
+    </li>
+  </ul>
+
+  <h2 id="interview">The full interview answer</h2>
+  <p>
+    The typical form is a shape question dressed up as something else: “walk me through the shapes in a linear layer
+    on a batch” or “what is the shape of the attention scores and why”. Here is a complete answer in about seventy
+    seconds.
+  </p>
+  <Callout kind="interview">
+    <p>
+      “A linear layer stores a weight matrix of shape (out_features, in_features) and a bias of shape (out_features,).
+      For a batch the input is (batch, in_features), and the layer computes <Math tex="XW^\top + \mathbf{b}" />: the
+      inner in_features dimensions match and cancel, giving (batch, out_features), with the bias broadcast across the
+      rows. Each output entry is the dot product of one example with one output unit’s weight vector. Because matmul
+      only touches the last axis, the same layer works on (batch, seq, features) in a transformer.
+    </p>
+    <p>
+      In attention, queries and keys are both (seq, d), and <Math tex="QK^\top" /> is (seq, d)(d, seq) = (seq, seq),
+      whose entry <Math tex="(i, j)" /> is the dot product of query <Math tex="i" /> with key <Math tex="j" />: how much
+      token <Math tex="i" /> attends to token <Math tex="j" />. Multiplying the softmaxed scores by <Math tex="V" />,
+      (seq, seq)(seq, d), gives (seq, d) again. The cost of each matmul is about 2mnp FLOPs, so a forward pass is
+      roughly 2 FLOPs per parameter per token, and that is why GPUs, which parallelize the independent dot products,
+      are the hardware of choice.”
+    </p>
+  </Callout>
+  <p><strong>If they push further, be ready for:</strong></p>
+  <ul>
+    <li>“Why (out, in) and not (in, out)?” Convention from writing <Math tex="W\mathbf{x}" /> with column vectors; one row per output unit. With row-major batches you apply the transpose.</li>
+    <li>“How many parameters in nn.Linear(768, 3072)?” <Math tex="768 \times 3072 + 3072 = 2{,}362{,}368" />.</li>
+    <li>“Is matmul commutative?” No. Associative and distributive, yes. Give the LoRA bracketing example.</li>
+    <li>“What is the difference between <code>*</code> and <code>@</code>?” Element-wise product versus matrix product.</li>
+    <li>“Why is attention quadratic in sequence length?” The score matrix is <Math tex="n \times n" />: <Math tex="n^2 d" /> work and <Math tex="n^2" /> memory.</li>
+  </ul>
+
+  <h2 id="questions">Practice questions</h2>
+  <p>Answer each one out loud before opening it.</p>
+  <QA q="What is the shape of A B if A is 5 × 3 and B is 3 × 7? And B A?">
+    <p><Math tex="AB" /> is <Math tex="5 \times 7" />. <Math tex="BA" /> is <Math tex="(3 \times 7)(5 \times 3)" />: inner 7 and 5 do not match, so it is not defined.</p>
+  </QA>
+  <QA q="In one sentence, what is entry (i, j) of A B?">
+    <p>The dot product of row <Math tex="i" /> of <Math tex="A" /> with column <Math tex="j" /> of <Math tex="B" />.</p>
+  </QA>
+  <QA q="What are the shapes of the weight and bias of nn.Linear(in_features=20, out_features=5), and how many parameters does it have?">
+    <p>Weight <code>(5, 20)</code>, bias <code>(5,)</code>. Parameters <Math tex="5 \times 20 + 5 = 105" />.</p>
+  </QA>
+  <QA q="A batch tensor has shape (16, 50, 20) and goes through nn.Linear(20, 5). What comes out?">
+    <p><code>(16, 50, 5)</code>. Only the last axis changes.</p>
+  </QA>
+  <QA q="Why does a linear layer compute X Wᵀ rather than X W?">
+    <p>Because <Math tex="W" /> is stored as (out, in) with one row per output unit, and the batch <Math tex="X" /> is (batch, in). Row-with-row dot products need the second matrix flipped so its rows become columns: <Math tex="(\text{batch}, \text{in})(\text{in}, \text{out})" />.</p>
+  </QA>
+  <QA q="Is matrix multiplication commutative? Associative? Give one practical consequence of each answer.">
+    <p>Not commutative: swapping changes the result or the shape, so formulas must keep their order. Associative: you may choose the bracketing, so LoRA computes <Math tex="B(A\mathbf{x})" /> instead of <Math tex="(BA)\mathbf{x}" /> and saves hundreds of times the work.</p>
+  </QA>
+  <QA q="What is (A B)ᵀ?">
+    <p><Math tex="B^\top A^\top" />. The order reverses; check with shapes.</p>
+  </QA>
+  <QA q="Q and K are both (n, d). What is Q Kᵀ, what is its entry (i, j), and why is attention called quadratic?">
+    <p><Math tex="n \times n" />; entry <Math tex="(i, j)" /> is <Math tex="\mathbf{q}_i \cdot \mathbf{k}_j" />; there are <Math tex="n^2" /> entries, each costing <Math tex="d" /> operations, so time and memory grow with the square of the sequence length.</p>
+  </QA>
+  <QA q="How many FLOPs is a matmul of (m × n) by (n × p), and what rule of thumb follows for a forward pass?">
+    <p>About <Math tex="2mnp" />. A weight matrix with <Math tex="mn" /> parameters costs <Math tex="2mn" /> FLOPs per input vector, so a forward pass is roughly 2 FLOPs per parameter per token.</p>
+  </QA>
+  <QA q="What is the difference between A * B and A @ B in NumPy?">
+    <p><code>A * B</code> multiplies matching entries (element-wise, same shape in or out). <code>A @ B</code> is matrix multiplication (dot products of rows with columns, shapes must chain).</p>
+  </QA>
+  <QA q="Can you add an array of shape (4,) to one of shape (4, 2)? What about (2,)?">
+    <p>(4,) fails: aligned from the right, 4 is compared with 2. (2,) works: it is broadcast as one copy per row. To add per-row values reshape to (4, 1).</p>
+  </QA>
+  <QA q="What do the columns of a matrix tell you about the function x ↦ M x?">
+    <p>They are where the basis vectors land. Column 1 is <Math tex="M" /> applied to (1, 0, …), column 2 to (0, 1, …), and every other input goes to the corresponding linear combination of the columns.</p>
+  </QA>
+
+  <h2 id="practice">Practice problems</h2>
+  <p>Paper first. Write shapes before numbers, every time. Solutions are hidden under each problem.</p>
+  <h3>By hand</h3>
+  <QA q="1. For each pair of shapes, say whether A B is defined and give its shape: (2,3)(3,4); (3,4)(2,3); (1,5)(5,1); (5,1)(1,5); (4,4)(4,4); (6,2)(2,2).">
+    <p>
+      (2,4); not defined (4 ≠ 2); (1,1), a single number; (5,5); (4,4); (6,2).
+    </p>
+  </QA>
+  <QA q="2. Compute A B and B A for A = [[1, 2], [3, 4]] and B = [[2, 0], [1, 2]].">
+    <p>
+      <Math tex="AB" />: row 1 of A with columns of B: <Math tex="(2 + 2, 0 + 4) = (4, 4)" />; row 2: <Math tex="(6 + 4, 0 + 8) = (10, 8)" />.
+      So <Math tex="AB = [[4, 4], [10, 8]]" />. <Math tex="BA" />: row 1 of B: <Math tex="(2 + 0, 4 + 0) = (2, 4)" />; row 2: <Math tex="(1 + 6, 2 + 8) = (7, 10)" />.
+      So <Math tex="BA = [[2, 4], [7, 10]]" />. Different, as expected.
+    </p>
+  </QA>
+  <QA q="3. Multiply A = [[1, 2, 3], [4, 5, 6]] by the column (1, 0, −1). Then read the answer as a combination of A’s columns.">
+    <p>
+      Row 1: <Math tex="1 + 0 - 3 = -2" />; row 2: <Math tex="4 + 0 - 6 = -2" />. Result <Math tex="(-2, -2)" />.
+      As columns: <Math tex="1 \cdot (1, 4) + 0 \cdot (2, 5) - 1 \cdot (3, 6) = (-2, -2)" />.
+    </p>
+  </QA>
+  <QA q="4. Write the transpose of [[1, 2, 3], [4, 5, 6]] and of the column vector (7, 8, 9). What are their shapes?">
+    <p>
+      <Math tex="[[1, 4], [2, 5], [3, 6]]" />, shape 3 × 2. The column (3 × 1) becomes the row <Math tex="(7, 8, 9)" />, shape 1 × 3.
+    </p>
+  </QA>
+  <QA q="5. Three walk days X = [[1,1,1], [0,1,0], [1,0,0]], weights W = [[3,−2,−4],[1,−1,0]], bias b = (−1, 0). Compute Z = X Wᵀ + b with its shape.">
+    <p>
+      Shape (3 × 3)(3 × 2) = 3 × 2. Day 1 (1,1,1): neuron 1: <Math tex="3 - 2 - 4 - 1 = -4" />; neuron 2: <Math tex="1 - 1 + 0 = 0" />.
+      Day 2 (0,1,0): <Math tex="-2 - 1 = -3" />; <Math tex="-1" />. Day 3 (1,0,0): <Math tex="3 - 1 = 2" />; <Math tex="1" />.
+      <Math tex="Z = [[-4, 0], [-3, -1], [2, 1]]" />.
+    </p>
+  </QA>
+  <QA q="6. A network has layers nn.Linear(784, 256), nn.Linear(256, 128), nn.Linear(128, 10). Give every weight shape and the total parameter count.">
+    <p>
+      Weights (256, 784), (128, 256), (10, 128). Parameters: <Math tex="784 \cdot 256 + 256 = 200{,}960" />;
+      <Math tex="256 \cdot 128 + 128 = 32{,}896" />; <Math tex="128 \cdot 10 + 10 = 1{,}290" />. Total 235,146.
+    </p>
+  </QA>
+  <QA q="7. Input (64, 784) through the network in problem 6. Write the shape after each layer. Then do it for an input of shape (8, 20, 784).">
+    <p>
+      (64, 256) → (64, 128) → (64, 10). With the extra axis: (8, 20, 256) → (8, 20, 128) → (8, 20, 10). Only the last axis changes.
+    </p>
+  </QA>
+  <QA q="8. Q and K are (128, 64). Give the shape of Q Kᵀ, the number of entries, and the FLOPs to compute it. If the sequence doubles to 256, by what factor does each grow?">
+    <p>
+      (128, 128); 16,384 entries; about <Math tex="2 \cdot 128 \cdot 64 \cdot 128 \approx 2.1" /> million FLOPs. Doubling
+      the sequence quadruples the entries (65,536) and the FLOPs (about 8.4 million). Quadratic in sequence length.
+    </p>
+  </QA>
+  <QA q="9. LoRA with d = 1024 and rank r = 16. How many parameters do B (d × r) and A (r × d) hold together, as a percentage of the full d × d matrix? Compare the cost of (B A) x against B (A x) for one vector.">
+    <p>
+      <Math tex="2 \cdot 1024 \cdot 16 = 32{,}768" /> parameters against <Math tex="1024^2 = 1{,}048{,}576" />: about 3.1%.
+      Forming <Math tex="BA" /> first costs <Math tex="1024 \cdot 16 \cdot 1024 \approx 16.8" /> million multiplications;
+      <Math tex="B(A\mathbf{x})" /> costs <Math tex="16 \cdot 1024 + 1024 \cdot 16 = 32{,}768" />. About 500 times cheaper.
+    </p>
+  </QA>
+  <QA q="10. Which of these broadcasts, and to what shape? (3, 4) + (4,); (3, 4) + (3,); (3, 4) + (3, 1); (3, 1) + (1, 4); (2, 3, 4) + (3, 4); (2, 3, 4) + (2, 4).">
+    <p>
+      (3, 4) yes; (3,) no (3 vs 4); (3, 1) yes → (3, 4); (3, 1)+(1, 4) yes → (3, 4), both stretch; (2, 3, 4)+(3, 4) yes → (2, 3, 4); (2, 4) no (4 vs 4 fine, then 2 vs 3 fails).
+    </p>
+  </QA>
+  <QA q="11. M = [[0, −1], [1, 0]]. Where do (1, 0) and (0, 1) go? Sketch the image of the unit square. What does this matrix do to the plane?">
+    <p>
+      Columns: (1, 0) → (0, 1) and (0, 1) → (−1, 0). The square turns a quarter turn anticlockwise. <Math tex="M" /> is a
+      90° rotation. Apply it twice: <Math tex="M^2 = [[-1, 0], [0, -1]]" />, a half turn.
+    </p>
+  </QA>
+  <QA q="12. GPT-2 small: d = 768, vocabulary 50,257, 12 layers. Estimate the parameters in the embedding matrix and in the two feed-forward matrices of one layer (768 → 3072 → 768). Then estimate forward-pass FLOPs per token for the feed-forward parts of all 12 layers.">
+    <p>
+      Embedding: <Math tex="50{,}257 \times 768 \approx 38.6" /> million. Feed-forward per layer:
+      <Math tex="768 \cdot 3072 + 3072 + 3072 \cdot 768 + 768 \approx 4.72" /> million. All 12: about 56.7 million.
+      FLOPs per token: 2 per parameter, about 113 million for the feed-forward blocks alone.
+    </p>
+  </QA>
+  <h3>Code</h3>
+  <QA q="13. Implement matmul with three nested loops. Check it against @ on random shapes, and make it raise a clear error when the inner dimensions differ.">
+    <CodeBlock
+      code={`import numpy as np
+
+def matmul(A, B):
+    m, n = A.shape
+    n2, p = B.shape
+    if n != n2:
+        raise ValueError(f"inner dimensions differ: A is {m}x{n}, B is {n2}x{p}")
+    C = np.zeros((m, p))
+    for i in range(m):              # each row of A
+        for j in range(p):          # each column of B
+            for k in range(n):      # the dot product
+                C[i, j] += A[i, k] * B[k, j]
+    return C
+
+rng = np.random.default_rng(0)
+for m, n, p in [(2, 3, 2), (5, 1, 4), (3, 7, 3), (1, 6, 1)]:
+    A, B = rng.normal(size=(m, n)), rng.normal(size=(n, p))
+    assert np.allclose(matmul(A, B), A @ B)
+try:
+    matmul(np.zeros((2, 3)), np.zeros((2, 3)))
+except ValueError as e:
+    print(e)                        # inner dimensions differ: A is 2x3, B is 2x3
+print("ok")`}
+    />
+  </QA>
+  <QA q="14. Time your loop matmul against NumPy’s @ for 200 × 200 matrices. Then time @ for 1000 × 1000. Compute the FLOPs per second NumPy achieves.">
+    <CodeBlock
+      code={`import numpy as np, time
+
+rng = np.random.default_rng(0)
+A, B = rng.normal(size=(200, 200)), rng.normal(size=(200, 200))
+
+t = time.perf_counter(); C1 = matmul(A, B); loop_s = time.perf_counter() - t      # uses matmul from problem 13
+t = time.perf_counter(); C2 = A @ B;       numpy_s = time.perf_counter() - t
+assert np.allclose(C1, C2)
+print(f"loops {loop_s:.2f}s   numpy {numpy_s*1000:.2f}ms   speed-up {loop_s/numpy_s:,.0f}x")
+
+n = 1000
+A, B = rng.normal(size=(n, n)), rng.normal(size=(n, n))
+t = time.perf_counter(); A @ B; s = time.perf_counter() - t
+flops = 2 * n * n * n
+print(f"{flops/s/1e9:.1f} GFLOP/s on this CPU")   # tens to hundreds; a GPU does tens of thousands`}
+    />
+  </QA>
+  <QA q="15. Write a two-layer network forward pass in NumPy for a batch, asserting the shape after every step. Then make it accept an input with an extra leading axis without changing any code.">
+    <CodeBlock
+      code={`import numpy as np
+
+rng = np.random.default_rng(0)
+W1, b1 = rng.normal(size=(4, 3)) * 0.5, np.zeros(4)      # (out, in)
+W2, b2 = rng.normal(size=(2, 4)) * 0.5, np.zeros(2)
+
+def forward(X):
+    H = X @ W1.T + b1;      assert H.shape == X.shape[:-1] + (4,)
+    H = np.maximum(H, 0);   assert H.shape == X.shape[:-1] + (4,)
+    Y = H @ W2.T + b2;      assert Y.shape == X.shape[:-1] + (2,)
+    return Y
+
+print(forward(rng.normal(size=(32, 3))).shape)        # (32, 2)
+print(forward(rng.normal(size=(8, 128, 3))).shape)    # (8, 128, 2)  same code, extra leading axis`}
+    />
+  </QA>
+  <QA q="16. Compute all pairwise cosine similarities between 1,000 random 64-dimensional embeddings in one matrix expression. Verify one entry by hand with the dot product formula, and confirm the diagonal is all ones.">
+    <CodeBlock
+      code={`import numpy as np
+
+rng = np.random.default_rng(0)
+E = rng.normal(size=(1000, 64))
+E_unit = E / np.linalg.norm(E, axis=1, keepdims=True)    # (1000, 64) / (1000, 1): broadcasting
+S = E_unit @ E_unit.T                                    # (1000, 1000): every pair at once
+
+i, j = 3, 17
+by_hand = (E[i] @ E[j]) / (np.linalg.norm(E[i]) * np.linalg.norm(E[j]))
+assert np.isclose(S[i, j], by_hand)
+assert np.allclose(np.diag(S), 1.0)                      # every vector is perfectly similar to itself
+assert np.allclose(S, S.T)                               # similarity is symmetric
+print(S.shape, S[i, j])`}
+    />
+  </QA>
+
+  <h2 id="mistakes">Common mistakes</h2>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Using <code>*</code> for matrix multiplication.</strong> It is element-wise. For two square matrices it
+      runs without error and returns the wrong thing. Matmul is <code>@</code>.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Reading shapes as (columns, rows).</strong> Shape is always (rows, columns), and a linear layer’s weight
+      is (out, in). If a shape error names dimensions that “should” match, check which axis is which before anything
+      else.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Mixing (n,), (n, 1) and (1, n).</strong> <code>x @ x</code> is a scalar for shape (n,), but a (n, 1) times
+      (n, 1) is an error and a (1, n) times (n, 1) is a (1, 1) matrix. When something is “almost” a number but prints
+      with brackets, this is why. Use <code>.reshape</code> or <code>[:, None]</code> deliberately.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Broadcasting a per-row vector without adding an axis.</strong> <code>Z - Z.mean(axis=1)</code> fails for
+      a non-square <code>Z</code> and silently does the wrong thing for a square one. Use
+      <code>keepdims=True</code>.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Assuming <Math tex="AB = BA" />.</strong> Order carries meaning: which side you multiply on decides
+      whether you act on rows or columns. Keep formulas in their written order.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Materializing a low-rank product.</strong> Computing <Math tex="BA" /> as a full matrix when you only
+      need <Math tex="BA\mathbf{x}" /> throws away the whole point of the factorization. Bracket as
+      <Math tex="B(A\mathbf{x})" />.
+    </p>
+  </Callout>
+
+  <h2 id="sources">All sources</h2>
+  <p>Everything linked above, in the order to use it, plus one reference.</p>
+  <ol>
+    <li>
+      <a href="https://www.youtube.com/watch?v=kYB8IZa5AuE" target="_blank" rel="noopener noreferrer">3Blue1Brown, “Linear transformations and matrices | Chapter 3”</a>
+      and <a href="https://www.youtube.com/watch?v=XkY2DOUCWMU" target="_blank" rel="noopener noreferrer">“Matrix multiplication as composition | Chapter 4”</a>
+      (videos, about 10 minutes each).
+    </li>
+    <li>
+      <a href="http://matrixmultiplication.xyz/" target="_blank" rel="noopener noreferrer">matrixmultiplication.xyz</a> (interactive).
+    </li>
+    <li>
+      <a href="https://www.khanacademy.org/math/precalculus/x9e81a4f98389efdf:matrices" target="_blank" rel="noopener noreferrer">Khan Academy, Matrices (Precalculus)</a>
+      (exercises). Multiplication and properties only.
+    </li>
+    <li>
+      <a href="https://pytorch.org/docs/stable/generated/torch.nn.Linear.html" target="_blank" rel="noopener noreferrer">PyTorch, torch.nn.Linear</a>
+      (documentation).
+    </li>
+    <li>
+      <a href="https://numpy.org/doc/stable/user/basics.broadcasting.html" target="_blank" rel="noopener noreferrer">NumPy, Broadcasting</a>,
+      <a href="https://numpy.org/doc/stable/reference/generated/numpy.matmul.html" target="_blank" rel="noopener noreferrer">numpy.matmul</a>
+      and <a href="https://numpy.org/doc/stable/reference/generated/numpy.einsum.html" target="_blank" rel="noopener noreferrer">numpy.einsum</a>
+      (documentation).
+    </li>
+    <li>
+      <a href="https://mml-book.github.io/" target="_blank" rel="noopener noreferrer">Deisenroth, Faisal and Ong, <em>Mathematics for Machine Learning</em></a>,
+      sections 2.2–2.3 and 2.7 (free PDF). The formal treatment of matrices and linear maps.
+    </li>
+  </ol>
+
+  <h2 id="revision">One-minute revision</h2>
+  <Callout kind="revision">
+    <ul>
+      <li>Matrix: <Math tex="m \times n" /> table, rows × columns. <Math tex="A_{ij}" /> is row <Math tex="i" />, column <Math tex="j" />. Code counts from 0.</li>
+      <li><Math tex="A\mathbf{x}" />: dot every row with <Math tex="\mathbf{x}" />. Also: a combination of the columns weighted by <Math tex="\mathbf{x}" />.</li>
+      <li>Shape rule: <Math tex="(m \times n)(n \times p) = m \times p" />. Inner must match and vanishes. Write shapes first.</li>
+      <li><Math tex="C_{ij}" /> = row <Math tex="i" /> of <Math tex="A" /> · column <Math tex="j" /> of <Math tex="B" />.</li>
+      <li>Not commutative. Associative: bracket cheaply, <Math tex="B(A\mathbf{x})" /> for LoRA. Distributive. <Math tex="I" /> changes nothing.</li>
+      <li>A matrix is a linear function; columns = where basis vectors land; multiplying = composing.</li>
+      <li>Linear layer: <Math tex="XW^\top + \mathbf{b}" />, <Math tex="W" /> is (out, in), only the last axis changes. Parameters <Math tex="= \text{out} \times \text{in} + \text{out}" />.</li>
+      <li><Math tex="(AB)^\top = B^\top A^\top" />. <Math tex="\mathbf{x}^\top\mathbf{y}" /> is the dot product. <Math tex="QK^\top" /> is <Math tex="n \times n" />, entry <Math tex="(i, j) = \mathbf{q}_i\cdot\mathbf{k}_j" />.</li>
+      <li>Cost <Math tex="\approx 2mnp" /> FLOPs; forward pass ≈ 2 FLOPs per parameter per token; attention is quadratic in <Math tex="n" />.</li>
+      <li><code>*</code> is element-wise, <code>@</code> is matmul. Broadcasting aligns from the right; size-1 axes stretch; use <code>keepdims=True</code>.</li>
+    </ul>
+  </Callout>
+</Note>
