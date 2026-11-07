@@ -58,12 +58,10 @@ import { notesForWeek, noteHref } from '../data/roadmap';
           </div>
           <p class="schedule-track">
             <strong>Notes this week.</strong>{' '}
-            {notesForWeek(w.week).map(({ track, notes }, gi, groups) => (
+            {notesForWeek(w.week).map(({ track, note }, i, all) => (
               <>
                 <em>{track.short}:</em>{' '}
-                {notes.map((n, i) => (
-                  <>{n.ready ? <a href={noteHref(track, n)}>{n.title}</a> : <span class="pending">{n.title}</span>}{i < notes.length - 1 ? ', ' : ''}</>
-                ))}{gi < groups.length - 1 ? '. ' : '.'}
+                {note.ready ? <a href={noteHref(track, note)}>{note.title}</a> : <span class="pending">{note.title}</span>}{i < all.length - 1 ? ' · ' : '.'}
               </>
             ))}
           </p>

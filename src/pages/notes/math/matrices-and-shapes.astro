@@ -6,6 +6,7 @@ import QA from '../../../components/QA.astro';
 import Figure from '../../../components/Figure.astro';
 import Math from '../../../components/Math.astro';
 import Source from '../../../components/Source.astro';
+import Term from '../../../components/Term.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -20,7 +21,7 @@ const sections = [
   { id: 'cost', label: 'How much work a multiplication is' },
   { id: 'elementwise', label: 'Element-wise operations and broadcasting' },
   { id: 'code', label: 'Code' },
-  { id: 'llm', label: 'Where this lives in an LLM' },
+  { id: 'later', label: 'Where you will meet this again' },
   { id: 'interview', label: 'The full interview answer' },
   { id: 'questions', label: 'Practice questions' },
   { id: 'practice', label: 'Practice problems' },
@@ -85,9 +86,9 @@ X = np.array([[1, 0, 0],
               [1, 1, 0],
               [0, 0, 1],
               [1, 0, 1]], dtype=float)           # (4, 3)
-W = np.array([[3, -2, -4],                         # neuron 1 (the walk neuron)
-              [1, -1,  0]], dtype=float)          # neuron 2          -> (2, 3) = (out, in)
-b = np.array([-1, 0], dtype=float)                 # one bias per neuron -> (2,)
+W = np.array([[3, -2, -4],                         # score 1: "should I walk?"
+              [1, -1,  0]], dtype=float)          # score 2: "is the weather good?"  -> (2, 3) = (outputs, inputs)
+b = np.array([-1, 0], dtype=float)                 # one bias per score -> (2,)
 
 Z = X @ W.T + b                                    # (4,3) @ (3,2) -> (4,2); b broadcasts across rows
 print(Z)
@@ -95,50 +96,49 @@ print(Z)
 #  [ 0.  0.]
 #  [-5.  0.]
 #  [-2.  1.]]
-print(Z.shape)                                     # (4, 2): one row per day, one column per neuron
+print(Z.shape)                                     # (4, 2): one row per day, one column per score
 
-# The same thing in PyTorch, where nn.Linear stores W as (out, in) and does x @ W.T + b for you:
-import torch
-layer = torch.nn.Linear(in_features=3, out_features=2)
-print(layer.weight.shape, layer.bias.shape)       # torch.Size([2, 3]) torch.Size([2])
-with torch.no_grad():
-    layer.weight.copy_(torch.tensor(W)); layer.bias.copy_(torch.tensor(b))
-print(layer(torch.tensor(X, dtype=torch.float32)))   # same four rows as Z`;
+# The house data the same way: three houses, two features (size, rooms), one weight per feature.
+houses = np.array([[1.0, 2], [1.5, 3], [2.0, 3]])  # (3, 2)
+w = np.array([150.0, 15.0]); b0 = 10.0
+print(houses @ w + b0)                             # (3,2) @ (2,) -> (3,): all three predictions at once`;
 
-const mlpShapesCode = `import torch, torch.nn as nn
+const mlpShapesCode = `import numpy as np
 
+rng = np.random.default_rng(0)
 batch, d_in, d_hidden, d_out = 32, 3, 4, 2
-x = torch.randn(batch, d_in)                      # (32, 3)
-layer1 = nn.Linear(d_in, d_hidden)                # weight (4, 3), bias (4,)
-layer2 = nn.Linear(d_hidden, d_out)               # weight (2, 4), bias (2,)
+X = rng.normal(size=(batch, d_in))                # (32, 3): 32 examples, 3 features
+W1, b1 = rng.normal(size=(d_hidden, d_in)), np.zeros(d_hidden)    # (4, 3) and (4,): weights stored as (outputs, inputs)
+W2, b2 = rng.normal(size=(d_out, d_hidden)), np.zeros(d_out)      # (2, 4) and (2,)
 
-h = layer1(x);        print(h.shape)              # (32, 4)   only the last dimension changed
-h = torch.relu(h);    print(h.shape)              # (32, 4)   element-wise: shape unchanged
-y = layer2(h);        print(y.shape)              # (32, 2)
+H = X @ W1.T + b1;      print(H.shape)            # (32, 4)   only the last axis changed
+H = np.maximum(H, 0);   print(H.shape)            # (32, 4)   element-wise: shape unchanged
+Y = H @ W2.T + b2;      print(Y.shape)            # (32, 2)
 
-n_params = sum(p.numel() for p in [*layer1.parameters(), *layer2.parameters()])
+n_params = W1.size + b1.size + W2.size + b2.size
 print(n_params)                                   # 26 = (3*4 + 4) + (4*2 + 2)
 
-# A transformer carries one more leading dimension and nothing else changes:
-tokens = torch.randn(8, 128, 768)                 # (batch, sequence, embedding)
-ffn = nn.Linear(768, 3072)
-print(ffn(tokens).shape)                          # (8, 128, 3072): still only the last axis`;
+# Add a leading axis (say, 8 groups of 128 examples) and nothing changes but that axis:
+X3 = rng.normal(size=(8, 128, 3))
+print((X3 @ W1.T + b1).shape)                     # (8, 128, 4): still only the last axis`;
 
-const pairwiseCode = `import torch
+const pairwiseCode = `import numpy as np
 
-n_tokens, d = 4, 8
-Q = torch.randn(n_tokens, d)                      # one query vector per token
-K = torch.randn(n_tokens, d)                      # one key vector per token
+rng = np.random.default_rng(0)
+n, d = 4, 8
+A = rng.normal(size=(n, d))                       # 4 vectors of length 8, one per row
+B = rng.normal(size=(n, d))                       # another 4
 
-scores = Q @ K.T                                  # (4, 8) @ (8, 4) -> (4, 4)
-print(scores.shape)
+S = A @ B.T                                       # (4, 8) @ (8, 4) -> (4, 4)
+print(S.shape)
 
-# Entry (i, j) is the dot product of query i with key j. Check one by hand:
+# Entry (i, j) is the dot product of row i of A with row j of B. Check one by hand:
 i, j = 1, 2
-print(torch.isclose(scores[i, j], Q[i] @ K[j]))   # True
+print(np.isclose(S[i, j], A[i] @ B[j]))           # True
 
-# The same with einsum, which names the axes instead of relying on transposes:
-print(torch.allclose(scores, torch.einsum("id,jd->ij", Q, K)))   # True`;
+# One stack against itself: every pair of vectors compared in one line.
+G = A @ A.T                                       # (4, 4), symmetric, diagonal = squared lengths
+print(np.allclose(np.diag(G), (A ** 2).sum(axis=1)))   # True`;
 
 const broadcastCode = `import numpy as np
 
@@ -161,23 +161,27 @@ except ValueError as e:
 <Note
   track="math"
   slug="matrices-and-shapes"
-  lede="A matrix is a table of numbers, and multiplying one by a vector is doing a dot product with every row at once. That single idea, plus a rule about which shapes fit together, is all the matrix algebra a neural network uses. This note builds it with small tables and ends with the shape bookkeeping that catches most bugs."
+  lede="A matrix is a table of numbers, and multiplying one by a vector is doing a dot product with every row at once. That single idea, plus a rule about which shapes fit together, is nearly all the matrix algebra machine learning uses. This note builds it with small tables and ends with the shape bookkeeping that catches most bugs."
   sections={sections}
 >
   <h2 id="why">Why this note matters</h2>
   <p>
-    Every layer of a neural network is a matrix multiplication followed by something simple. Every attention head is
-    three matrix multiplications and a softmax. The number everyone quotes for a model, its parameter count, is the
-    size of its matrices added up. And the error you will see most often while learning, some version of “shapes
-    (32, 3) and (4, 3) not aligned”, is a matrix whose rows and columns do not fit the thing next to it.
+    Your data is a table: one row per house, one column per feature. Your model’s weights are a list, one per
+    feature. “Predict every house at once” is the table times the list, and that is a matrix-vector product. The
+    <a href="/notes/ml/linear-regression/">linear regression note</a> already used this, with <code>X @ w</code>; this
+    note is where you learn exactly what that line does and when it fails. Later, every piece of a
+    <Term id="neural-network">neural network</Term> is a matrix multiplication followed by something simple, the
+    number everyone quotes for a model, its parameter count, is the sizes of its matrices added up, and the error you
+    will see most often while learning, some version of “shapes (32, 3) and (4, 3) not aligned”, is a matrix whose rows
+    and columns do not fit the thing next to it.
   </p>
   <p>Interview questions that are really this note:</p>
   <ul>
-    <li>“What is the shape of the weight in a linear layer from 768 to 3072 features, and how many parameters is that?”</li>
-    <li>“A batch of 32 sentences, 128 tokens each, 768-dimensional embeddings. What is the shape after a linear layer? After attention scores?”</li>
-    <li>“Why is <Math tex="QK^\top" /> an <Math tex="n \times n" /> matrix, and what does entry <Math tex="(i, j)" /> mean?”</li>
-    <li>“How many floating-point operations does one matrix multiply cost? Why do GPUs help?”</li>
-    <li>“Why can LoRA store a 768 × 768 update in two small matrices, and in which order should you multiply them?”</li>
+    <li>“What is the shape of the result when a (32, 3) data matrix meets a (4, 3) weight matrix, and why does it fail as written?”</li>
+    <li>“A weight matrix from 768 inputs to 3072 outputs: what shape is it, and how many parameters is that?”</li>
+    <li>“How many arithmetic operations does one matrix multiply cost? Why do GPUs help?”</li>
+    <li>“Why is <Math tex="AB" /> different from <Math tex="BA" />, and when does the bracketing <Math tex="(AB)C" /> versus <Math tex="A(BC)" /> matter?”</li>
+    <li>“Why is <Term id="attention">attention</Term> quadratic in the length of the text?” (Week 8; the shape half of the answer is here.)</li>
   </ul>
   <Callout kind="note" label="The scope rule">
     <p>
@@ -193,7 +197,8 @@ except ValueError as e:
     <p>
       <strong>A matrix</strong> is a spreadsheet: numbers in rows and columns. Each row is a vector, so a matrix is a
       stack of vectors. In machine learning a matrix is usually one of two things: a <em>data table</em>, one row per
-      example and one column per feature, or a <em>layer’s weights</em>, one row per neuron and one column per input.
+      example and one column per feature, or a <em>table of weights</em>, one row per output the model computes and
+      one column per input feature.
     </p>
     <p>
       <strong>Multiplying a matrix by a vector</strong> means: take every row, dot it with the vector, write down the
@@ -275,29 +280,32 @@ except ValueError as e:
       <Math tex="32 \times 784" />.
     </li>
     <li>
-      <strong>A weight matrix</strong> <Math tex="W" />: one row per neuron, one column per input. The two-neuron walk
-      layer from the previous note is <Math tex="2 \times 3" />.
+      <strong>A weight matrix</strong> <Math tex="W" />: one row per output the model computes, one column per input
+      feature. The two walk scores from the <a href="/notes/math/vectors-dot-product/#many">vectors note</a> make a
+      <Math tex="2 \times 3" /> weight matrix.
     </li>
     <li>
-      <strong>A lookup table</strong>: GPT-2’s embedding matrix is <Math tex="50{,}257 \times 768" />, one row per token
-      in the vocabulary, and “embedding a token” means reading its row.
+      <strong>A lookup table</strong>: a language model keeps one <Term id="embedding">embedding</Term> vector per
+      <Term id="token">token</Term> it knows. For GPT-2 that is a <Math tex="50{,}257 \times 768" /> matrix, and
+      “looking up a token” means reading its row.
     </li>
   </ul>
   <Callout kind="say">
     <p>
       “A matrix is an <Math tex="m \times n" /> array of numbers, rows by columns. In ML, data matrices hold one
-      example per row and one feature per column, and a linear layer’s weight matrix holds one output unit per row and
-      one input feature per column, so its shape is (out_features, in_features).”
+      example per row and one feature per column, and a weight matrix holds one output per row and one input feature
+      per column, so its shape is (outputs, inputs).”
     </p>
   </Callout>
 
   <h2 id="matvec">Matrix times vector: a stack of dot products</h2>
   <Callout kind="plain">
     <p>
-      Two neurons read the same day. Neuron 1 has weights (3, −2, −4); neuron 2 has weights (1, −1, 0). Today is
-      (1, 0, 1). Neuron 1’s total is <Math tex="3 - 4 = -1" />; neuron 2’s is <Math tex="1" />. Write the two weight
-      rows as a table, the day as a column, and the two totals as a column, and you have written a matrix-vector
-      product. Nothing new was computed; two dot products were done side by side.
+      Two scores from the same day, as at the end of the vectors note. The walk score has weights (3, −2, −4); a
+      “good weather” score has weights (1, −1, 0). Today is (1, 0, 1). The first total is <Math tex="3 - 4 = -1" />;
+      the second is <Math tex="1" />. Write the two weight rows as a table, the day as a column, and the two totals
+      as a column, and you have written a matrix-vector product. Nothing new was computed; two dot products were done
+      side by side.
     </p>
   </Callout>
   <Figure n={2} caption="W x: each row of W is dotted with x to give one entry of the result. Row 1 gives −1, row 2 gives 1. The inner 3s must match; the result has as many entries as W has rows.">
@@ -350,7 +358,8 @@ except ValueError as e:
     <p>
       “A matrix-vector product computes the dot product of every row with the vector, so an <Math tex="m \times n" />
       matrix maps an <Math tex="n" />-vector to an <Math tex="m" />-vector. Equivalently it is a linear combination of
-      the matrix’s columns weighted by the vector’s entries. A linear layer is exactly this, plus a bias.”
+      the matrix’s columns weighted by the vector’s entries. A linear model with several outputs is exactly this,
+      plus a bias per output.”
     </p>
   </Callout>
 
@@ -459,27 +468,28 @@ except ValueError as e:
     the <em>rows</em>. Which side you multiply on decides which axis you act on. This is why formulas are careful to
     write <Math tex="XW^\top" /> and not <Math tex="W^\top X" />.)
   </p>
-  <p><strong>Associative.</strong> <Math tex="(AB)C = A(BC)" />, always. The answer is identical; the <em>cost</em> is not. Take LoRA, which replaces a weight update of shape <Math tex="768 \times 768" /> with two thin matrices <Math tex="B" /> (<Math tex="768 \times 8" />) and <Math tex="A" /> (<Math tex="8 \times 768" />), so the update is <Math tex="BA" />. To apply it to one input vector <Math tex="\mathbf{x}" /> you can compute:</p>
+  <p><strong>Associative.</strong> <Math tex="(AB)C = A(BC)" />, always. The answer is identical; the <em>cost</em> is not. Suppose a big <Math tex="768 \times 768" /> matrix is written as the product of two thin ones, <Math tex="B" /> (<Math tex="768 \times 8" />) and <Math tex="A" /> (<Math tex="8 \times 768" />), so the big matrix is <Math tex="BA" />. (Week 10 meets a technique called LoRA that does exactly this to shrink the cost of adapting a language model.) To apply it to one input vector <Math tex="\mathbf{x}" /> you can compute:</p>
   <ul>
     <li><Math tex="(BA)\mathbf{x}" />: first form <Math tex="BA" />, which is <Math tex="768 \cdot 8 \cdot 768 \approx 4.7" /> million multiplications, then multiply the vector.</li>
     <li><Math tex="B(A\mathbf{x})" />: first <Math tex="A\mathbf{x}" /> (<Math tex="8 \times 768 = 6{,}144" /> multiplications, giving an 8-vector), then <Math tex="B" /> times that (another 6,144). About 12 thousand in total.</li>
   </ul>
   <p>Same result, four hundred times less work. Choosing the bracketing is a real engineering decision, and associativity is what makes it legal.</p>
   <p>
-    <strong>Distributive.</strong> <Math tex="A(B + C) = AB + AC" />. This is what lets LoRA write
-    <Math tex="(W + BA)\mathbf{x} = W\mathbf{x} + BA\mathbf{x}" /> and compute the two halves separately.
+    <strong>Distributive.</strong> <Math tex="A(B + C) = AB + AC" />. This is what lets you write
+    <Math tex="(W + BA)\mathbf{x} = W\mathbf{x} + BA\mathbf{x}" /> and compute the two halves separately, which is
+    how that week-10 technique adds its small update to a frozen big matrix.
   </p>
   <p>
     <strong>The identity.</strong> The square matrix with 1s on the diagonal and 0s elsewhere, <Math tex="I" />,
     leaves anything it multiplies unchanged: <Math tex="I\mathbf{x} = \mathbf{x}" /> and <Math tex="IA = AI = A" />.
-    It is the matrix version of the number 1, and you will see it in “add a residual connection” diagrams and in
-    initialization tricks.
+    It is the matrix version of the number 1. It shows up in week 3, when a penalty on big weights adds a multiple of
+    <Math tex="I" /> to a matrix, and again in several deep-learning tricks later.
   </p>
   <Callout kind="say">
     <p>
       “Matrix multiplication is associative and distributive but not commutative. Associativity lets you choose the
-      cheapest bracketing: for a low-rank product like LoRA’s <Math tex="BA\mathbf{x}" /> you compute
-      <Math tex="B(A\mathbf{x})" /> and never materialize the full matrix.”
+      cheapest bracketing: for a product of two thin matrices applied to a vector, <Math tex="BA\mathbf{x}" />, you
+      compute <Math tex="B(A\mathbf{x})" /> and never build the full matrix.”
     </p>
   </Callout>
 
@@ -522,11 +532,11 @@ except ValueError as e:
     A matrix defines a function <Math tex="\mathbf{x} \mapsto M\mathbf{x}" />, and it is a special kind of function
     called a <span class="term">linear transformation</span>: it respects addition and scaling,
     <Math tex="M(\mathbf{u} + \mathbf{v}) = M\mathbf{u} + M\mathbf{v}" /> and <Math tex="M(c\mathbf{v}) = cM\mathbf{v}" />.
-    That is exactly the property the <a href="/notes/dl/what-is-a-neural-network/#activation">neural network note</a>
-    used when it showed that two linear layers in a row collapse into one: composing two linear functions gives a
-    linear function, and in matrix language <em>composing the functions is multiplying the matrices</em>. Apply
-    <Math tex="A" /> then <Math tex="B" /> and you have applied <Math tex="BA" /> (note the order: the first applied is
-    on the right, nearest the vector).
+    One consequence matters a great deal in week 5: composing two linear functions gives a linear function, and in
+    matrix language <em>composing the functions is multiplying the matrices</em>. Apply <Math tex="A" /> then
+    <Math tex="B" /> and you have applied <Math tex="BA" /> (note the order: the first applied is on the right, nearest
+    the vector). So two matrix multiplications in a row, with nothing in between, are no more powerful than one. That
+    is why neural networks put a simple bend between their layers.
   </p>
   <p>
     Read off where the two basis arrows go and you know the whole matrix. In Fig. 4, “one step right” lands at
@@ -537,8 +547,9 @@ except ValueError as e:
   </p>
   <p>
     The picture is what lets you think about a weight matrix as something that <em>reshapes the space</em> the data
-    lives in, so that the next layer finds the classes easier to separate. The eigenvector note in week 4 asks the
-    natural follow-up: are there directions a given matrix only stretches, without turning? That question is PCA.
+    lives in, so that the categories become easier to separate. The eigenvector note in week 4 asks the natural
+    follow-up: are there directions a given matrix only stretches, without turning? That question is behind
+    <Term id="pca">PCA</Term>.
   </p>
   <Source
     kind="watch"
@@ -555,45 +566,47 @@ except ValueError as e:
   <Callout kind="say">
     <p>
       “A matrix represents a linear map; its columns are the images of the basis vectors. Multiplying matrices
-      composes the maps, which is why a stack of linear layers without non-linearities is itself a single linear
-      layer.”
+      composes the maps, which is why several linear steps in a row, with nothing non-linear between them, collapse
+      into a single linear step.”
     </p>
   </Callout>
 
   <h2 id="batch">Batches: many inputs at once</h2>
   <Callout kind="plain">
     <p>
-      One day through the two-neuron layer is a matrix times a column. Four days through it would be four of those.
+      One day through the two scores is a matrix times a column. Four days through them would be four of those.
       Instead, stack the four days as the <em>rows</em> of a table and push the whole table through in one go. Out
-      comes a table with four rows, one per day, and two columns, one per neuron. The table of inputs is a batch; the
-      layer does not care how many rows it has.
+      comes a table with four rows, one per day, and two columns, one per score. The table of inputs is called a
+      <span class="term">batch</span>, and the computation does not care how many rows it has. This is exactly how
+      the linear regression note predicted all the houses in one line.
     </p>
   </Callout>
-  <p>Four walk days as a data matrix, the two neurons as a weight matrix, the biases as a vector:</p>
+  <p>Four walk days as a data matrix, the two scores as a weight matrix, the biases as a vector:</p>
   <Math block tex={String.raw`X = \begin{pmatrix} 1 & 0 & 0 \\ 1 & 1 & 0 \\ 0 & 0 & 1 \\ 1 & 0 & 1 \end{pmatrix}_{4\times3} \qquad W = \begin{pmatrix} 3 & -2 & -4 \\ 1 & -1 & 0 \end{pmatrix}_{2\times3} \qquad \mathbf{b} = (-1,\ 0)`} />
   <p>
-    We want each day (a row of <Math tex="X" />) dotted with each neuron (a row of <Math tex="W" />). Row-with-row
+    We want each day (a row of <Math tex="X" />) dotted with each score’s weights (a row of <Math tex="W" />). Row-with-row
     is not what matmul does; it does row-with-<em>column</em>. So flip <Math tex="W" /> on its side first, turning its
     rows into columns, and multiply:
   </p>
   <Math block tex={String.raw`Z = XW^\top + \mathbf{b} = \begin{pmatrix} 1 & 0 & 0 \\ 1 & 1 & 0 \\ 0 & 0 & 1 \\ 1 & 0 & 1 \end{pmatrix}\begin{pmatrix} 3 & 1 \\ -2 & -1 \\ -4 & 0 \end{pmatrix} + \begin{pmatrix} -1 & 0 \end{pmatrix} = \begin{pmatrix} 2 & 1 \\ 0 & 0 \\ -5 & 0 \\ -2 & 1 \end{pmatrix}_{4\times2}`} />
   <p>
     Check the shapes: <Math tex="(4 \times 3)(3 \times 2) = 4 \times 2" />. Check one entry: day 4 is
-    <Math tex="(1, 0, 1)" />, neuron 1 is <Math tex="(3, -2, -4)" />, dot product <Math tex="-1" />, plus bias
-    <Math tex="-1" />, gives <Math tex="-2" />, the bottom-left entry. Check the bias: it is a 2-vector, one per
-    neuron, and it was added to <em>every row</em>. That silent stretching of a <Math tex="(2,)" /> vector across a
+    <Math tex="(1, 0, 1)" />, the walk weights are <Math tex="(3, -2, -4)" />, dot product <Math tex="-1" />, plus
+    bias <Math tex="-1" />, gives <Math tex="-2" />, the bottom-left entry. Check the bias: it is a 2-vector, one per
+    score, and it was added to <em>every row</em>. That silent stretching of a <Math tex="(2,)" /> vector across a
     <Math tex="(4, 2)" /> matrix is <span class="term">broadcasting</span>, covered below.
   </p>
   <p>
-    This is precisely what <code>torch.nn.Linear</code> does. It stores <Math tex="W" /> with shape
-    <code>(out_features, in_features)</code>, one row per output unit, and computes <Math tex="XW^\top + \mathbf{b}" />.
-    Two facts to memorize:
+    This “weights times a batch, plus a bias” step is so common that deep-learning libraries give it a name, a
+    <em>linear layer</em>, and store <Math tex="W" /> with shape <code>(outputs, inputs)</code>, one row per output,
+    computing <Math tex="XW^\top + \mathbf{b}" /> exactly as above. (You will meet it as <code>nn.Linear</code> in
+    week 6.) Two facts to memorize now, because they answer a whole family of interview questions:
   </p>
   <ul>
-    <li><strong>The weight shape is (out, in).</strong> <code>nn.Linear(768, 3072).weight.shape</code> is <code>(3072, 768)</code>. Parameters: <Math tex="3072 \times 768 + 3072 = 2{,}362{,}368" />.</li>
-    <li><strong>A linear layer changes only the last axis.</strong> Input <code>(batch, in)</code> becomes <code>(batch, out)</code>. Input <code>(batch, seq, in)</code>, as in a transformer, becomes <code>(batch, seq, out)</code>. Every leading axis is left alone.</li>
+    <li><strong>The weight shape is (outputs, inputs).</strong> A layer from 768 inputs to 3072 outputs has a weight of shape <code>(3072, 768)</code>. Parameters: <Math tex="3072 \times 768 + 3072 = 2{,}362{,}368" />, the weights plus one bias per output.</li>
+    <li><strong>It changes only the last axis.</strong> Input <code>(batch, in)</code> becomes <code>(batch, out)</code>. Input <code>(batch, seq, in)</code>, which is how a language model carries a batch of sentences, becomes <code>(batch, seq, out)</code>. Every leading axis is left alone.</li>
   </ul>
-  <p>A complete two-layer network on a batch, as a shape table. Nothing in it is new; it is the shape rule applied four times.</p>
+  <p>Two of these steps in a row, with a bend between them, as a shape table. Nothing in it is new; it is the shape rule applied twice. (In week 5 this table <em>is</em> a small neural network.)</p>
   <div class="table-wrap">
     <table>
       <thead>
@@ -602,22 +615,16 @@ except ValueError as e:
       <tbody>
         <tr><td>input</td><td>batch of 32 examples, 3 features</td><td></td><td><code>(32, 3)</code></td></tr>
         <tr><td>layer 1</td><td><Math tex="XW_1^\top + \mathbf{b}_1" />, <Math tex="W_1" /> is <code>(4, 3)</code></td><td>(32, 3)(3, 4)</td><td><code>(32, 4)</code></td></tr>
-        <tr><td>ReLU</td><td>element-wise</td><td>no change</td><td><code>(32, 4)</code></td></tr>
+        <tr><td>bend</td><td>element-wise, e.g. replace negatives by 0 (<Term id="relu">ReLU</Term>)</td><td>no change</td><td><code>(32, 4)</code></td></tr>
         <tr><td>layer 2</td><td><Math tex="HW_2^\top + \mathbf{b}_2" />, <Math tex="W_2" /> is <code>(2, 4)</code></td><td>(32, 4)(4, 2)</td><td><code>(32, 2)</code></td></tr>
       </tbody>
     </table>
   </div>
-  <Source
-    kind="read"
-    href="https://pytorch.org/docs/stable/generated/torch.nn.Linear.html"
-    title="PyTorch documentation: torch.nn.Linear"
-    meta="Read the “Shape” section and the description of weight and bias. It says in two lines what this section said in twenty."
-  />
   <Callout kind="say">
     <p>
-      “With a batch, the data matrix is (batch, in_features) and the layer computes <Math tex="XW^\top + \mathbf{b}" />
-      with <Math tex="W" /> stored as (out_features, in_features), giving (batch, out_features). Only the last axis
-      changes, so the same layer works on (batch, seq, features) in a transformer. The bias broadcasts across rows.”
+      “With a batch, the data matrix is (batch, inputs) and we compute <Math tex="XW^\top + \mathbf{b}" /> with
+      <Math tex="W" /> stored as (outputs, inputs), giving (batch, outputs). Only the last axis changes, so the same
+      step works on (batch, seq, features) when each example is a sequence. The bias broadcasts across rows.”
     </p>
   </Callout>
 
@@ -625,9 +632,10 @@ except ValueError as e:
   <Callout kind="plain">
     <p>
       Transposing is flipping the table over its diagonal: rows become columns and columns become rows. It is the move
-      you make when matmul wants a column but you have a row. And it unlocks one trick that attention is built on: if
-      you have a stack of vectors and you want the dot product of <em>every</em> one with <em>every</em> other, multiply
-      the stack by its own transpose. One operation, all the pairs.
+      you make when matmul wants a column but you have a row. And it unlocks one trick that similarity search, and
+      later the heart of a language model, are built on: if you have a stack of vectors and you want the dot product
+      of <em>every</em> one with <em>every</em> other, multiply the stack by the transpose of the other stack. One
+      operation, all the pairs.
     </p>
   </Callout>
   <p>
@@ -641,50 +649,51 @@ except ValueError as e:
     <li><Math tex="(AB)^\top = B^\top A^\top" />. The order reverses. Check: <Math tex="A" /> is <Math tex="2 \times 3" />, <Math tex="B" /> is <Math tex="3 \times 2" />, so <Math tex="(AB)^\top" /> is <Math tex="2 \times 2" />; and <Math tex="B^\top A^\top" /> is <Math tex="(2 \times 3)(3 \times 2) = 2 \times 2" />. The other order, <Math tex="A^\top B^\top" />, would be <Math tex="(3 \times 2)(2 \times 3)" />, a different shape entirely.</li>
     <li><Math tex="\mathbf{x}^\top \mathbf{y}" /> is the dot product. A column <Math tex="\mathbf{x}" /> (<Math tex="n \times 1" />) transposed is a row (<Math tex="1 \times n" />), times a column (<Math tex="n \times 1" />) gives <Math tex="1 \times 1" />: one number. This is why papers write <Math tex="\mathbf{w}^\top\mathbf{x}" /> for <Math tex="\mathbf{w}\cdot\mathbf{x}" />.</li>
   </ul>
-  <Figure n={5} caption="All pairwise dot products at once. Q holds 4 query vectors as rows, K holds 4 key vectors as rows. Q Kᵀ is 4 × 4 and its entry (i, j) is qᵢ · kⱼ. This is the score matrix of attention." wide>
-    <svg viewBox="0 0 760 260" role="img" aria-label="A 4 by 8 matrix Q times an 8 by 4 matrix K transpose giving a 4 by 4 score matrix, with one row, one column and the resulting cell highlighted">
+  <Figure n={5} caption="All pairwise dot products at once. A holds 4 vectors as rows, B holds another 4 as rows. A Bᵀ is 4 × 4 and its entry (i, j) is aᵢ · bⱼ. With a stack of embeddings this is every similarity at once; in week 8 it is the score matrix of attention." wide>
+    <svg viewBox="0 0 760 260" role="img" aria-label="A 4 by 8 matrix A times an 8 by 4 matrix B transpose giving a 4 by 4 matrix of dot products, with one row, one column and the resulting cell highlighted">
       <g class="sketch">
         {q.map((c) => <rect class={`stroke ${c.r === 1 ? 'fill-gold' : 'fill-paper'}`} x={c.x} y={c.y} width="22" height="26" />)}
         {kT.map((c) => <rect class={`stroke ${c.c === 2 ? 'fill-blue' : 'fill-paper'}`} x={c.x} y={c.y} width="26" height="22" />)}
         {scores.map((c) => <rect class={`stroke ${c.r === 1 && c.c === 2 ? 'fill-green' : 'fill-paper'}`} x={c.x} y={c.y} width="26" height="26" />)}
       </g>
-      <text x="128" y="190" text-anchor="middle" font-size="22">Q</text>
+      <text x="128" y="190" text-anchor="middle" font-size="22">A</text>
       <text class="small" x="128" y="214" text-anchor="middle">n × d = 4 × 8</text>
-      <text class="small" x="128" y="236" text-anchor="middle">row i = query of token i</text>
-      <text x="342" y="235" text-anchor="middle" font-size="22">Kᵀ</text>
-      <text class="small" x="342" y="256" text-anchor="middle">d × n = 8 × 4, column j = key of token j</text>
+      <text class="small" x="128" y="236" text-anchor="middle">row i = vector aᵢ</text>
+      <text x="342" y="235" text-anchor="middle" font-size="22">Bᵀ</text>
+      <text class="small" x="342" y="256" text-anchor="middle">d × n = 8 × 4, column j = vector bⱼ</text>
       <text x="440" y="120" text-anchor="middle" font-size="22">=</text>
-      <text x="532" y="190" text-anchor="middle" font-size="22">Q Kᵀ</text>
+      <text x="532" y="190" text-anchor="middle" font-size="22">A Bᵀ</text>
       <text class="small" x="532" y="214" text-anchor="middle">n × n = 4 × 4</text>
       <text class="small label-red" x="600" y="100">entry (2, 3)</text>
-      <text class="small label-red" x="600" y="122">= q₂ · k₃</text>
-      <text class="small label-red" x="600" y="144">= how much token 2</text>
-      <text class="small label-red" x="600" y="166">  attends to token 3</text>
+      <text class="small label-red" x="600" y="122">= a₂ · b₃</text>
+      <text class="small label-red" x="600" y="144">= how similar</text>
+      <text class="small label-red" x="600" y="166">  vector 2 is to vector 3</text>
       <text x="262" y="120" text-anchor="middle" font-size="22">·</text>
     </svg>
   </Figure>
   <p>
-    Fig. 5 is the single most important shape in the LLM track, so make sure it is clear now. Put <Math tex="n" />
-    vectors of dimension <Math tex="d" /> as the rows of a matrix <Math tex="Q" /> (<Math tex="n \times d" />) and
-    another <Math tex="n" /> as the rows of <Math tex="K" /> (also <Math tex="n \times d" />). Then
-    <Math tex="QK^\top" /> is <Math tex="(n \times d)(d \times n) = n \times n" />, and by the definition of matmul its
-    entry <Math tex="(i, j)" /> is row <Math tex="i" /> of <Math tex="Q" /> dotted with column <Math tex="j" /> of
-    <Math tex="K^\top" />, which is row <Math tex="j" /> of <Math tex="K" />. So entry <Math tex="(i, j)" /> is
-    <Math tex="\mathbf{q}_i \cdot \mathbf{k}_j" />: the similarity between token <Math tex="i" />’s query and token
-    <Math tex="j" />’s key. All <Math tex="n^2" /> pairs in one multiplication. Week 8 scales this matrix, masks it
-    and softmaxes each row; the shape work is done here.
+    Fig. 5 is the single most important shape in the later tracks, so make sure it is clear now. Put <Math tex="n" />
+    vectors of dimension <Math tex="d" /> as the rows of a matrix <Math tex="A" /> (<Math tex="n \times d" />) and
+    another <Math tex="n" /> as the rows of <Math tex="B" /> (also <Math tex="n \times d" />). Then
+    <Math tex="AB^\top" /> is <Math tex="(n \times d)(d \times n) = n \times n" />, and by the definition of matmul its
+    entry <Math tex="(i, j)" /> is row <Math tex="i" /> of <Math tex="A" /> dotted with column <Math tex="j" /> of
+    <Math tex="B^\top" />, which is row <Math tex="j" /> of <Math tex="B" />. So entry <Math tex="(i, j)" /> is
+    <Math tex="\mathbf{a}_i \cdot \mathbf{b}_j" />: the similarity between vector <Math tex="i" /> of the first stack
+    and vector <Math tex="j" /> of the second. All <Math tex="n^2" /> pairs in one multiplication.
   </p>
   <p>
     The same trick with one matrix and itself, <Math tex="XX^\top" />, gives every example’s dot product with every
     other example, a <span class="term">Gram matrix</span>. It is how you would compute all pairwise similarities
-    between a thousand embeddings in one line: <code>E @ E.T</code>.
+    between a thousand <Term id="embedding">embeddings</Term> in one line: <code>E @ E.T</code>. And in week 8, the
+    step inside a language model that decides how much each word should look at each other word is exactly Fig. 5,
+    with one stack called the <em>queries</em> and the other the <em>keys</em>.
   </p>
   <Callout kind="say">
     <p>
       “<Math tex="(AB)^\top = B^\top A^\top" />, and <Math tex="\mathbf{x}^\top\mathbf{y}" /> is the dot product.
       Stacking vectors as rows and multiplying by the transpose of another stack gives every pairwise dot product at
-      once; attention’s score matrix <Math tex="QK^\top" /> is <Math tex="n \times n" /> with entry
-      <Math tex="(i, j) = \mathbf{q}_i \cdot \mathbf{k}_j" />.”
+      once, an <Math tex="n \times n" /> matrix with entry <Math tex="(i, j) = \mathbf{a}_i \cdot \mathbf{b}_j" />.
+      Attention’s score matrix is this.”
     </p>
   </Callout>
 
@@ -701,10 +710,11 @@ except ValueError as e:
   <p>
     Multiplying <Math tex="m \times n" /> by <Math tex="n \times p" /> computes <Math tex="mp" /> entries, each a dot
     product of length <Math tex="n" />: <Math tex="mnp" /> multiplications and about <Math tex="mnp" /> additions, so
-    roughly <Math tex="2mnp" /> <span class="term">FLOPs</span> (floating-point operations). For GPT-2’s first
-    feed-forward layer on a 1,024-token sequence, that is <Math tex="2 \times 1024 \times 768 \times 3072 \approx 4.8" />
-    billion FLOPs for one layer of one forward pass. Multiply by the number of layers, the number of training tokens
-    and a factor of three for the backward pass, and you have the training cost estimates you see in papers.
+    roughly <Math tex="2mnp" /> <span class="term">FLOPs</span> (floating-point operations). For one of GPT-2’s
+    bigger weight matrices, 768 by 3072, applied to a text of 1,024 <Term id="token">tokens</Term>, that is
+    <Math tex="2 \times 1024 \times 768 \times 3072 \approx 4.8" /> billion FLOPs for one matrix of one pass through
+    the model. Multiply by the number of such matrices, the number of training tokens and a factor of three for the
+    learning step, and you have the training cost estimates you see in papers.
   </p>
   <p>Three facts that follow:</p>
   <ul>
@@ -720,16 +730,16 @@ except ValueError as e:
     </li>
     <li>
       <strong>Why parameter count ≈ FLOPs per token.</strong> A weight matrix of <Math tex="mn" /> entries costs
-      <Math tex="2mn" /> FLOPs per input vector. So a forward pass through a model with <Math tex="N" /> parameters is
+      <Math tex="2mn" /> FLOPs per input vector. So running a model with <Math tex="N" /> parameters once costs
       about <Math tex="2N" /> FLOPs per token. That rule of thumb answers a whole family of interview questions about
-      inference cost.
+      the cost of using a model.
     </li>
   </ul>
   <Callout kind="say">
     <p>
       “A matmul of <Math tex="m \times n" /> by <Math tex="n \times p" /> is about <Math tex="2mnp" /> FLOPs, all
-      independent dot products, which is why GPUs accelerate it. A forward pass costs roughly 2 FLOPs per parameter per
-      token.”
+      independent dot products, which is why GPUs accelerate it. Running a model once costs roughly 2 FLOPs per
+      parameter per token.”
     </p>
   </Callout>
 
@@ -737,14 +747,14 @@ except ValueError as e:
   <Callout kind="plain">
     <p>
       Not everything done to a table is a matrix multiply. Adding two tables of the same shape cell by cell, or
-      applying ReLU to every cell, leaves the shape alone. And when the shapes do not match but one of them is a
+      doubling every cell, leaves the shape alone. And when the shapes do not match but one of them is a
       single row or column, NumPy quietly copies the small one across the big one so the cell-by-cell operation can
       happen. That copying is broadcasting, and it is how one bias vector gets added to every example in a batch.
     </p>
   </Callout>
   <p>
     <span class="term">Element-wise</span> operations pair up matching entries and never mix rows with columns.
-    <Math tex="A + B" />, <Math tex="A \odot B" /> (<code>A * B</code> in code), <Math tex="\text{ReLU}(A)" />,
+    <Math tex="A + B" />, <Math tex="A \odot B" /> (<code>A * B</code> in code), <Math tex="\max(0, A)" />,
     <Math tex="A / 2" /> are all element-wise, and all keep the shape. The trap: <code>A * B</code> in NumPy is
     element-wise, <em>not</em> matrix multiplication. Matmul is <code>A @ B</code>. In the last note the same trap was
     <code>w * x</code> versus <code>w @ x</code>; here it costs you a wrong answer with no error message, because two
@@ -772,7 +782,8 @@ except ValueError as e:
   <p>
     The last row is the one that bites. To subtract a per-row mean of shape <code>(4,)</code> from a <code>(4, 2)</code>
     matrix you must first make it <code>(4, 1)</code> with <code>means[:, None]</code> or <code>keepdims=True</code>.
-    Every LayerNorm implementation does exactly this.
+    Standardising features in the <a href="/notes/ml/feature-scaling-encoding/">feature scaling note</a> does exactly
+    this kind of thing, and so does a normalisation step inside every language model.
   </p>
   <Source
     kind="read"
@@ -783,8 +794,8 @@ except ValueError as e:
   <Callout kind="say">
     <p>
       “Element-wise operations keep the shape; <code>*</code> is element-wise and <code>@</code> is matmul.
-      Broadcasting aligns shapes from the right and stretches size-1 axes, which is how a bias of shape (out,) is added
-      to activations of shape (batch, out).”
+      Broadcasting aligns shapes from the right and stretches size-1 axes, which is how a bias of shape (outputs,) is
+      added to a result of shape (batch, outputs).”
     </p>
   </Callout>
 
@@ -792,11 +803,11 @@ except ValueError as e:
   <p>Type these out. Before running each line that prints a shape, write down the shape you expect.</p>
   <h3>Shapes, indexing, transpose and the error you will see</h3>
   <CodeBlock code={shapesCode} />
-  <h3>A batch through a linear layer, in NumPy and in PyTorch</h3>
+  <h3>A batch through a weight matrix: the walk days and the houses</h3>
   <CodeBlock code={batchCode} />
-  <h3>Shape table of a two-layer network, and the transformer case</h3>
+  <h3>The shape table of two steps with a bend between</h3>
   <CodeBlock code={mlpShapesCode} />
-  <h3>All pairwise dot products: the attention score shape</h3>
+  <h3>All pairwise dot products in one multiplication</h3>
   <CodeBlock code={pairwiseCode} />
   <h3>Broadcasting, including the case that fails</h3>
   <CodeBlock code={broadcastCode} />
@@ -806,76 +817,80 @@ except ValueError as e:
     title="NumPy documentation: numpy.matmul (the @ operator)"
     meta="Read the first paragraph and the note on how 1-D arrays are promoted. That note explains why a (3,) vector works on either side of @."
   />
-  <Source
-    kind="read"
-    href="https://numpy.org/doc/stable/reference/generated/numpy.einsum.html"
-    title="NumPy documentation: numpy.einsum"
-    meta="Optional. einsum names each axis with a letter, so “id,jd->ij” reads as “dot the d axes, keep i and j”. Many transformer implementations use it to avoid transpose errors."
-  />
+  <Callout kind="note" label="Reading the code">
+    <p>
+      Every <code>np.</code> call, and <code>@</code>, <code>.T</code>, <code>.shape</code> and <code>[:, None]</code>,
+      is a link to the <a href="/numpy/">NumPy reference</a>, which explains it in plain words with its own example.
+    </p>
+  </Callout>
 
-  <h2 id="llm">Where this lives in an LLM</h2>
+  <h2 id="later">Where you will meet this again</h2>
+  <Callout kind="note" label="Optional preview">
+    <p>
+      A look ahead. Every unfamiliar word links to the glossary; skip this on a first read and come back after week 8.
+    </p>
+  </Callout>
   <ul>
     <li>
-      <strong>The embedding matrix</strong> is <Math tex="V \times d" /> (50,257 × 768 for GPT-2). Looking up a token is
-      reading one row. Equivalently it is a one-hot row vector of length <Math tex="V" /> times the matrix:
-      <Math tex="(1 \times V)(V \times d) = 1 \times d" />.
+      <strong>Week 3, penalising big weights.</strong> The exact solution of regression with a penalty is
+      <Math tex="(X^\top X + \lambda I)^{-1} X^\top \mathbf{y}" />: transposes, a product, the identity matrix.
     </li>
     <li>
-      <strong>Every linear layer</strong> is <Math tex="XW^\top + \mathbf{b}" /> on an input of shape
-      <Math tex="(\text{batch}, \text{seq}, d)" />. The feed-forward block goes <Math tex="d \to 4d \to d" />, so its
-      two weight matrices are <Math tex="4d \times d" /> and <Math tex="d \times 4d" />.
+      <strong>Week 5, neural networks.</strong> A <Term id="layer">layer</Term> is <Math tex="XW^\top + \mathbf{b}" />
+      followed by a bend, and a network is the shape table above with more rows. PyTorch (week 6) calls the step
+      <code>nn.Linear</code> and stores the weight as (outputs, inputs), exactly as here.
     </li>
     <li>
-      <strong>Attention</strong> makes <Math tex="Q" />, <Math tex="K" /> and <Math tex="V" /> with three linear layers,
-      forms the <Math tex="n \times n" /> score matrix <Math tex="QK^\top" /> from Fig. 5, and then multiplies the
-      softmaxed scores (<Math tex="n \times n" />) by <Math tex="V" /> (<Math tex="n \times d" />) to get
-      <Math tex="n \times d" /> again. Three matmuls, and the shape rule tells you the shape at every step.
+      <strong>Week 7, embeddings.</strong> A language model’s lookup table is <Math tex="V \times d" /> (50,257 × 768
+      for GPT-2). Looking up a <Term id="token">token</Term> is reading one row, which is the same as multiplying a
+      one-hot row of length <Math tex="V" /> by the matrix.
     </li>
     <li>
-      <strong>The KV cache</strong> is literally the <Math tex="K" /> and <Math tex="V" /> matrices of past tokens kept
-      in memory so they are not recomputed. Its size is rows × columns × layers × bytes, a shape calculation.
+      <strong>Week 8, attention.</strong> <Term id="attention">Attention</Term> makes three stacks of vectors with
+      three weight matrices, forms the <Math tex="n \times n" /> matrix of Fig. 5 (called <Math tex="QK^\top" />),
+      turns each row into percentages, and multiplies by the third stack to get <Math tex="n \times d" /> again.
+      Three matmuls, and the shape rule tells you the shape at every step. Because the middle matrix is
+      <Math tex="n \times n" />, attention costs grow with the <em>square</em> of the text length.
     </li>
     <li>
-      <strong>Parameter counts</strong> are sums of <Math tex="mn + m" /> over the linear layers, and the
-      <strong>2 FLOPs per parameter per token</strong> rule prices a forward pass.
-    </li>
-    <li>
-      <strong>LoRA</strong> adds <Math tex="BA" /> to a frozen <Math tex="W" />, with <Math tex="B" /> of shape
-      <Math tex="d \times r" /> and <Math tex="A" /> of shape <Math tex="r \times d" /> for a small rank <Math tex="r" />,
-      and uses associativity to apply it cheaply.
+      <strong>Week 10, cost tricks.</strong> The <Term id="kv-cache">KV cache</Term> is two of those stacks kept in
+      memory so they are not recomputed; its size is a shape calculation. <Term id="lora">LoRA</Term> adds a product of
+      two thin matrices <Math tex="BA" /> to a frozen weight and uses associativity to apply it cheaply. And parameter
+      counts are sums of <Math tex="mn + m" /> over the weight matrices, priced at 2 FLOPs per parameter per token.
     </li>
   </ul>
 
   <h2 id="interview">The full interview answer</h2>
   <p>
-    The typical form is a shape question dressed up as something else: “walk me through the shapes in a linear layer
-    on a batch” or “what is the shape of the attention scores and why”. Here is a complete answer in about seventy
-    seconds.
+    The typical form is a shape question dressed up as something else: “walk me through the shapes when a batch goes
+    through a weight matrix” or, after week 8, “what is the shape of the attention scores and why”. Here is a complete
+    answer in about seventy seconds.
   </p>
   <Callout kind="interview">
     <p>
-      “A linear layer stores a weight matrix of shape (out_features, in_features) and a bias of shape (out_features,).
-      For a batch the input is (batch, in_features), and the layer computes <Math tex="XW^\top + \mathbf{b}" />: the
-      inner in_features dimensions match and cancel, giving (batch, out_features), with the bias broadcast across the
-      rows. Each output entry is the dot product of one example with one output unit’s weight vector. Because matmul
-      only touches the last axis, the same layer works on (batch, seq, features) in a transformer.
+      “A weight matrix is stored as (outputs, inputs) with a bias of shape (outputs,). For a batch the input is
+      (batch, inputs), and we compute <Math tex="XW^\top + \mathbf{b}" />: the inner input dimensions match and cancel,
+      giving (batch, outputs), with the bias broadcast across the rows. Each entry of the result is the dot product of
+      one example with one output’s weight vector. Because matmul only touches the last axis, the same step works on
+      (batch, seq, features) when each example is a sequence. Matmul is associative but not commutative, so order is
+      fixed but bracketing is free, and the cheapest bracketing can be hundreds of times cheaper. Each matmul costs
+      about 2mnp FLOPs, so running a model once is roughly 2 FLOPs per parameter per token, and that is why GPUs,
+      which run the independent dot products in parallel, are the hardware of choice.”
     </p>
     <p>
-      In attention, queries and keys are both (seq, d), and <Math tex="QK^\top" /> is (seq, d)(d, seq) = (seq, seq),
-      whose entry <Math tex="(i, j)" /> is the dot product of query <Math tex="i" /> with key <Math tex="j" />: how much
-      token <Math tex="i" /> attends to token <Math tex="j" />. Multiplying the softmaxed scores by <Math tex="V" />,
-      (seq, seq)(seq, d), gives (seq, d) again. The cost of each matmul is about 2mnp FLOPs, so a forward pass is
-      roughly 2 FLOPs per parameter per token, and that is why GPUs, which parallelize the independent dot products,
-      are the hardware of choice.”
+      <em>After week 8 you can add:</em> “In attention, queries and keys are both (seq, d), and <Math tex="QK^\top" />
+      is (seq, d)(d, seq) = (seq, seq), whose entry <Math tex="(i, j)" /> is the dot product of query <Math tex="i" />
+      with key <Math tex="j" />. Multiplying the normalised scores by <Math tex="V" />, (seq, seq)(seq, d), gives
+      (seq, d) again, and the <Math tex="n \times n" /> middle is why attention is quadratic in sequence length.”
     </p>
   </Callout>
   <p><strong>If they push further, be ready for:</strong></p>
   <ul>
-    <li>“Why (out, in) and not (in, out)?” Convention from writing <Math tex="W\mathbf{x}" /> with column vectors; one row per output unit. With row-major batches you apply the transpose.</li>
-    <li>“How many parameters in nn.Linear(768, 3072)?” <Math tex="768 \times 3072 + 3072 = 2{,}362{,}368" />.</li>
-    <li>“Is matmul commutative?” No. Associative and distributive, yes. Give the LoRA bracketing example.</li>
+    <li>“Why (outputs, inputs) and not (inputs, outputs)?” Convention from writing <Math tex="W\mathbf{x}" /> with column vectors; one row per output. With examples as rows you apply the transpose.</li>
+    <li>“How many parameters in a layer from 768 inputs to 3072 outputs?” <Math tex="768 \times 3072 + 3072 = 2{,}362{,}368" />.</li>
+    <li>“Is matmul commutative?” No. Associative and distributive, yes. Give the thin-matrices bracketing example.</li>
     <li>“What is the difference between <code>*</code> and <code>@</code>?” Element-wise product versus matrix product.</li>
-    <li>“Why is attention quadratic in sequence length?” The score matrix is <Math tex="n \times n" />: <Math tex="n^2 d" /> work and <Math tex="n^2" /> memory.</li>
+    <li>“Why is <Term id="attention">attention</Term> quadratic in sequence length?” (Week 8.) Its score matrix is <Math tex="n \times n" />: <Math tex="n^2 d" /> work and <Math tex="n^2" /> memory.</li>
   </ul>
 
   <h2 id="questions">Practice questions</h2>
@@ -886,26 +901,26 @@ except ValueError as e:
   <QA q="In one sentence, what is entry (i, j) of A B?">
     <p>The dot product of row <Math tex="i" /> of <Math tex="A" /> with column <Math tex="j" /> of <Math tex="B" />.</p>
   </QA>
-  <QA q="What are the shapes of the weight and bias of nn.Linear(in_features=20, out_features=5), and how many parameters does it have?">
+  <QA q="A step takes 20 input features to 5 outputs. What are the shapes of its weight matrix and bias, and how many parameters does it have?">
     <p>Weight <code>(5, 20)</code>, bias <code>(5,)</code>. Parameters <Math tex="5 \times 20 + 5 = 105" />.</p>
   </QA>
-  <QA q="A batch tensor has shape (16, 50, 20) and goes through nn.Linear(20, 5). What comes out?">
+  <QA q="An array of shape (16, 50, 20) goes through that 20-to-5 step. What comes out?">
     <p><code>(16, 50, 5)</code>. Only the last axis changes.</p>
   </QA>
-  <QA q="Why does a linear layer compute X Wᵀ rather than X W?">
-    <p>Because <Math tex="W" /> is stored as (out, in) with one row per output unit, and the batch <Math tex="X" /> is (batch, in). Row-with-row dot products need the second matrix flipped so its rows become columns: <Math tex="(\text{batch}, \text{in})(\text{in}, \text{out})" />.</p>
+  <QA q="Why do we compute X Wᵀ rather than X W?">
+    <p>Because <Math tex="W" /> is stored as (outputs, inputs) with one row per output, and the batch <Math tex="X" /> is (batch, inputs). Row-with-row dot products need the second matrix flipped so its rows become columns: <Math tex="(\text{batch}, \text{in})(\text{in}, \text{out})" />.</p>
   </QA>
   <QA q="Is matrix multiplication commutative? Associative? Give one practical consequence of each answer.">
-    <p>Not commutative: swapping changes the result or the shape, so formulas must keep their order. Associative: you may choose the bracketing, so LoRA computes <Math tex="B(A\mathbf{x})" /> instead of <Math tex="(BA)\mathbf{x}" /> and saves hundreds of times the work.</p>
+    <p>Not commutative: swapping changes the result or the shape, so formulas must keep their order. Associative: you may choose the bracketing, so for two thin matrices you compute <Math tex="B(A\mathbf{x})" /> instead of <Math tex="(BA)\mathbf{x}" /> and save hundreds of times the work.</p>
   </QA>
   <QA q="What is (A B)ᵀ?">
     <p><Math tex="B^\top A^\top" />. The order reverses; check with shapes.</p>
   </QA>
-  <QA q="Q and K are both (n, d). What is Q Kᵀ, what is its entry (i, j), and why is attention called quadratic?">
-    <p><Math tex="n \times n" />; entry <Math tex="(i, j)" /> is <Math tex="\mathbf{q}_i \cdot \mathbf{k}_j" />; there are <Math tex="n^2" /> entries, each costing <Math tex="d" /> operations, so time and memory grow with the square of the sequence length.</p>
+  <QA q="A and B are both (n, d). What is A Bᵀ, what is its entry (i, j), and why does the cost grow with the square of n?">
+    <p><Math tex="n \times n" />; entry <Math tex="(i, j)" /> is <Math tex="\mathbf{a}_i \cdot \mathbf{b}_j" />; there are <Math tex="n^2" /> entries, each costing <Math tex="d" /> operations, so time and memory grow with the square of <Math tex="n" />. (This is why attention, in week 8, is “quadratic in sequence length”.)</p>
   </QA>
-  <QA q="How many FLOPs is a matmul of (m × n) by (n × p), and what rule of thumb follows for a forward pass?">
-    <p>About <Math tex="2mnp" />. A weight matrix with <Math tex="mn" /> parameters costs <Math tex="2mn" /> FLOPs per input vector, so a forward pass is roughly 2 FLOPs per parameter per token.</p>
+  <QA q="How many FLOPs is a matmul of (m × n) by (n × p), and what rule of thumb follows for running a model once?">
+    <p>About <Math tex="2mnp" />. A weight matrix with <Math tex="mn" /> parameters costs <Math tex="2mn" /> FLOPs per input vector, so running the model once is roughly 2 FLOPs per parameter per token.</p>
   </QA>
   <QA q="What is the difference between A * B and A @ B in NumPy?">
     <p><code>A * B</code> multiplies matching entries (element-wise, same shape in or out). <code>A @ B</code> is matrix multiplication (dot products of rows with columns, shapes must chain).</p>
@@ -945,29 +960,29 @@ except ValueError as e:
   </QA>
   <QA q="5. Three walk days X = [[1,1,1], [0,1,0], [1,0,0]], weights W = [[3,−2,−4],[1,−1,0]], bias b = (−1, 0). Compute Z = X Wᵀ + b with its shape.">
     <p>
-      Shape (3 × 3)(3 × 2) = 3 × 2. Day 1 (1,1,1): neuron 1: <Math tex="3 - 2 - 4 - 1 = -4" />; neuron 2: <Math tex="1 - 1 + 0 = 0" />.
+      Shape (3 × 3)(3 × 2) = 3 × 2. Day 1 (1,1,1): score 1: <Math tex="3 - 2 - 4 - 1 = -4" />; score 2: <Math tex="1 - 1 + 0 = 0" />.
       Day 2 (0,1,0): <Math tex="-2 - 1 = -3" />; <Math tex="-1" />. Day 3 (1,0,0): <Math tex="3 - 1 = 2" />; <Math tex="1" />.
       <Math tex="Z = [[-4, 0], [-3, -1], [2, 1]]" />.
     </p>
   </QA>
-  <QA q="6. A network has layers nn.Linear(784, 256), nn.Linear(256, 128), nn.Linear(128, 10). Give every weight shape and the total parameter count.">
+  <QA q="6. A model applies three weight matrices in a row: 784 inputs → 256 outputs, then 256 → 128, then 128 → 10, each with a bias. Give every weight shape and the total parameter count.">
     <p>
       Weights (256, 784), (128, 256), (10, 128). Parameters: <Math tex="784 \cdot 256 + 256 = 200{,}960" />;
       <Math tex="256 \cdot 128 + 128 = 32{,}896" />; <Math tex="128 \cdot 10 + 10 = 1{,}290" />. Total 235,146.
     </p>
   </QA>
-  <QA q="7. Input (64, 784) through the network in problem 6. Write the shape after each layer. Then do it for an input of shape (8, 20, 784).">
+  <QA q="7. Input (64, 784) through the three steps in problem 6. Write the shape after each step. Then do it for an input of shape (8, 20, 784).">
     <p>
       (64, 256) → (64, 128) → (64, 10). With the extra axis: (8, 20, 256) → (8, 20, 128) → (8, 20, 10). Only the last axis changes.
     </p>
   </QA>
-  <QA q="8. Q and K are (128, 64). Give the shape of Q Kᵀ, the number of entries, and the FLOPs to compute it. If the sequence doubles to 256, by what factor does each grow?">
+  <QA q="8. A and B are both (128, 64). Give the shape of A Bᵀ, the number of entries, and the FLOPs to compute it. If 128 doubles to 256, by what factor does each grow?">
     <p>
       (128, 128); 16,384 entries; about <Math tex="2 \cdot 128 \cdot 64 \cdot 128 \approx 2.1" /> million FLOPs. Doubling
-      the sequence quadruples the entries (65,536) and the FLOPs (about 8.4 million). Quadratic in sequence length.
+      to 256 quadruples the entries (65,536) and the FLOPs (about 8.4 million). Quadratic in <Math tex="n" />.
     </p>
   </QA>
-  <QA q="9. LoRA with d = 1024 and rank r = 16. How many parameters do B (d × r) and A (r × d) hold together, as a percentage of the full d × d matrix? Compare the cost of (B A) x against B (A x) for one vector.">
+  <QA q="9. A 1024 × 1024 matrix is written as B A with B of shape 1024 × 16 and A of shape 16 × 1024. How many numbers do B and A hold together, as a percentage of the full matrix? Compare the cost of (B A) x against B (A x) for one vector.">
     <p>
       <Math tex="2 \cdot 1024 \cdot 16 = 32{,}768" /> parameters against <Math tex="1024^2 = 1{,}048{,}576" />: about 3.1%.
       Forming <Math tex="BA" /> first costs <Math tex="1024 \cdot 16 \cdot 1024 \approx 16.8" /> million multiplications;
@@ -1111,8 +1126,8 @@ print(S.shape, S[i, j])`}
   </Callout>
   <Callout kind="pitfall">
     <p>
-      <strong>Materializing a low-rank product.</strong> Computing <Math tex="BA" /> as a full matrix when you only
-      need <Math tex="BA\mathbf{x}" /> throws away the whole point of the factorization. Bracket as
+      <strong>Building a product of thin matrices in full.</strong> Computing <Math tex="BA" /> as a full matrix when
+      you only need <Math tex="BA\mathbf{x}" /> throws away the whole point of writing it as two thin pieces. Bracket as
       <Math tex="B(A\mathbf{x})" />.
     </p>
   </Callout>
@@ -1133,14 +1148,9 @@ print(S.shape, S[i, j])`}
       (exercises). Multiplication and properties only.
     </li>
     <li>
-      <a href="https://pytorch.org/docs/stable/generated/torch.nn.Linear.html" target="_blank" rel="noopener noreferrer">PyTorch, torch.nn.Linear</a>
-      (documentation).
-    </li>
-    <li>
-      <a href="https://numpy.org/doc/stable/user/basics.broadcasting.html" target="_blank" rel="noopener noreferrer">NumPy, Broadcasting</a>,
-      <a href="https://numpy.org/doc/stable/reference/generated/numpy.matmul.html" target="_blank" rel="noopener noreferrer">numpy.matmul</a>
-      and <a href="https://numpy.org/doc/stable/reference/generated/numpy.einsum.html" target="_blank" rel="noopener noreferrer">numpy.einsum</a>
-      (documentation).
+      <a href="https://numpy.org/doc/stable/user/basics.broadcasting.html" target="_blank" rel="noopener noreferrer">NumPy, Broadcasting</a>
+      and <a href="https://numpy.org/doc/stable/reference/generated/numpy.matmul.html" target="_blank" rel="noopener noreferrer">numpy.matmul</a>
+      (documentation), and the site’s own <a href="/numpy/">NumPy reference</a>.
     </li>
     <li>
       <a href="https://mml-book.github.io/" target="_blank" rel="noopener noreferrer">Deisenroth, Faisal and Ong, <em>Mathematics for Machine Learning</em></a>,
@@ -1155,11 +1165,11 @@ print(S.shape, S[i, j])`}
       <li><Math tex="A\mathbf{x}" />: dot every row with <Math tex="\mathbf{x}" />. Also: a combination of the columns weighted by <Math tex="\mathbf{x}" />.</li>
       <li>Shape rule: <Math tex="(m \times n)(n \times p) = m \times p" />. Inner must match and vanishes. Write shapes first.</li>
       <li><Math tex="C_{ij}" /> = row <Math tex="i" /> of <Math tex="A" /> · column <Math tex="j" /> of <Math tex="B" />.</li>
-      <li>Not commutative. Associative: bracket cheaply, <Math tex="B(A\mathbf{x})" /> for LoRA. Distributive. <Math tex="I" /> changes nothing.</li>
+      <li>Not commutative. Associative: bracket cheaply, <Math tex="B(A\mathbf{x})" /> for thin matrices. Distributive. <Math tex="I" /> changes nothing.</li>
       <li>A matrix is a linear function; columns = where basis vectors land; multiplying = composing.</li>
-      <li>Linear layer: <Math tex="XW^\top + \mathbf{b}" />, <Math tex="W" /> is (out, in), only the last axis changes. Parameters <Math tex="= \text{out} \times \text{in} + \text{out}" />.</li>
-      <li><Math tex="(AB)^\top = B^\top A^\top" />. <Math tex="\mathbf{x}^\top\mathbf{y}" /> is the dot product. <Math tex="QK^\top" /> is <Math tex="n \times n" />, entry <Math tex="(i, j) = \mathbf{q}_i\cdot\mathbf{k}_j" />.</li>
-      <li>Cost <Math tex="\approx 2mnp" /> FLOPs; forward pass ≈ 2 FLOPs per parameter per token; attention is quadratic in <Math tex="n" />.</li>
+      <li>A batch through weights: <Math tex="XW^\top + \mathbf{b}" />, <Math tex="W" /> is (outputs, inputs), only the last axis changes. Parameters <Math tex="= \text{out} \times \text{in} + \text{out}" />.</li>
+      <li><Math tex="(AB)^\top = B^\top A^\top" />. <Math tex="\mathbf{x}^\top\mathbf{y}" /> is the dot product. <Math tex="AB^\top" /> is <Math tex="n \times n" />, entry <Math tex="(i, j) = \mathbf{a}_i\cdot\mathbf{b}_j" />: all pairs at once.</li>
+      <li>Cost <Math tex="\approx 2mnp" /> FLOPs; one run of a model ≈ 2 FLOPs per parameter per token; all-pairs matrices are quadratic in <Math tex="n" />.</li>
       <li><code>*</code> is element-wise, <code>@</code> is matmul. Broadcasting aligns from the right; size-1 axes stretch; use <code>keepdims=True</code>.</li>
     </ul>
   </Callout>

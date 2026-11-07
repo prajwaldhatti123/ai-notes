@@ -9,6 +9,8 @@ export interface Note {
   slug: string;
   title: string;
   week: number;
+  /** Position within the week when math and ML notes are read interleaved (lower first). */
+  order?: number;
   ready?: boolean;
 }
 
@@ -44,20 +46,20 @@ export const tracks: Track[] = [
       'Seeing Theory (Brown University), a visual introduction to probability',
     ],
     notes: [
-      { slug: 'functions-exponents-logs', title: 'Functions, exponents and logarithms', week: 1, ready: true },
-      { slug: 'vectors-dot-product', title: 'Vectors and the dot product', week: 1, ready: true },
-      { slug: 'matrices-and-shapes', title: 'Matrices, matrix multiplication and shapes', week: 1, ready: true },
-      { slug: 'norms-distance-cosine', title: 'Norms, distance and cosine similarity', week: 1, ready: true },
-      { slug: 'derivatives', title: 'Derivatives: slope and rate of change', week: 2 },
-      { slug: 'partial-derivatives-gradient', title: 'Partial derivatives and the gradient', week: 2 },
-      { slug: 'chain-rule', title: 'The chain rule', week: 2 },
-      { slug: 'descriptive-statistics', title: 'Mean, median, variance and standard deviation', week: 3 },
-      { slug: 'probability-bayes', title: 'Probability, conditional probability and Bayes’ theorem', week: 3 },
-      { slug: 'distributions-expectation', title: 'Distributions, expectation and the normal distribution', week: 3 },
-      { slug: 'maximum-likelihood', title: 'Maximum likelihood: where loss functions come from', week: 3 },
-      { slug: 'entropy-cross-entropy-kl', title: 'Entropy, cross-entropy and KL divergence', week: 4 },
-      { slug: 'eigen-svd-intuition', title: 'Eigenvectors and SVD, only as much as PCA and LoRA need', week: 4 },
-      { slug: 'math-you-can-skip', title: 'Math you can skip, and what to say if it comes up', week: 4 },
+      { slug: 'functions-exponents-logs', title: 'Functions, exponents and logarithms', week: 1, order: 2, ready: true },
+      { slug: 'vectors-dot-product', title: 'Vectors and the dot product', week: 1, order: 3, ready: true },
+      { slug: 'matrices-and-shapes', title: 'Matrices, matrix multiplication and shapes', week: 1, order: 5, ready: true },
+      { slug: 'norms-distance-cosine', title: 'Norms, distance and cosine similarity', week: 1, order: 6, ready: true },
+      { slug: 'derivatives', title: 'Derivatives: slope and rate of change', week: 2, order: 1 },
+      { slug: 'partial-derivatives-gradient', title: 'Partial derivatives and the gradient', week: 2, order: 3 },
+      { slug: 'chain-rule', title: 'The chain rule', week: 2, order: 5 },
+      { slug: 'descriptive-statistics', title: 'Mean, median, variance and standard deviation', week: 3, order: 1 },
+      { slug: 'probability-bayes', title: 'Probability, conditional probability and Bayes’ theorem', week: 3, order: 2 },
+      { slug: 'distributions-expectation', title: 'Distributions, expectation and the normal distribution', week: 3, order: 4 },
+      { slug: 'maximum-likelihood', title: 'Maximum likelihood: where loss functions come from', week: 3, order: 6 },
+      { slug: 'entropy-cross-entropy-kl', title: 'Entropy, cross-entropy and KL divergence', week: 4, order: 1 },
+      { slug: 'eigen-svd-intuition', title: 'Eigenvectors and SVD, only as much as PCA and LoRA need', week: 4, order: 3 },
+      { slug: 'math-you-can-skip', title: 'Math you can skip, and what to say if it comes up', week: 4, order: 8 },
     ],
   },
   {
@@ -78,21 +80,21 @@ export const tracks: Track[] = [
     ],
     project: 'Project 0: an ML library from scratch, plus a tabular case study',
     notes: [
-      { slug: 'what-is-machine-learning', title: 'What machine learning is: data, model, loss, optimizer', week: 1, ready: true },
-      { slug: 'linear-regression', title: 'Linear regression', week: 1, ready: true },
-      { slug: 'feature-scaling-encoding', title: 'Feature scaling, normalization and encoding', week: 1, ready: true },
-      { slug: 'loss-functions', title: 'Loss functions: MSE, MAE and log loss', week: 2 },
-      { slug: 'gradient-descent', title: 'Gradient descent: batch, stochastic and mini-batch', week: 2 },
-      { slug: 'overfitting-bias-variance', title: 'Overfitting, underfitting and the bias–variance trade-off', week: 2 },
-      { slug: 'logistic-regression', title: 'Logistic regression and the sigmoid', week: 3 },
-      { slug: 'classification-metrics', title: 'Evaluation metrics: accuracy, precision, recall, F1, ROC-AUC', week: 3 },
-      { slug: 'data-splits-cross-validation', title: 'Train, validation, test and cross-validation', week: 3 },
-      { slug: 'regularization', title: 'Regularization: L1, L2 and early stopping', week: 3 },
-      { slug: 'knn-kmeans', title: 'kNN and k-means: learning from similarity', week: 4 },
-      { slug: 'pca', title: 'PCA and dimensionality reduction', week: 4 },
-      { slug: 'trees-forests-boosting', title: 'Decision trees, random forests and gradient boosting', week: 4 },
-      { slug: 'svm-naive-bayes', title: 'SVM and Naive Bayes at interview depth', week: 4 },
-      { slug: 'imbalance-leakage', title: 'Class imbalance, data leakage and other traps', week: 4 },
+      { slug: 'what-is-machine-learning', title: 'What machine learning is: data, model, loss, optimizer', week: 1, order: 1, ready: true },
+      { slug: 'linear-regression', title: 'Linear regression', week: 1, order: 4, ready: true },
+      { slug: 'feature-scaling-encoding', title: 'Feature scaling, normalization and encoding', week: 1, order: 7, ready: true },
+      { slug: 'loss-functions', title: 'Loss functions: MSE, MAE and log loss', week: 2, order: 2 },
+      { slug: 'gradient-descent', title: 'Gradient descent: batch, stochastic and mini-batch', week: 2, order: 4 },
+      { slug: 'overfitting-bias-variance', title: 'Overfitting, underfitting and the bias–variance trade-off', week: 2, order: 6 },
+      { slug: 'logistic-regression', title: 'Logistic regression and the sigmoid', week: 3, order: 3 },
+      { slug: 'classification-metrics', title: 'Evaluation metrics: accuracy, precision, recall, F1, ROC-AUC', week: 3, order: 5 },
+      { slug: 'data-splits-cross-validation', title: 'Train, validation, test and cross-validation', week: 3, order: 7 },
+      { slug: 'regularization', title: 'Regularization: L1, L2 and early stopping', week: 3, order: 8 },
+      { slug: 'knn-kmeans', title: 'kNN and k-means: learning from similarity', week: 4, order: 2 },
+      { slug: 'pca', title: 'PCA and dimensionality reduction', week: 4, order: 4 },
+      { slug: 'trees-forests-boosting', title: 'Decision trees, random forests and gradient boosting', week: 4, order: 5 },
+      { slug: 'svm-naive-bayes', title: 'SVM and Naive Bayes at interview depth', week: 4, order: 6 },
+      { slug: 'imbalance-leakage', title: 'Class imbalance, data leakage and other traps', week: 4, order: 7 },
     ],
   },
   {
@@ -297,8 +299,15 @@ export const noteHref = (track: Track, note: Note) => `/notes/${track.id}/${note
 
 export const totalNotes = tracks.reduce((n, t) => n + t.notes.length, 0);
 
-/** Every note of a given week, grouped by track, for the week-by-week schedule. */
-export const notesForWeek = (week: number) =>
-  tracks
-    .map((track) => ({ track, notes: track.notes.filter((n) => n.week === week) }))
-    .filter((g) => g.notes.length > 0);
+export interface Placed {
+  track: Track;
+  note: Note;
+}
+
+/** Every note in the order to read it: by week, then by `order` (math and ML interleaved), then by track. */
+export const readingOrder: Placed[] = tracks
+  .flatMap((track) => track.notes.map((note) => ({ track, note })))
+  .sort((a, b) => a.note.week - b.note.week || (a.note.order ?? 99) - (b.note.order ?? 99) || a.track.number - b.track.number);
+
+/** The notes of one week, in reading order. */
+export const notesForWeek = (week: number): Placed[] => readingOrder.filter((p) => p.note.week === week);

@@ -6,18 +6,19 @@ import QA from '../../../components/QA.astro';
 import Figure from '../../../components/Figure.astro';
 import Math from '../../../components/Math.astro';
 import Source from '../../../components/Source.astro';
+import Term from '../../../components/Term.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
   { id: 'plain', label: 'In plain words' },
-  { id: 'why-scale', label: 'Why scale: distances, gradients, penalties' },
+  { id: 'why-scale', label: 'Why scale: distances, training steps, penalties' },
   { id: 'methods', label: 'The scaling methods' },
   { id: 'fit-on-train', label: 'Fit on train, apply everywhere' },
   { id: 'encoding', label: 'Encoding categories' },
   { id: 'high-cardinality', label: 'Many categories: targets, hashes, embeddings' },
   { id: 'targets-missing', label: 'Scaling the target, and missing values' },
   { id: 'code', label: 'Code' },
-  { id: 'llm', label: 'Where this lives in an LLM' },
+  { id: 'later', label: 'Where you will meet this again' },
   { id: 'interview', label: 'The full interview answer' },
   { id: 'questions', label: 'Practice questions' },
   { id: 'practice', label: 'Practice problems' },
@@ -174,8 +175,9 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
   <p>
     Most of the work in a classical ML project is not choosing a model; it is getting the data into a form the model
     can learn from. Two questions come up on every tabular dataset: are the numeric columns on scales the model can
-    handle, and how do the text categories become numbers? Get the first wrong and gradient descent crawls or k-nearest
-    neighbours ignores most of your features. Get the second wrong and the model believes Tokyo is twice Paris. Get
+    handle, and how do the text categories become numbers? Get the first wrong and gradient descent crawls, or a
+    model that works by distances (<Term id="knn">k-nearest neighbours</Term>, week 4) ignores most of your
+    features. Get the second wrong and the model believes Tokyo is twice Paris. Get
     either one wrong <em>in the wrong place</em> and you leak test information into training, which is the most common
     way a project reports a score it cannot reproduce.
   </p>
@@ -226,13 +228,13 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
         <tr><td>Categories that have a natural order</td><td><span class="term">ordinal encoding</span></td><td><code>OrdinalEncoder</code></td></tr>
         <tr><td>Switches that add up to the intercept</td><td><span class="term">dummy variable trap</span></td><td>drop one column: <code>drop="first"</code></td></tr>
         <tr><td>Replace a category by the average target in it</td><td><span class="term">target encoding</span></td><td><code>TargetEncoder</code></td></tr>
-        <tr><td>Learn a short vector per category</td><td><span class="term">embedding</span></td><td><code>nn.Embedding</code></td></tr>
+        <tr><td>Learn a short vector per category</td><td><span class="term">embedding</span></td><td>a lookup table learned with the model (week 5 onwards)</td></tr>
         <tr><td>Letting test data influence preprocessing</td><td><span class="term">data leakage</span></td><td>fit on train only; <code>Pipeline</code></td></tr>
       </tbody>
     </table>
   </div>
 
-  <h2 id="why-scale">Why scale: distances, gradients, penalties</h2>
+  <h2 id="why-scale">Why scale: distances, training steps, penalties</h2>
   <Callout kind="plain">
     <p>
       There are three places where a feature’s units sneak into the math. When a model measures <em>distance</em>
@@ -243,8 +245,8 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
     </p>
   </Callout>
   <p>
-    <strong>1. Distances.</strong> k-nearest neighbours, k-means and anything using Euclidean distance add squared
-    differences across features. Take three customers with (age, income): A = (30, 50,000), B = (31, 51,000),
+    <strong>1. Distances.</strong> <Term id="knn">k-nearest neighbours</Term>, <Term id="k-means">k-means</Term> (both
+    week 4) and anything using Euclidean distance add squared differences across features. Take three customers with (age, income): A = (30, 50,000), B = (31, 51,000),
     C = (60, 50,100). Unscaled, <Math tex="d(A, B) = \sqrt{1^2 + 1000^2} \approx 1000" /> and
     <Math tex="d(A, C) = \sqrt{30^2 + 100^2} \approx 104" />. The model says C, thirty years older, is ten times
     closer to A than B is. Income’s large numbers swamped age. Standardize both (say age has a spread of 10 years and
@@ -256,8 +258,9 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
     <strong>2. Gradient descent.</strong> With features of very different scales the loss surface is a long, narrow
     valley rather than a round bowl. The gradient points mostly across the valley, not along it, so a learning rate
     small enough not to overshoot the steep direction makes almost no progress along the flat one. Fig. 1 shows the
-    zigzag. Scaling makes the bowl round, and the same learning rate works for every parameter. This is why neural
-    networks normalize their inputs and, inside, their activations.
+    zigzag. Scaling makes the bowl round, and the same learning rate works for every parameter. This is why
+    <Term id="neural-network">neural networks</Term> normalize their inputs and, inside, the numbers flowing between
+    their layers.
   </p>
   <Figure n={1} caption="Loss contours for two weights. Left: unscaled features give an elongated valley, and gradient descent zigzags across it. Right: scaled features give a round bowl, and the same steps go straight to the minimum.">
     <svg viewBox="0 0 740 280" role="img" aria-label="Two contour plots: elongated ellipses with a zigzag descent path, and concentric circles with a direct descent path">
@@ -278,8 +281,9 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
     </svg>
   </Figure>
   <p>
-    <strong>3. Regularization and interpretation.</strong> L1 and L2 penalties (week 3) charge for the size of each
-    weight, equally. A feature measured in millimetres needs a weight a thousand times smaller than the same feature
+    <strong>3. Penalties and interpretation.</strong> In week 3 you will add a penalty to the loss for big weights
+    (<Term id="regularization">regularization</Term>), using the L1 or L2 norm from the norms note. Such a penalty
+    charges for the size of each weight, equally. A feature measured in millimetres needs a weight a thousand times smaller than the same feature
     in metres to have the same effect, so the penalty hits them differently for no reason. Scaling makes the penalty
     fair. The same scaling makes coefficients comparable, as the <a href="/notes/ml/linear-regression/#interpret">linear
     regression note</a> showed.
@@ -291,12 +295,12 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
         <tr><th>Model family</th><th>Needs scaling?</th><th>Why</th></tr>
       </thead>
       <tbody>
-        <tr><td>kNN, k-means, SVM, PCA</td><td><strong>Yes</strong>, essential</td><td>Built on distances or variances; the biggest-numbered feature dominates.</td></tr>
-        <tr><td>Linear and logistic regression with gradient descent</td><td><strong>Yes</strong></td><td>Convergence speed; also needed for fair regularization and comparable coefficients.</td></tr>
+        <tr><td><Term id="knn">kNN</Term>, <Term id="k-means">k-means</Term>, SVM, <Term id="pca">PCA</Term> (all week 4)</td><td><strong>Yes</strong>, essential</td><td>Built on distances or spreads; the biggest-numbered feature dominates.</td></tr>
+        <tr><td>Linear and logistic regression with gradient descent</td><td><strong>Yes</strong></td><td>Convergence speed; also needed for fair penalties and comparable coefficients.</td></tr>
         <tr><td>Linear regression by the normal equation, no penalty</td><td>Not for the fit</td><td>The exact solution is the same in any units; only the coefficients’ numbers change.</td></tr>
-        <tr><td>Neural networks</td><td><strong>Yes</strong></td><td>Gradient descent, plus activations and initialization assume inputs of roughly unit scale.</td></tr>
-        <tr><td>Decision trees, random forests, gradient boosting</td><td><strong>No</strong></td><td>A split asks “is <Math tex="x > t" />?”. Any monotone rescaling of <Math tex="x" /> gives the same splits in the same order.</td></tr>
-        <tr><td>Naive Bayes</td><td>No</td><td>Each feature is modelled separately with its own distribution.</td></tr>
+        <tr><td><Term id="neural-network">Neural networks</Term> (week 5)</td><td><strong>Yes</strong></td><td>Gradient descent, plus their starting weights assume inputs of roughly unit scale.</td></tr>
+        <tr><td>Decision trees, random forests, gradient boosting (week 4)</td><td><strong>No</strong></td><td>A split asks “is <Math tex="x > t" />?”. Any monotone rescaling of <Math tex="x" /> gives the same splits in the same order.</td></tr>
+        <tr><td>Naive Bayes (week 4)</td><td>No</td><td>Each feature is modelled separately with its own distribution.</td></tr>
       </tbody>
     </table>
   </div>
@@ -309,8 +313,9 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
   <Callout kind="say">
     <p>
       “Feature scaling matters for three reasons: distance-based models weight features by their numeric range,
-      gradient descent converges far faster on a well-conditioned loss surface, and regularization penalizes weights
-      in a unit-dependent way. Tree-based models are invariant to monotone rescaling and do not need it.”
+      gradient descent converges far faster on a well-conditioned loss surface, and weight penalties
+      (regularization) act in a unit-dependent way. Tree-based models are invariant to monotone rescaling and do not
+      need it.”
     </p>
   </Callout>
 
@@ -350,9 +355,9 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
   <Math block tex="z = \frac{x - \mu}{\sigma} \qquad 20 \mapsto \frac{20 - 40}{14.1} = -1.41,\quad 40 \mapsto 0,\quad 60 \mapsto 1.41" />
   <p>
     The result has mean 0 and standard deviation 1, whatever the original units. Values are not bounded: an outlier
-    at 200 would become 11.3. It is the default for linear models, logistic regression, SVMs, PCA and neural network
-    inputs, because those methods assume roughly zero-centred, unit-spread inputs and because it preserves outliers
-    as outliers.
+    at 200 would become 11.3. It is the default for linear models and for the inputs of the week-4 and week-5 models
+    (SVMs, PCA, neural networks), because those methods assume roughly zero-centred, unit-spread inputs and because
+    it preserves outliers as outliers.
   </p>
   <p>
     <strong>Min-max scaling.</strong> Map the smallest value to 0 and the largest to 1:
@@ -400,7 +405,7 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
         <tr><th>Method</th><th>Result</th><th>Outliers</th><th>Reach for it when</th></tr>
       </thead>
       <tbody>
-        <tr><td>Standardization</td><td>mean 0, std 1, unbounded</td><td>kept as large values; they do distort <Math tex="\mu" /> and <Math tex="\sigma" /></td><td>Default for linear models, SVM, PCA, neural nets</td></tr>
+        <tr><td>Standardization</td><td>mean 0, std 1, unbounded</td><td>kept as large values; they do distort <Math tex="\mu" /> and <Math tex="\sigma" /></td><td>Default for linear models and for SVM, PCA and neural nets later</td></tr>
         <tr><td>Min-max</td><td>exactly [0, 1]</td><td>crush everything else</td><td>Bounded inputs needed; no outliers; images</td></tr>
         <tr><td>Robust</td><td>median 0, IQR 1, unbounded</td><td>ignored when computing the scale</td><td>Heavy tails you want to keep</td></tr>
         <tr><td>Log</td><td>compressed tail</td><td>pulled towards the bulk</td><td>Positive, skewed, multiplicative quantities; usually followed by standardization</td></tr>
@@ -622,9 +627,10 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
     <strong>Embeddings.</strong> Give each category a learned vector of, say, 8 or 32 numbers, stored in a lookup
     table of shape <Math tex="(\text{categories} \times \text{dimension})" />, and train the table along with the
     model. Categories that behave similarly end up with similar vectors, so the model generalizes across them; rare
-    categories borrow strength from their neighbours. This is a one-hot encoding followed by a linear layer, learned
-    end to end (a one-hot row times the table picks out one row, as the <a href="/notes/math/matrices-and-shapes/#llm">matrices
-    note</a> observed). It needs a neural network and enough data, and it is the native way deep models handle
+    categories borrow strength from their neighbours. This is a one-hot encoding followed by a weight matrix, learned
+    end to end (a one-hot row times the table picks out one row, as the
+    <a href="/notes/math/matrices-and-shapes/#later">matrices note</a> observed). It needs a
+    <Term id="neural-network">neural network</Term> and enough data, and it is the native way deep models handle
     categories: user IDs in recommenders, and tokens in language models.
   </p>
   <div class="table-wrap">
@@ -636,7 +642,7 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
         <tr><td>One-hot</td><td><Math tex="k" /> (or <Math tex="k-1" />)</td><td>With a flag, as all zeros</td><td>Width and sparsity when <Math tex="k" /> is large</td><td><Math tex="k" /> up to a few dozen</td></tr>
         <tr><td>Target encoding</td><td>1</td><td>Falls back to the global mean</td><td>Leakage; needs out-of-fold computation and smoothing</td><td>Large <Math tex="k" />, tree models, tabular competitions</td></tr>
         <tr><td>Hashing</td><td>fixed <Math tex="B" /></td><td>Yes, by construction</td><td>Collisions; no interpretability</td><td>Huge or open-ended vocabularies, streaming</td></tr>
-        <tr><td>Embedding</td><td>chosen dimension <Math tex="d" /></td><td>Needs an “unknown” row</td><td>Needs data and a neural model</td><td>Deep models; IDs, tokens</td></tr>
+        <tr><td>Embedding</td><td>chosen dimension <Math tex="d" /></td><td>Needs an “unknown” row</td><td>Needs data and a neural network</td><td>Deep models; IDs, tokens</td></tr>
       </tbody>
     </table>
   </div>
@@ -649,8 +655,8 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
   <Callout kind="say">
     <p>
       “For high-cardinality categoricals I avoid wide one-hot matrices: target encoding computed out-of-fold with
-      smoothing, feature hashing into a fixed number of buckets, or a learned embedding table in a neural model. The
-      leakage risk of target encoding is the thing to call out.”
+      smoothing, feature hashing into a fixed number of buckets, or a learned embedding table in a neural network.
+      The leakage risk of target encoding is the thing to call out.”
     </p>
   </Callout>
 
@@ -669,7 +675,7 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
     <Math tex="\log y" /> turns multiplicative errors into additive ones: a 10% miss costs the same on a cheap house
     as on an expensive one, instead of the expensive house dominating the loss. Predict, then apply <Math tex="e^{(\cdot)}" />
     to get back to the original units, and compute your reported metric in those units. Standardizing the target is
-    also common for neural networks so the output layer starts at a sensible scale. For classification, the labels
+    also common for neural networks so their last step starts at a sensible scale. For classification, the labels
     are categories and are not scaled; they are integer-coded, and the loss handles the rest.
   </p>
   <p>
@@ -712,33 +718,44 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
     title="Kaggle Learn: Feature Engineering"
     meta="Short hands-on lessons on target encoding, creating features and mutual information. Do it during the week-4 case study rather than now."
   />
+  <Callout kind="note" label="Reading the code">
+    <p>
+      Every <code>np.</code> call is a link to the <a href="/numpy/">NumPy reference</a>; the scikit-learn objects
+      (<code>StandardScaler</code>, <code>OneHotEncoder</code>, <code>Pipeline</code>) are linked to their own
+      documentation in the sources above.
+    </p>
+  </Callout>
 
-  <h2 id="llm">Where this lives in an LLM</h2>
+  <h2 id="later">Where you will meet this again</h2>
+  <Callout kind="note" label="Optional preview">
+    <p>A look ahead; unfamiliar words link to the glossary. Skip on a first read.</p>
+  </Callout>
   <ul>
     <li>
-      <strong>Tokens are categories, and embeddings are their encoding.</strong> A vocabulary of 50,257 tokens is a
-      nominal feature with 50,257 values. One-hot would be absurd; the model instead keeps an embedding table of
-      shape <Math tex="50{,}257 \times 768" /> and looks up one row per token. That table is the learned version of
-      the encoding in the high-cardinality section, and mathematically it is one-hot followed by a linear layer.
+      <strong>Week 3, penalties.</strong> Ridge and Lasso (<Term id="regularization">regularization</Term>) only make
+      sense on standardized features, for reason 3 above.
     </li>
     <li>
-      <strong>Unknown tokens.</strong> Early models had an explicit “unknown” category; byte-pair encoding (week 7)
-      removes the problem by guaranteeing every string can be split into known pieces. It is the
-      <code>handle_unknown</code> problem solved at the tokenizer level.
+      <strong>Week 4, distance-based models.</strong> <Term id="knn">kNN</Term>, <Term id="k-means">k-means</Term> and
+      <Term id="pca">PCA</Term> all break on unscaled features; trees do not care. The week-4 case study in Project 0
+      uses the Pipeline pattern from the code section end to end.
     </li>
     <li>
-      <strong>Scaling inside the network.</strong> LayerNorm and RMSNorm (week 6) standardize each activation vector
-      on the fly, for the gradient-descent reason in Fig. 1: a well-conditioned loss surface trains faster and
-      tolerates a larger learning rate. Weight initialization schemes exist for the same reason.
+      <strong>Week 6, scaling inside a network.</strong> <Term id="batchnorm">LayerNorm</Term> and its relatives
+      standardize the numbers flowing between layers on the fly, for the Fig. 1 reason: a round bowl trains faster
+      and tolerates a larger learning rate. Weight initialization schemes exist for the same reason.
     </li>
     <li>
-      <strong>Input normalization for other modalities.</strong> Vision models scale pixel values to [0, 1] or
-      standardize per channel with fixed dataset means; audio models log-scale their spectrograms. The log transform
-      of Fig. 3 is everywhere in signal processing.
+      <strong>Week 7, tokens as categories.</strong> A language model’s vocabulary of 50,257 <Term id="token">tokens</Term>
+      is a nominal feature with 50,257 values. One-hot would be absurd; the model keeps an
+      <Term id="embedding">embedding</Term> table of shape <Math tex="50{,}257 \times 768" /> and looks up one row
+      per token. That table is the learned encoding from the high-cardinality section. The “unknown category”
+      problem is solved at the tokenizer level by byte-pair encoding, which guarantees every string can be split into
+      known pieces.
     </li>
     <li>
-      <strong>Positional information</strong> is a cyclic-style encoding: the sinusoidal positional encodings of the
-      original transformer use sines and cosines of position, the same trick as encoding hour-of-day on a circle.
+      <strong>Week 7, positions on a circle.</strong> The original transformer told the model where each word sits
+      using sines and cosines of the position, the same trick as encoding hour-of-day on a circle.
     </li>
   </ul>
 
@@ -751,7 +768,7 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
     <p>
       “For numeric features I scale, because distance-based models and gradient descent are sensitive to units: an
       unscaled feature with large values dominates Euclidean distances and makes the loss surface ill-conditioned so
-      gradient descent zigzags, and regularization penalizes weights in a unit-dependent way. I standardize by
+      gradient descent zigzags, and weight penalties act in a unit-dependent way. I standardize by
       default, use min-max when I need a bounded range and there are no outliers, robust scaling for heavy tails, and
       a log transform for positive skewed quantities. Tree-based models do not need scaling since splits are invariant
       to monotone transforms.
@@ -761,7 +778,7 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
       an independent effect; with an intercept I drop one column to avoid the dummy variable trap, and I set the
       encoder to handle unseen categories. Ordinal categories get integer codes in their natural order. For
       high-cardinality features I use out-of-fold target encoding with smoothing, hashing, or learned embeddings in a
-      neural model, and I am careful about leakage with target encoding.
+      neural network, and I am careful about leakage with target encoding.
     </p>
     <p>
       All of these transformations learn statistics, so they are fitted on the training split only and applied
@@ -776,13 +793,13 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
     <li>“Why not label-encode cities for a random forest?” It imposes an arbitrary order; trees can partially undo it with multiple splits but it is still worse than one-hot or native categorical handling for most libraries.</li>
     <li>“What goes wrong with target encoding and how do you fix it?” The row’s own label leaks into its feature; compute out-of-fold and smooth towards the global mean.</li>
     <li>“A test row has a category never seen in training.” Encoder configured to ignore (all zeros) or map to an “other” bucket; for embeddings, a reserved unknown row.</li>
-    <li>“What is an embedding, in these terms?” A learned, dense encoding of a categorical variable: one-hot followed by a linear layer, trained end to end.</li>
+    <li>“What is an embedding, in these terms?” A learned, dense encoding of a categorical variable: one-hot followed by a weight matrix, trained end to end.</li>
   </ul>
 
   <h2 id="questions">Practice questions</h2>
   <p>Answer each one out loud before opening it.</p>
   <QA q="Give the three reasons feature scaling matters, with one model affected by each.">
-    <p>Distances (kNN, k-means, SVM, PCA): the largest-range feature dominates. Gradient descent (linear/logistic regression, neural nets): ill-conditioned loss surface, slow zigzag. Regularization (ridge, lasso): penalties are unit-dependent.</p>
+    <p>Distances (kNN, k-means, SVM, PCA): the largest-range feature dominates. Gradient descent (linear/logistic regression, neural nets): a long narrow valley, slow zigzag. Weight penalties (ridge, lasso, week 3): unit-dependent.</p>
   </QA>
   <QA q="Which common models do not need feature scaling, and why?">
     <p>Decision trees, random forests, gradient boosting, Naive Bayes. Tree splits compare a feature with a threshold, which is unchanged by any monotone rescaling; Naive Bayes models each feature separately.</p>
@@ -809,7 +826,7 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
     <p>Replace each category with the mean target among training rows of that category. Danger: leakage, since a row’s own label enters its feature, especially for rare categories. Fix: out-of-fold encoding and smoothing towards the global mean.</p>
   </QA>
   <QA q="What is an embedding, and how is it related to one-hot encoding?">
-    <p>A learned dense vector per category stored in a lookup table. Mathematically it is a one-hot vector multiplied by the table, that is, one-hot encoding followed by a linear layer, trained end to end.</p>
+    <p>A learned dense vector per category stored in a lookup table. Mathematically it is a one-hot vector multiplied by the table, that is, one-hot encoding followed by a weight matrix, trained end to end.</p>
   </QA>
   <QA q="Does standardizing features change the predictions of ordinary least squares? Of ridge regression?">
     <p>OLS by the normal equation: no, predictions are identical and coefficients rescale. Ridge: yes, because the L2 penalty depends on the weights’ scale, so different features are shrunk differently depending on their units.</p>
@@ -1050,14 +1067,14 @@ print("scaler inside pipeline:", clean.round(2), clean.mean().round(3))
   <h2 id="revision">One-minute revision</h2>
   <Callout kind="revision">
     <ul>
-      <li>Scale because of distances (kNN, k-means, SVM, PCA), gradient descent conditioning (linear/logistic, nets) and regularization fairness. Trees do not care.</li>
+      <li>Scale because of distances (kNN, k-means, SVM, PCA), gradient descent conditioning (linear/logistic, nets) and fair weight penalties. Trees do not care.</li>
       <li>Standardize <Math tex="(x-\mu)/\sigma" /> by default; min-max for bounded, outlier-free data; robust (median, IQR) for heavy tails; <Math tex="\log(1+x)" /> for positive skew.</li>
       <li>Fit on train only; transform val, test and production with frozen statistics. Pipeline + ColumnTransformer. Fitting before splitting is leakage.</li>
       <li>Nominal → one-hot (drop one with an intercept: dummy trap; <code>handle_unknown</code> for new values). Ordinal → ordered integers. Never integer-code nominal data for linear models.</li>
-      <li>Many categories: out-of-fold smoothed target encoding (leakage risk), hashing, or embeddings (= one-hot + linear layer).</li>
+      <li>Many categories: out-of-fold smoothed target encoding (leakage risk), hashing, or embeddings (= one-hot + weight matrix).</li>
       <li>Cyclic features: sin and cos. Binary: one 0/1 column.</li>
       <li>Skewed positive target: model <Math tex="\log y" />, invert for reporting. Missing values: impute with training statistics, add an indicator; boosted trees handle NaN natively.</li>
-      <li>LLM link: tokens are a 50k-way categorical, the embedding table is their learned encoding; LayerNorm is scaling inside the network.</li>
+      <li>Later: tokens are a 50k-way categorical and the embedding table is their learned encoding; LayerNorm (week 6) is scaling inside the network.</li>
     </ul>
   </Callout>
 </Note>

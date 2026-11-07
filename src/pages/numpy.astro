@@ -1,0 +1,97 @@
+---
+import Base from '../layouts/Base.astro';
+import CodeBlock from '../components/CodeBlock.astro';
+import Callout from '../components/Callout.astro';
+import { numpyGroups, numpyEntries } from '../data/numpy';
+
+const entriesOf = (groupId: string) => numpyEntries.filter((e) => e.group === groupId);
+---
+
+<Base title="NumPy reference" description="Every NumPy function the notes use, explained in plain words with a runnable example, its real output, the mistakes people make, and the one line to say in an interview.">
+  <div class="note-layout">
+    <article class="prose">
+      <p class="eyebrow">Reference · {numpyEntries.length} entries</p>
+      <h1>NumPy, as the notes use it</h1>
+      <p class="lede">
+        Every NumPy function that appears in a code block anywhere on this site has an entry here. Click any
+        <code>np.</code> call inside a code block and you land on it. Each entry says what the function does in plain
+        words, shows a short example with its real output, lists the mistakes people make with it, and gives one
+        sentence you could say about it in an interview.
+      </p>
+
+      <Callout kind="plain" label="Five ideas that explain all of NumPy">
+        <p>
+          <strong>1. One grid, one type.</strong> An array is a grid of numbers that are all the same type. That is what
+          makes it fast: NumPy can run through the grid in C without checking each number.
+        </p>
+        <p>
+          <strong>2. Operations apply to the whole grid.</strong> <code>x * 2</code> doubles every number, with no loop.
+          Any time you write a Python <code>for</code> loop over an array, there is probably a one-line NumPy way.
+        </p>
+        <p>
+          <strong>3. Shape is everything.</strong> Every array has a shape, such as <code>(3,)</code> for three numbers
+          or <code>(100, 5)</code> for 100 rows of 5 features. Most bugs are two arrays whose shapes do not line up.
+        </p>
+        <p>
+          <strong>4. Broadcasting stretches small arrays to fit.</strong> A single number against an array, or a row of
+          feature means against a whole table, works without copying, because NumPy stretches length-1 axes.
+        </p>
+        <p>
+          <strong>5. axis says which direction to collapse.</strong> <code>axis=0</code> runs down the rows and gives
+          one answer per column; <code>axis=1</code> runs across each row. It is the most asked NumPy question in
+          interviews.
+        </p>
+      </Callout>
+
+      <div class="ref-toc">
+        {numpyGroups.map((g) => (
+          <section>
+            <strong><a href={`#g-${g.id}`}>{g.title}</a></strong>
+            <p>{entriesOf(g.id).map((e, i) => <><a href={`#${e.id}`}><code>{e.name}</code></a>{i < entriesOf(g.id).length - 1 ? ' · ' : ''}</>)}</p>
+          </section>
+        ))}
+      </div>
+
+      {numpyGroups.map((g) => (
+        <section class="ref-group" id={`g-${g.id}`}>
+          <h2>{g.title}</h2>
+          <p>{g.intro}</p>
+          {entriesOf(g.id).map((e) => (
+            <article class="ref-entry" id={e.id}>
+              <h3><a href={`#${e.id}`} class="ref-anchor" aria-label="Link to this entry">§</a> <code>{e.name}</code></h3>
+              <p class="ref-plain">{e.plain}</p>
+              <p class="ref-sig"><span>Call it as</span> <code>{e.sig}</code></p>
+              <CodeBlock code={e.code} />
+              <pre class="ref-output"><span class="ref-output-label">output</span>{e.output}</pre>
+              {e.pitfalls.length > 0 && (
+                <div class="ref-pitfalls">
+                  <strong>Watch out</strong>
+                  <ul>{e.pitfalls.map((p) => <li>{p}</li>)}</ul>
+                </div>
+              )}
+              <Callout kind="say">
+                <p>{e.interview}</p>
+              </Callout>
+              <p class="ref-doc"><a href={e.doc} target="_blank" rel="noopener noreferrer">Official documentation ↗</a></p>
+            </article>
+          ))}
+        </section>
+      ))}
+
+      <h2 id="practice">Practice</h2>
+      <p>
+        The fastest way to make this stick is to type each example yourself and change one thing. Then do the
+        NumPy problems on <a href="https://www.deep-ml.com/" target="_blank" rel="noopener noreferrer">Deep-ML</a>
+        (they are small functions, each one a NumPy exercise) and the
+        <a href="https://numpy.org/doc/stable/user/absolute_beginners.html" target="_blank" rel="noopener noreferrer">official beginner guide</a>,
+        which is short and covers the same ideas in the same order.
+      </p>
+    </article>
+
+    <aside class="note-toc" aria-label="On this page">
+      <strong>On this page</strong>
+      {numpyGroups.map((g) => <a href={`#g-${g.id}`}>{g.title}</a>)}
+      <a href="#practice">Practice</a>
+    </aside>
+  </div>
+</Base>

@@ -1,0 +1,66 @@
+---
+import Base from '../layouts/Base.astro';
+import Callout from '../components/Callout.astro';
+import { glossary } from '../data/glossary';
+import { tracks } from '../data/roadmap';
+
+const sorted = [...glossary].sort((a, b) => a.term.localeCompare(b.term));
+const noteOf = (path?: string) => {
+  if (!path) return undefined;
+  const [trackId, slug] = path.split('/');
+  const track = tracks.find((t) => t.id === trackId);
+  const note = track?.notes.find((n) => n.slug === slug);
+  return track && note ? { track, note, href: `/notes/${track.id}/${note.slug}/` } : undefined;
+};
+const letters = Array.from(new Set(sorted.map((g) => g.term[0].toUpperCase())));
+---
+
+<Base title="Glossary" description="Every technical word used in the notes, in one plain sentence each, with a link to the note that teaches it properly.">
+  <div class="note-layout">
+    <article class="prose">
+      <p class="eyebrow">Reference · {glossary.length} words</p>
+      <h1>Glossary</h1>
+      <p class="lede">
+        Every technical word in the notes, in one plain sentence. When a note has to use a word before the note that
+        teaches it, the word is underlined with a dotted line and a small question mark; hover over it to see the
+        sentence below, or click it to come here.
+      </p>
+      <Callout kind="note" label="How to use this page">
+        <p>
+          Do not try to memorise it. Read the notes in roadmap order and you will meet every word here at the point
+          where it is properly explained, with pictures and worked numbers. This page is for the moment when a word
+          shows up early and you want just enough meaning to keep reading.
+        </p>
+      </Callout>
+
+      <p class="glossary-letters">{letters.map((l) => <a href={`#letter-${l}`}>{l}</a>)}</p>
+
+      <dl class="glossary">
+        {sorted.map((g, i) => {
+          const taught = noteOf(g.note);
+          const first = i === 0 || sorted[i - 1].term[0].toUpperCase() !== g.term[0].toUpperCase();
+          return (
+            <>
+              {first && <dt class="glossary-letter" id={`letter-${g.term[0].toUpperCase()}`}>{g.term[0].toUpperCase()}</dt>}
+              <dt id={g.id}><span class="term">{g.term}</span></dt>
+              <dd>
+                {g.plain}{' '}
+                {taught && taught.note.ready && (
+                  <small>Taught in <a href={taught.href}>{taught.note.title}</a> (week {taught.note.week}).</small>
+                )}
+                {taught && !taught.note.ready && (
+                  <small>Taught properly in week {taught.note.week}, in the {taught.track.short} note “{taught.note.title}”.</small>
+                )}
+              </dd>
+            </>
+          );
+        })}
+      </dl>
+    </article>
+
+    <aside class="note-toc" aria-label="On this page">
+      <strong>Jump to</strong>
+      {letters.map((l) => <a href={`#letter-${l}`}>{l}</a>)}
+    </aside>
+  </div>
+</Base>

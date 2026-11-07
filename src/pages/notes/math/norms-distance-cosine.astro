@@ -6,6 +6,7 @@ import QA from '../../../components/QA.astro';
 import Figure from '../../../components/Figure.astro';
 import Math from '../../../components/Math.astro';
 import Source from '../../../components/Source.astro';
+import Term from '../../../components/Term.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -18,7 +19,7 @@ const sections = [
   { id: 'normalize', label: 'Normalizing: three things with one name' },
   { id: 'high-dim', label: 'What changes in 768 dimensions' },
   { id: 'code', label: 'Code' },
-  { id: 'llm', label: 'Where this lives in an LLM' },
+  { id: 'later', label: 'Where you will meet this again' },
   { id: 'interview', label: 'The full interview answer' },
   { id: 'questions', label: 'Practice questions' },
   { id: 'practice', label: 'Practice problems' },
@@ -109,24 +110,22 @@ qn = q / np.linalg.norm(q)
 print(np.argsort(-(Dn @ qn)), np.argsort(np.linalg.norm(Dn - qn, axis=1)))   # same order`;
 
 const libraryCode = `import numpy as np
-import torch
-import torch.nn.functional as F
-from sklearn.metrics.pairwise import cosine_similarity
 
-E = np.random.default_rng(0).normal(size=(5, 8))      # five "embeddings"
+E = np.random.default_rng(0).normal(size=(5, 8))      # five "embeddings", one per row
 
-S = cosine_similarity(E)                              # (5, 5): every pair, scikit-learn
-En = F.normalize(torch.tensor(E), dim=1)              # unit vectors, PyTorch
-S2 = (En @ En.T).numpy()                              # cosine = dot product of unit vectors
-assert np.allclose(S, S2)
+# Every pairwise cosine similarity in two lines: normalize the rows, then one matrix product.
+En = E / np.linalg.norm(E, axis=1, keepdims=True)     # (5, 8) / (5, 1): each row now has length 1
+S = En @ En.T                                         # (5, 5): cosine = dot product of unit vectors
+print(np.round(S, 2))
+print(np.allclose(np.diag(S), 1.0))                   # every vector has cosine 1 with itself
 
-# Gradient clipping by global norm: the single most common use of a norm in training code.
-params = [torch.nn.Parameter(torch.randn(3, 3)) for _ in range(2)]
-for p in params:
-    p.grad = torch.randn(3, 3) * 10                   # pretend we just ran backward()
-total = torch.nn.utils.clip_grad_norm_(params, max_norm=1.0)
-print(float(total))                                   # the norm before clipping (large)
-print(float(torch.sqrt(sum((p.grad ** 2).sum() for p in params))))   # 1.0 after clipping`;
+# Capping the length of a vector: "if it is longer than 1, shrink it to length 1, keep its direction".
+v = np.array([3.0, 4.0, 12.0])                        # length 13
+cap = 1.0
+scale = min(1.0, cap / np.linalg.norm(v))
+v_capped = v * scale
+print(v_capped, np.linalg.norm(v_capped))             # [0.231 0.308 0.923] 1.0
+# Training code does exactly this to the update step every iteration; week 6 calls it gradient clipping.`;
 
 const concentrationCode = `import numpy as np
 
@@ -147,24 +146,27 @@ for d in [3, 30, 300, 768]:
 <Note
   track="math"
   slug="norms-distance-cosine"
-  lede="A norm measures how big a vector is, a distance measures how far apart two vectors are, and cosine similarity measures only whether they point the same way. The three answer different questions, and choosing the wrong one is the most common mistake in similarity search. This note gives you the pictures, the numbers and the rule for choosing."
+  lede="A norm measures how big a vector is, a distance measures how far apart two vectors are, and cosine similarity measures only whether they point the same way. The three answer different questions, and choosing the wrong one is the most common mistake in “find me similar things” systems. This note gives you the pictures, the numbers and the rule for choosing."
   sections={sections}
 >
   <h2 id="why">Why this note matters</h2>
   <p>
-    Every system that searches by meaning, from RAG to recommendations, ends with one line of code that compares two
-    vectors, and that line uses either a dot product, a cosine similarity or a Euclidean distance. They rank results
-    differently. Picking one without knowing why is how people ship retrieval that returns long documents instead of
-    relevant ones. Norms also hide inside training: weight decay is a norm penalty, gradient clipping caps a norm, and
-    LayerNorm and RMSNorm literally divide by one.
+    The vectors note ended with word vectors: lists of numbers where similar words get similar lists. The obvious next
+    question is “how do I measure <em>how</em> similar?”, and there are three honest answers: how big the dot product
+    is, how far apart the two points are, and whether the two arrows point the same way. They rank things differently.
+    Every system that searches by meaning, from “find documents like this question” to recommendations, ends with one
+    line of code that picks one of the three, and picking without knowing why is how people ship search that returns
+    long documents instead of relevant ones. Tomorrow’s <a href="/notes/ml/feature-scaling-encoding/">feature scaling
+    note</a> needs the distance half of this, and “how big is this vector?” comes back in week 3 as a way to keep a
+    model’s weights small.
   </p>
   <p>Interview questions that are really this note:</p>
   <ul>
-    <li>“Cosine similarity or dot product for embeddings? When would they rank differently?”</li>
-    <li>“What is the difference between L1 and L2 regularization, and why does L1 produce zeros?”</li>
-    <li>“Why do we normalize embeddings before storing them in a vector database?”</li>
-    <li>“What does gradient clipping do, exactly?”</li>
+    <li>“Cosine similarity or dot product for <Term id="embedding">embeddings</Term>? When would they rank differently?”</li>
+    <li>“Why do we normalize embeddings before storing them for search?”</li>
     <li>“Is a cosine similarity of 0.3 high or low?”</li>
+    <li>“What is the difference between L1 and L2 <Term id="regularization">regularization</Term>, and why does L1 produce zeros?” (Week 3; the picture is here.)</li>
+    <li>“What does <Term id="gradient-clipping">gradient clipping</Term> do, exactly?” (Week 6; the arithmetic is here.)</li>
   </ul>
   <Callout kind="note" label="The scope rule">
     <p>
@@ -206,8 +208,8 @@ for d in [3, 30, 300, 768]:
         <tr><td>Straight-line gap between two tips</td><td><span class="term">Euclidean distance</span></td><td><Math tex="\lVert\mathbf{a}-\mathbf{b}\rVert" /></td></tr>
         <tr><td>Gap walking along the grid</td><td><span class="term">Manhattan distance</span></td><td><Math tex="\lVert\mathbf{a}-\mathbf{b}\rVert_1" /></td></tr>
         <tr><td>Same direction, length ignored</td><td><span class="term">cosine similarity</span></td><td><Math tex="\cos\theta = \dfrac{\mathbf{a}\cdot\mathbf{b}}{\lVert\mathbf{a}\rVert\lVert\mathbf{b}\rVert}" /></td></tr>
-        <tr><td>Shrink or stretch to length 1</td><td><span class="term">L2-normalize</span></td><td><Math tex="\mathbf{a}/\lVert\mathbf{a}\rVert" />; <code>F.normalize</code></td></tr>
-        <tr><td>Cap how big a step can be</td><td><span class="term">gradient clipping</span></td><td><code>clip_grad_norm_</code></td></tr>
+        <tr><td>Shrink or stretch to length 1</td><td><span class="term">L2-normalize</span></td><td><Math tex="\mathbf{a}/\lVert\mathbf{a}\rVert" />; <code>a / np.linalg.norm(a)</code></td></tr>
+        <tr><td>Cap how long a vector may be</td><td>clipping by norm</td><td><code>a * min(1, c / norm(a))</code></td></tr>
       </tbody>
     </table>
   </div>
@@ -232,19 +234,18 @@ for d in [3, 30, 300, 768]:
     <li><strong>Never negative, and zero only for the zero vector.</strong> Squares cannot be negative, and the sum is zero only when every entry is.</li>
     <li><strong>Scaling.</strong> <Math tex="\lVert c\,\mathbf{a}\rVert = |c|\,\lVert\mathbf{a}\rVert" />. Doubling the arrow doubles its length; flipping it leaves the length alone.</li>
     <li><strong>Triangle inequality.</strong> <Math tex="\lVert\mathbf{a} + \mathbf{b}\rVert \le \lVert\mathbf{a}\rVert + \lVert\mathbf{b}\rVert" />. Walking two arrows tip to tail is never shorter than the straight line.</li>
-    <li><strong>The squared norm is a dot product.</strong> <Math tex="\lVert\mathbf{a}\rVert^2 = \mathbf{a}\cdot\mathbf{a}" />. This is why L2 penalties and MSE are so easy to differentiate: the derivative of <Math tex="\mathbf{a}\cdot\mathbf{a}" /> with respect to <Math tex="\mathbf{a}" /> is simply <Math tex="2\mathbf{a}" />.</li>
+    <li><strong>The squared norm is a dot product.</strong> <Math tex="\lVert\mathbf{a}\rVert^2 = \mathbf{a}\cdot\mathbf{a}" />, a sum of squares with no square root. Mean squared error is one of these: the squared length of the vector of errors, divided by the count. Sums of squares have very simple slopes (week 2), which is why so many losses and penalties are built from them.</li>
   </ul>
   <p>
-    The norm of a weight vector is “how big the weights are”. The norm of a gradient is “how big a step training is
-    about to take”. Both get controlled directly: weight decay pushes the first down; gradient clipping caps the
-    second.
+    The norm of a model’s weight vector is “how big the weights are”. The norm of the step that training is about to
+    take is “how big a step”. Both get controlled directly later on: week 3 adds a penalty on the first to fight
+    <Term id="overfitting">overfitting</Term>; week 6 caps the second so that one bad batch cannot throw training off.
   </p>
   <Callout kind="say">
     <p>
       “The L2 norm is the square root of the sum of squares, equivalently the square root of the vector’s dot product
-      with itself. It is non-negative, scales linearly, and satisfies the triangle inequality. Its square is
-      differentiable with gradient <Math tex="2\mathbf{a}" />, which is why L2 regularization and squared error are
-      convenient.”
+      with itself. It is non-negative, scales linearly, and satisfies the triangle inequality. Its square is a plain
+      sum of squares, which is why squared error and L2 penalties are so convenient to work with.”
     </p>
   </Callout>
 
@@ -286,9 +287,9 @@ for d in [3, 30, 300, 768]:
         <tr><th>Norm</th><th>Formula</th><th>For (3, −4)</th><th>Picture of “size 1”</th><th>Where it appears</th></tr>
       </thead>
       <tbody>
-        <tr><td>L1</td><td><Math tex="\sum_i |a_i|" /></td><td>3 + 4 = 7</td><td>diamond</td><td>L1 regularization (Lasso), mean absolute error, sparsity</td></tr>
-        <tr><td>L2</td><td><Math tex="\sqrt{\sum_i a_i^2}" /></td><td>√25 = 5</td><td>circle</td><td>L2 regularization (weight decay), MSE, gradient clipping, distances, cosine</td></tr>
-        <tr><td>L∞</td><td><Math tex="\max_i |a_i|" /></td><td>4</td><td>square</td><td>“largest change in any weight”, adversarial perturbation budgets</td></tr>
+        <tr><td>L1</td><td><Math tex="\sum_i |a_i|" /></td><td>3 + 4 = 7</td><td>diamond</td><td>mean absolute error (week 2); the L1 penalty that zeroes out weights (week 3)</td></tr>
+        <tr><td>L2</td><td><Math tex="\sqrt{\sum_i a_i^2}" /></td><td>√25 = 5</td><td>circle</td><td>distances, cosine, mean squared error; the L2 penalty on weights (week 3); capping training steps (week 6)</td></tr>
+        <tr><td>L∞</td><td><Math tex="\max_i |a_i|" /></td><td>4</td><td>square</td><td>“the largest change in any single weight”; rarely needed, know the name</td></tr>
       </tbody>
     </table>
   </div>
@@ -297,11 +298,12 @@ for d in [3, 30, 300, 768]:
     <Math tex="\lVert\mathbf{a}\rVert_p = (\sum_i |a_i|^p)^{1/p}" />, with <Math tex="p = 1" />, <Math tex="2" /> and
     <Math tex="\infty" />. Only those three matter here. The important difference between L1 and L2 is visible in
     Fig. 1 and is the answer to a classic interview question. The L1 diamond has <em>corners on the axes</em>, where
-    one coordinate is exactly zero. When a training procedure tries to keep weights small under an L1 penalty, the
-    solution tends to land on a corner, which means some weights become exactly zero and the model becomes
-    <span class="term">sparse</span>. The L2 circle has no corners, so an L2 penalty shrinks all weights towards zero
-    smoothly but rarely makes any of them exactly zero. The <a href="/notes/ml/regularization/">regularization note</a>
-    in week 3 draws the full picture with the loss contours added; the shape of the ball is the half you need now.
+    one coordinate is exactly zero. In week 3 you will add a penalty to the loss that says “keep the weights small”.
+    If “small” is measured with L1, the best weights tend to land on a corner of the diamond, which means some weights
+    become exactly zero and the model becomes <span class="term">sparse</span>: it ignores some features entirely. If
+    “small” is measured with L2, the circle has no corners, so all weights shrink towards zero smoothly but rarely
+    become exactly zero. The <a href="/notes/ml/regularization/">regularization note</a> draws the full picture; the
+    shape of the ball is the half you need now.
   </p>
   <Source
     kind="read"
@@ -312,8 +314,8 @@ for d in [3, 30, 300, 768]:
   <Callout kind="say">
     <p>
       “L1 is the sum of absolute values, L2 the square root of the sum of squares, L∞ the maximum absolute entry.
-      The L1 unit ball is a diamond with corners on the axes, which is why L1 regularization yields sparse weights;
-      the L2 ball is a sphere, so L2 regularization shrinks weights without zeroing them.”
+      The L1 unit ball is a diamond with corners on the axes, which is why an L1 penalty yields sparse weights; the L2
+      ball is a sphere, so an L2 penalty shrinks weights without zeroing them.”
     </p>
   </Callout>
 
@@ -366,13 +368,14 @@ for d in [3, 30, 300, 768]:
   <p>
     So for a fixed pair of lengths, a <em>bigger dot product means a smaller distance</em>. When both vectors have
     length 1 this becomes <Math tex="\lVert\mathbf{a} - \mathbf{b}\rVert^2 = 2 - 2\cos\theta" />, which says that for
-    unit vectors, ranking by Euclidean distance and ranking by cosine similarity give the same order. That fact is
-    used by every vector database.
+    unit vectors, ranking by Euclidean distance and ranking by cosine similarity give the same order. Every system
+    that stores vectors for search relies on that fact.
   </p>
   <p>
-    Euclidean distance is what k-nearest-neighbours and k-means use by default in week 4, and “mean squared error” in
-    week 2 is the squared Euclidean distance between the vector of predictions and the vector of true values, divided
-    by the count.
+    Euclidean distance is what the “copy the answers of the most similar examples” methods of week 4
+    (<Term id="knn">k-nearest neighbours</Term> and <Term id="k-means">k-means</Term>) use by default, and the mean
+    squared error you already know is the squared Euclidean distance between the vector of predictions and the vector
+    of true values, divided by the count.
   </p>
   <Source
     kind="read"
@@ -508,19 +511,20 @@ for d in [3, 30, 300, 768]:
         <tr><th>Measure</th><th>Sensitive to length?</th><th>Use it when</th><th>Typical place</th></tr>
       </thead>
       <tbody>
-        <tr><td>Dot product</td><td>Yes, rewards long vectors</td><td>Length carries meaning you want, such as popularity or confidence, or vectors are already normalized</td><td>Recommendation scores, attention, models trained with a dot-product objective</td></tr>
-        <tr><td>Cosine</td><td>No</td><td>Only direction matters; lengths vary for irrelevant reasons (document length, token count)</td><td>Text embedding search, duplicate detection</td></tr>
-        <tr><td>Euclidean</td><td>Yes, as position</td><td>Vectors are points in a space where absolute position matters, usually after feature scaling</td><td>k-nearest neighbours, k-means, tabular data</td></tr>
+        <tr><td>Dot product</td><td>Yes, rewards long vectors</td><td>Length carries meaning you want, such as popularity or confidence, or vectors are already normalized</td><td>Recommendation scores; <Term id="attention">attention</Term> (week 8); models trained to be compared this way</td></tr>
+        <tr><td>Cosine</td><td>No</td><td>Only direction matters; lengths vary for irrelevant reasons (document length, word count)</td><td>Searching text by meaning, duplicate detection</td></tr>
+        <tr><td>Euclidean</td><td>Yes, as position</td><td>Vectors are points in a space where absolute position matters, usually after feature scaling</td><td>k-nearest neighbours, k-means, tables of numbers</td></tr>
       </tbody>
     </table>
   </div>
   <p>
     And the fact that dissolves most of the debate: <strong>if you L2-normalize every vector first, all three measures
     give the same ranking</strong>. For unit vectors the dot product <em>is</em> the cosine, and by the identity in
-    the distance section, Euclidean distance is a decreasing function of it. This is why embedding models usually ship
-    normalized vectors and why vector databases offer “cosine” as an option: internally they normalize once and then
-    use the cheaper dot product. The honest answer to “cosine or dot?” is therefore often “normalize, then it does not
-    matter; if you cannot normalize, decide whether length means something”.
+    the distance section, Euclidean distance is a decreasing function of it. This is why models that produce
+    embeddings usually ship normalized vectors, and why the databases built for storing them offer “cosine” as an
+    option: internally they normalize once and then use the cheaper dot product. The honest answer to “cosine or dot?”
+    is therefore often “normalize, then it does not matter; if you cannot normalize, decide whether length means
+    something”.
   </p>
   <Source
     kind="read"
@@ -532,7 +536,7 @@ for d in [3, 30, 300, 768]:
     kind="read"
     href="https://www.sbert.net/examples/applications/semantic-search/README.html"
     title="Sentence-Transformers: Semantic search"
-    meta="Scroll to the paragraph on cosine similarity versus dot product and the note that normalized embeddings make them equivalent. This is the library most RAG projects start with."
+    meta="Scroll to the paragraph on cosine similarity versus dot product and the note that normalized embeddings make them equivalent. This is the library most search-by-meaning projects start with."
   />
   <Callout kind="say">
     <p>
@@ -548,8 +552,9 @@ for d in [3, 30, 300, 768]:
     <p>
       “Normalize the data” is said in three different situations and means three different operations. One rescales
       a single arrow to length 1. One rescales each <em>column</em> of a data table so that features measured in
-      different units become comparable. One rescales each <em>row</em> of activations inside a network so that
-      training stays stable. People mix these up constantly, including in interviews, so keep the three apart by name.
+      different units become comparable. One rescales each <em>row</em> of numbers flowing through the inside of a
+      big model so that training stays stable (that one belongs to week 6, but it is named here so you recognise it).
+      People mix these up constantly, including in interviews, so keep the three apart by name.
     </p>
   </Callout>
   <div class="table-wrap">
@@ -561,20 +566,20 @@ for d in [3, 30, 300, 768]:
         <tr>
           <td><span class="term">L2 normalization</span> (unit vectors)</td>
           <td>One vector</td>
-          <td><Math tex="\mathbf{a} / \lVert\mathbf{a}\rVert_2" />; <code>F.normalize(x, dim=-1)</code></td>
+          <td><Math tex="\mathbf{a} / \lVert\mathbf{a}\rVert_2" />; <code>a / np.linalg.norm(a)</code></td>
           <td>So that dot product = cosine and length cannot bias similarity</td>
         </tr>
         <tr>
           <td><span class="term">Standardization</span> (z-scoring, feature scaling)</td>
           <td>Each feature column of a data table</td>
           <td><Math tex="(x - \text{mean}) / \text{std}" /> per column; <code>StandardScaler</code></td>
-          <td>So that a feature in dollars and one in years count equally in distances and gradients</td>
+          <td>So that a feature in dollars and one in years count equally in distances and in training</td>
         </tr>
         <tr>
-          <td><span class="term">LayerNorm</span> / <span class="term">RMSNorm</span></td>
-          <td>Each activation vector inside the network, per example</td>
+          <td><Term id="batchnorm">LayerNorm</Term> / RMSNorm (week 6)</td>
+          <td>Each vector of numbers flowing through a big model, per example</td>
           <td>LayerNorm: subtract the mean, divide by the std of the entries. RMSNorm: divide by <Math tex="\sqrt{\text{mean}(x_i^2)}" /></td>
-          <td>So that the scale of activations stays steady from layer to layer during training</td>
+          <td>So that the size of those numbers stays steady from step to step during training</td>
         </tr>
       </tbody>
     </table>
@@ -582,26 +587,20 @@ for d in [3, 30, 300, 768]:
   <p>
     Two of these are norms in disguise. L2 normalization divides by the L2 norm. RMSNorm divides by the
     <em>root mean square</em> of the entries, which is <Math tex="\lVert\mathbf{x}\rVert_2 / \sqrt{d}" />; so RMSNorm,
-    used in Llama-style models, is L2 normalization scaled by <Math tex="\sqrt{d}" />, followed by a learned per-entry
-    gain. Standardization is the odd one out: it is per column, not per vector, and it belongs to the
-    <a href="/notes/ml/feature-scaling-encoding/">feature scaling note</a> this week.
+    used inside most recent language models, is L2 normalization scaled by <Math tex="\sqrt{d}" />, followed by a
+    learned per-entry gain. Standardization is the odd one out: it is per column, not per vector, and it belongs to
+    the <a href="/notes/ml/feature-scaling-encoding/">feature scaling note</a>, which is next in the reading order.
   </p>
   <p>
     The habit to build: whenever someone says “normalize”, ask “which axis?”. Per vector (a row) or per feature (a
     column)? The answer changes the code and the meaning.
   </p>
-  <Source
-    kind="read"
-    href="https://pytorch.org/docs/stable/generated/torch.nn.functional.normalize.html"
-    title="PyTorch documentation: torch.nn.functional.normalize"
-    meta="Note the dim argument: it is the axis along which the norm is taken. dim=-1 normalizes each row (each vector); dim=0 would normalize each column."
-  />
   <Callout kind="say">
     <p>
       “L2 normalization scales each vector to unit length. Standardization rescales each feature column to zero mean
-      and unit variance. LayerNorm and RMSNorm rescale each activation vector per example; RMSNorm divides by the
-      root mean square, which is the L2 norm over <Math tex="\sqrt{d}" />. They are different operations on different
-      axes.”
+      and unit variance. LayerNorm and RMSNorm rescale each vector inside a network per example; RMSNorm divides by
+      the root mean square, which is the L2 norm over <Math tex="\sqrt{d}" />. They are different operations on
+      different axes.”
     </p>
   </Callout>
 
@@ -653,8 +652,9 @@ for d in [3, 30, 300, 768]:
   </ul>
   <p>
     The <Math tex="1/\sqrt{d}" /> fact has one more consequence you will meet in week 8: dot products between random
-    <Math tex="d" />-dimensional vectors have a spread of about <Math tex="\sqrt{d}" />, which is why attention divides
-    its scores by <Math tex="\sqrt{d_k}" /> before the softmax. Problem 14 in the previous note measured exactly this.
+    <Math tex="d" />-dimensional vectors have a spread of about <Math tex="\sqrt{d}" />, which is why
+    <Term id="attention">attention</Term> divides its scores by <Math tex="\sqrt{d_k}" />. Problem 14 in the vectors
+    note measured exactly this.
   </p>
   <Source
     kind="read"
@@ -666,7 +666,8 @@ for d in [3, 30, 300, 768]:
     <p>
       “In high dimensions random vectors are nearly orthogonal, with cosine spread about <Math tex="1/\sqrt{d}" />,
       so moderate cosine values are meaningful and distances concentrate. Similarity thresholds must be calibrated per
-      embedding model, and exact nearest-neighbour search becomes expensive, which motivates approximate indexes.”
+      embedding model, and exact nearest-neighbour search becomes expensive, which motivates approximate search
+      structures.”
     </p>
   </Callout>
 
@@ -676,7 +677,7 @@ for d in [3, 30, 300, 768]:
   <CodeBlock code={normsCode} />
   <h3>Three measures, three rankings, and how normalization reconciles them</h3>
   <CodeBlock code={rankingCode} />
-  <h3>Library versions, and gradient clipping by norm</h3>
+  <h3>All pairwise cosines in two lines, and capping a vector’s length</h3>
   <CodeBlock code={libraryCode} />
   <h3>Cosine between random vectors as the dimension grows</h3>
   <CodeBlock code={concentrationCode} />
@@ -690,37 +691,50 @@ for d in [3, 30, 300, 768]:
     kind="read"
     href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise.cosine_similarity.html"
     title="scikit-learn documentation: cosine_similarity"
-    meta="The pairwise version: pass one matrix and get every pair. Two minutes."
+    meta="The library version of the two-line pairwise cosine above: pass one matrix and get every pair. Two minutes."
   />
+  <Callout kind="note" label="Reading the code">
+    <p>
+      Every <code>np.</code> call is a link to the <a href="/numpy/">NumPy reference</a>. The ones that matter most
+      here are <code>np.linalg.norm</code> with its <code>axis</code> and <code>keepdims</code> arguments.
+    </p>
+  </Callout>
 
-  <h2 id="llm">Where this lives in an LLM</h2>
+  <h2 id="later">Where you will meet this again</h2>
+  <Callout kind="note" label="Optional preview">
+    <p>
+      A look ahead. Unfamiliar words link to the glossary; skip this on a first read.
+    </p>
+  </Callout>
   <ul>
     <li>
-      <strong>Retrieval.</strong> A RAG system embeds chunks and queries, usually L2-normalizes them, and ranks by
-      cosine (as a dot product of unit vectors). The vector database’s “metric” setting is the choice in the
-      <a href="#which">which-measure section</a>.
+      <strong>Tomorrow, feature scaling.</strong> Standardising columns so that Euclidean distance treats every feature
+      fairly is the whole point of the next note.
     </li>
     <li>
-      <strong>Gradient clipping.</strong> GPT-2 and almost every modern model are trained with the global gradient norm
-      clipped to 1.0: compute the L2 norm of all gradients stacked together, and if it exceeds 1, scale them all down to
-      norm 1. It prevents one bad batch from taking a huge step.
+      <strong>Week 3, keeping weights small.</strong> <Term id="regularization">Regularization</Term> adds the norm of
+      the weight vector to the loss: L2 shrinks every weight; L1 zeroes some out, for the diamond-versus-circle reason
+      in Fig. 1.
     </li>
     <li>
-      <strong>Weight decay.</strong> AdamW’s weight decay is an L2 penalty on the weights: every step, every weight is
-      shrunk by a tiny fraction. Week 6 covers why it is applied separately from the gradient in AdamW.
+      <strong>Week 4, nearest neighbours and clustering.</strong> <Term id="knn">kNN</Term> and
+      <Term id="k-means">k-means</Term> are Euclidean distance plus bookkeeping, and both break on unscaled features.
     </li>
     <li>
-      <strong>LayerNorm and RMSNorm.</strong> Each token’s 768-dimensional activation vector is rescaled before
-      attention and before the feed-forward block. RMSNorm divides by the vector’s root mean square, an L2 norm in
-      disguise.
+      <strong>Week 6, training tricks.</strong> <Term id="gradient-clipping">Gradient clipping</Term> is the
+      “cap the length” code above applied to the training step: almost every modern model is trained with the step’s
+      total L2 norm capped at 1. Weight decay is the L2 penalty applied a little at every step. LayerNorm and RMSNorm
+      rescale the vector of numbers at each position inside the model; RMSNorm divides by an L2 norm in disguise.
     </li>
     <li>
-      <strong>Attention scaling.</strong> The <Math tex="\sqrt{d_k}" /> in scaled dot-product attention exists because
-      dot products of <Math tex="d_k" />-dimensional vectors have spread <Math tex="\sqrt{d_k}" />.
+      <strong>Week 8, attention.</strong> The <Math tex="\sqrt{d_k}" /> in attention exists because dot products of
+      <Math tex="d_k" />-dimensional vectors have spread <Math tex="\sqrt{d_k}" />, the fact from the high-dimensions
+      section.
     </li>
     <li>
-      <strong>Output logits.</strong> The dot product between the final hidden state and each token embedding is
-      length-sensitive on purpose: a confident hidden state with a large norm produces sharper probabilities.
+      <strong>Weeks 11 and 12, retrieval.</strong> A <Term id="rag">RAG</Term> system turns document chunks and
+      questions into vectors, usually L2-normalizes them, and ranks by cosine as a dot product of unit vectors. The
+      database’s “metric” setting is the choice in the <a href="#which">which-measure section</a>.
     </li>
   </ul>
 
@@ -749,8 +763,8 @@ for d in [3, 30, 300, 768]:
   </Callout>
   <p><strong>If they push further, be ready for:</strong></p>
   <ul>
-    <li>“Why does L1 regularization give sparse weights and L2 not?” The L1 ball has corners on the axes; optima land on corners where coordinates are exactly zero. The L2 ball is round.</li>
-    <li>“What does clip_grad_norm_ do?” Computes the L2 norm of all gradients together; if it exceeds the threshold, scales every gradient by threshold/norm so the total norm equals the threshold. Direction unchanged, size capped.</li>
+    <li>“Why does an L1 penalty give sparse weights and L2 not?” The L1 ball has corners on the axes; the best point tends to land on a corner where coordinates are exactly zero. The L2 ball is round.</li>
+    <li>“What does clipping by norm do?” Computes the L2 norm of the whole vector; if it exceeds the threshold, scales every entry by threshold/norm so the norm equals the threshold. Direction unchanged, size capped. (Week 6 applies this to training steps.)</li>
     <li>“Is a cosine of 0.3 high?” For random 768-D vectors the spread is about 0.036, so 0.3 is far from chance; but real models have a shared component, so calibrate per model.</li>
     <li>“Cosine distance?” <Math tex="1 - \cos\theta" />, in [0, 2]. Not a true metric (fails the triangle inequality), which some libraries care about.</li>
   </ul>
@@ -761,7 +775,7 @@ for d in [3, 30, 300, 768]:
     <p>Sum of absolute values: 7. Square root of the sum of squares: 5. Largest absolute entry: 4. Always L∞ ≤ L2 ≤ L1.</p>
   </QA>
   <QA q="What is the relationship between the L2 norm and the dot product?">
-    <p><Math tex="\lVert\mathbf{a}\rVert_2 = \sqrt{\mathbf{a}\cdot\mathbf{a}}" />, so the squared norm is the self dot product and its gradient is <Math tex="2\mathbf{a}" />.</p>
+    <p><Math tex="\lVert\mathbf{a}\rVert_2 = \sqrt{\mathbf{a}\cdot\mathbf{a}}" />, so the squared norm is the self dot product: a plain sum of squares.</p>
   </QA>
   <QA q="How do you compute the Euclidean distance between two vectors, and how does it relate to the dot product?">
     <p>The L2 norm of the difference. <Math tex="\lVert\mathbf{a}-\mathbf{b}\rVert^2 = \lVert\mathbf{a}\rVert^2 + \lVert\mathbf{b}\rVert^2 - 2\,\mathbf{a}\cdot\mathbf{b}" />: larger dot product, smaller distance, for fixed lengths.</p>
@@ -775,14 +789,14 @@ for d in [3, 30, 300, 768]:
   <QA q="When would you deliberately keep the raw dot product instead of cosine?">
     <p>When vector length carries meaning you want to rank by (popularity, confidence) or when the embedding model was trained with a dot-product objective and its documentation says to use it.</p>
   </QA>
-  <QA q="Why does L1 regularization lead to sparse models?">
-    <p>The L1 unit ball is a diamond with corners on the coordinate axes. Minimizing a loss subject to a small L1 norm tends to hit a corner, where some coordinates are exactly zero. The L2 ball is a sphere with no corners, so L2 shrinks weights smoothly without zeroing them.</p>
+  <QA q="Why does an L1 penalty on the weights lead to sparse models? (Week 3 asks this; the picture is here.)">
+    <p>The L1 unit ball is a diamond with corners on the coordinate axes. Keeping the loss small while keeping the L1 norm small tends to land on a corner, where some coordinates are exactly zero. The L2 ball is a sphere with no corners, so L2 shrinks weights smoothly without zeroing them.</p>
   </QA>
-  <QA q="What exactly does gradient clipping by global norm do?">
-    <p>It computes the L2 norm of all gradients concatenated into one vector. If that norm exceeds a threshold <Math tex="c" />, every gradient is multiplied by <Math tex="c / \text{norm}" />, so the total norm becomes <Math tex="c" /> and the direction is unchanged.</p>
+  <QA q="What exactly does “clip this vector to norm c” do?">
+    <p>It computes the vector’s L2 norm. If that norm exceeds <Math tex="c" />, every entry is multiplied by <Math tex="c / \text{norm}" />, so the norm becomes <Math tex="c" /> and the direction is unchanged. Training code does this to its update step (week 6).</p>
   </QA>
   <QA q="Name three operations people call “normalization” and the axis each acts on.">
-    <p>L2 normalization: one vector, scaled to unit length (per row). Standardization: each feature column, to zero mean and unit variance (per column). LayerNorm/RMSNorm: each activation vector inside a network, per example (per row).</p>
+    <p>L2 normalization: one vector, scaled to unit length (per row). Standardization: each feature column, to zero mean and unit variance (per column). LayerNorm/RMSNorm: each vector of numbers inside a big model, per example (per row).</p>
   </QA>
   <QA q="What is RMSNorm in terms of the L2 norm?">
     <p>It divides a <Math tex="d" />-dimensional vector by <Math tex="\sqrt{\text{mean}(x_i^2)} = \lVert\mathbf{x}\rVert_2/\sqrt{d}" />, then multiplies by a learned gain. It is L2 normalization up to the factor <Math tex="\sqrt{d}" />.</p>
@@ -833,7 +847,7 @@ for d in [3, 30, 300, 768]:
       cosine A, B, C; distance B, A, C.
     </p>
   </QA>
-  <QA q="7. The gradient vector is (3, 4, 12) and the clipping threshold is 1.0. What gradient is actually applied?">
+  <QA q="7. A training step wants to move the weights by (3, 4, 12), but the step’s length is capped at 1.0. What step is actually taken?">
     <p>
       Norm <Math tex="\sqrt{9 + 16 + 144} = 13" />. Scale by <Math tex="1/13" />: <Math tex="(0.231, 0.308, 0.923)" />,
       which has norm 1. Same direction, capped size.
@@ -942,28 +956,27 @@ for i, s in enumerate(sents):
 # Sentence 3 ("the cat") has a small dot product but a high cosine. Cosine is the sensible measure here.`}
     />
   </QA>
-  <QA q="16. Implement gradient clipping by global norm yourself for a list of gradient arrays, then verify against torch.nn.utils.clip_grad_norm_ on the same values.">
+  <QA q="16. Several arrays together form one long vector (think: all the weights of a model, in pieces). Write clip_by_global_norm(arrays, max_norm) that treats them as one vector, caps its L2 norm, and leaves the direction unchanged. Test that the joint norm afterwards is exactly max_norm, that nothing happens when it was already small, and that every array was scaled by the same factor.">
     <CodeBlock
       code={`import numpy as np
-import torch
 
-def clip_by_global_norm(grads, max_norm):
-    total = np.sqrt(sum((g ** 2).sum() for g in grads))      # norm of all gradients stacked together
+def clip_by_global_norm(arrays, max_norm):
+    total = np.sqrt(sum((a ** 2).sum() for a in arrays))     # norm of all the pieces stacked into one vector
     scale = min(1.0, max_norm / (total + 1e-12))             # only shrink, never grow
-    return [g * scale for g in grads], total
+    return [a * scale for a in arrays], total
 
 rng = np.random.default_rng(0)
-grads = [rng.normal(size=(3, 3)) * 5, rng.normal(size=(4,)) * 5]
-clipped, before = clip_by_global_norm(grads, 1.0)
-print(before, np.sqrt(sum((g ** 2).sum() for g in clipped)))    # (large), 1.0
+pieces = [rng.normal(size=(3, 3)) * 5, rng.normal(size=(4,)) * 5]
+clipped, before = clip_by_global_norm(pieces, 1.0)
+after = np.sqrt(sum((a ** 2).sum() for a in clipped))
+print(round(before, 2), round(after, 6))                     # (large) 1.0
+assert np.isclose(after, 1.0)
+assert np.allclose(clipped[0] / pieces[0], clipped[1][0] / pieces[1][0])   # same factor everywhere: direction kept
 
-params = [torch.nn.Parameter(torch.zeros(3, 3)), torch.nn.Parameter(torch.zeros(4))]
-for p, g in zip(params, grads):
-    p.grad = torch.tensor(g)
-torch.nn.utils.clip_grad_norm_(params, 1.0)
-for p, g in zip(params, clipped):
-    assert np.allclose(p.grad.numpy(), g)
-print("matches PyTorch")`}
+small = [np.array([0.1, 0.2])]
+assert np.allclose(clip_by_global_norm(small, 1.0)[0][0], small[0])        # already short: untouched
+print("ok")
+# In week 6 this exact function, applied to the training step, is called gradient clipping.`}
     />
   </QA>
 
@@ -982,8 +995,9 @@ print("matches PyTorch")`}
   </Callout>
   <Callout kind="pitfall">
     <p>
-      <strong>Normalizing along the wrong axis.</strong> <code>F.normalize(x, dim=0)</code> on a (batch, d) tensor
-      normalizes each <em>feature column</em> across the batch, not each vector. For unit vectors use <code>dim=-1</code>.
+      <strong>Normalizing along the wrong axis.</strong> <code>np.linalg.norm(E, axis=0)</code> on an (n, d) matrix
+      measures each <em>feature column</em>, not each vector. For one length per row, and so for unit vectors, use
+      <code>axis=1</code> with <code>keepdims=True</code>.
     </p>
   </Callout>
   <Callout kind="pitfall">
@@ -1000,7 +1014,7 @@ print("matches PyTorch")`}
   </Callout>
   <Callout kind="pitfall">
     <p>
-      <strong>Saying “L2 regularization makes weights zero”.</strong> It shrinks them towards zero; L1 is the one that
+      <strong>Saying “an L2 penalty makes weights zero”.</strong> It shrinks them towards zero; L1 is the one that
       makes them exactly zero. The diamond versus the circle.
     </p>
   </Callout>
@@ -1027,10 +1041,9 @@ print("matches PyTorch")`}
       (articles), for choosing a measure in practice.
     </li>
     <li>
-      <a href="https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html" target="_blank" rel="noopener noreferrer">NumPy, linalg.norm</a>,
-      <a href="https://pytorch.org/docs/stable/generated/torch.nn.functional.normalize.html" target="_blank" rel="noopener noreferrer">PyTorch, F.normalize</a>
+      <a href="https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html" target="_blank" rel="noopener noreferrer">NumPy, linalg.norm</a>
       and <a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise.cosine_similarity.html" target="_blank" rel="noopener noreferrer">scikit-learn, cosine_similarity</a>
-      (documentation).
+      (documentation), and the site’s <a href="/numpy/">NumPy reference</a>.
     </li>
     <li>
       <a href="https://en.wikipedia.org/wiki/Curse_of_dimensionality" target="_blank" rel="noopener noreferrer">Wikipedia, Curse of dimensionality</a>,
@@ -1051,8 +1064,8 @@ print("matches PyTorch")`}
       <li>Cosine <Math tex="= \mathbf{a}\cdot\mathbf{b}/(\lVert\mathbf{a}\rVert\lVert\mathbf{b}\rVert)" />, in [−1, 1], ignores length.</li>
       <li>Dot rewards length; cosine ignores it; Euclidean measures position. Text embeddings: cosine.</li>
       <li>Normalize to unit length and all three rankings agree; dot = cosine; distance² = 2 − 2cos.</li>
-      <li>“Normalize” means three things: per vector (L2), per feature column (standardize), per activation (LayerNorm/RMSNorm). Ask which axis.</li>
-      <li>RMSNorm divides by <Math tex="\lVert\mathbf{x}\rVert/\sqrt{d}" />. Gradient clipping scales all gradients so their joint L2 norm ≤ threshold.</li>
+      <li>“Normalize” means three things: per vector (L2), per feature column (standardize), per vector inside a model (LayerNorm/RMSNorm, week 6). Ask which axis.</li>
+      <li>Clipping by norm: scale a vector so its L2 norm ≤ threshold, direction unchanged. Week 6 does this to training steps.</li>
       <li>High dimensions: random cosines ≈ 0 ± <Math tex="1/\sqrt{d}" />; distances concentrate; thresholds are model-specific.</li>
     </ul>
   </Callout>

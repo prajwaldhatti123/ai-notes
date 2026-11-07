@@ -6,6 +6,7 @@ import QA from '../../../components/QA.astro';
 import Figure from '../../../components/Figure.astro';
 import Math from '../../../components/Math.astro';
 import Source from '../../../components/Source.astro';
+import Term from '../../../components/Term.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -19,7 +20,7 @@ const sections = [
   { id: 'embeddings', label: 'Vectors that mean something: embeddings' },
   { id: 'many', label: 'Many dot products at once' },
   { id: 'code', label: 'Code' },
-  { id: 'llm', label: 'Where this lives in an LLM' },
+  { id: 'later', label: 'Where you will meet this again' },
   { id: 'interview', label: 'The full interview answer' },
   { id: 'questions', label: 'Practice questions' },
   { id: 'practice', label: 'Practice problems' },
@@ -82,7 +83,7 @@ print(u + v)                      # [3. 4.]   component by component
 print(2 * v)                      # [2. 6.]   every component doubled
 print(3 * u - v)                  # [5. 0.]   a linear combination
 
-w = np.array([3.0, -2.0, -4.0])   # the walk neuron's weights
+w = np.array([3.0, -2.0, -4.0])   # the walk score's weights
 inputs = np.array([1.0, 0.0, 1.0])  # sunny, not cold, tired
 print(w * inputs)                 # [ 3. -0. -4.]  element-wise product: still a vector
 print(np.sum(w * inputs))         # -1.0          add it up: that is the dot product
@@ -133,8 +134,8 @@ print(max(scores, key=scores.get))   # dog  (scores: cat 1.46, dog 1.475, car 0.
 
 const matrixPreviewCode = `import numpy as np
 
-W = np.array([[3.0, -2.0, -4.0],     # neuron 1: the walk neuron
-              [1.0, -1.0,  0.0]])    # neuron 2: "is the weather good?"
+W = np.array([[3.0, -2.0, -4.0],     # score 1: "should I walk?"
+              [1.0, -1.0,  0.0]])    # score 2: "is the weather good?"
 x = np.array([1.0, 0.0, 1.0])
 
 print(W @ x)          # [-1.  1.]   two dot products, one per row, in a single operation
@@ -144,23 +145,27 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
 <Note
   track="math"
   slug="vectors-dot-product"
-  lede="A vector is a list of numbers that describes one thing, and the dot product is the single operation that asks “how much do two such lists agree?”. Every neuron, every similarity search and every attention score is a dot product. This note makes both ideas concrete with pictures and small numbers."
+  lede="A vector is a list of numbers that describes one thing, and the dot product is the single operation that asks “how much do two such lists agree?”. A model’s prediction, a search for similar documents and most of what happens inside a language model are dot products. This note makes both ideas concrete with pictures and small numbers."
   sections={sections}
 >
   <h2 id="why">Why this note matters</h2>
   <p>
-    Deep learning is, mechanically, the dot product repeated a few trillion times. A neuron is a dot product. The
-    score that decides which words a transformer attends to is a dot product. “Find the documents most similar to
-    this question” in a retrieval system is a dot product against every document. If you can picture what a dot
-    product measures, half of the architecture diagrams you will meet later are already readable.
+    The house-price model from the <a href="/notes/ml/what-is-machine-learning/">first ML note</a> had one feature,
+    size, and one weight. Real houses have many features: size, number of rooms, age, distance to the station. The
+    model’s guess becomes “size times its weight, plus rooms times its weight, plus age times its weight…”. That
+    pattern, multiply matching pairs and add them up, is the <strong>dot product</strong>, and it is the single most
+    repeated calculation in all of machine learning. A prediction is a dot product. “Find the documents most like this
+    question” is a dot product against every document. Inside a language model, the step that decides which earlier
+    words matter is a dot product. If you can picture what a dot product measures, half of the diagrams you will meet
+    later are already readable.
   </p>
   <p>Questions that are really about this note:</p>
   <ul>
-    <li>“What does the dot product between two embeddings tell you?”</li>
-    <li>“Why does attention compute <Math tex="q \cdot k" />, and what does a large value mean?”</li>
+    <li>“Write a model’s prediction from many features as a single expression.”</li>
+    <li>“What does the dot product between two <Term id="embedding">embeddings</Term> tell you?”</li>
     <li>“What is the difference between the dot product and cosine similarity?” (Finished in the <a href="/notes/math/norms-distance-cosine/">norms note</a>.)</li>
-    <li>“What shape is this tensor, and why did the multiplication fail?”</li>
-    <li>“Write linear regression’s prediction as a single expression.”</li>
+    <li>“Why is the <Term id="attention">attention</Term> score a dot product, and what does a large value mean?” (Week 8; the dot-product half is here.)</li>
+    <li>“What shape is this array, and why did the multiplication fail?”</li>
   </ul>
   <Callout kind="note" label="The scope rule">
     <p>
@@ -181,8 +186,8 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
     <p>
       <strong>The dot product</strong> takes two lists of the same length, multiplies them item by item, and adds the
       results. That one number answers “how much do these two lists agree?”. Where both lists are large, it goes up.
-      Where one is large and the other is small or negative, it goes down. The walk neuron from the neural network note
-      is exactly this: a list of weights, a list of inputs, multiplied pairwise and summed.
+      Where one is large and the other is small or negative, it goes down. The house-price guess from the first ML
+      note is exactly this: a list of weights, a list of features, multiplied pairwise and summed.
     </p>
   </Callout>
   <div class="table-wrap">
@@ -265,8 +270,8 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
   <Callout kind="say">
     <p>
       “A vector is an ordered list of <Math tex="n" /> real numbers, equivalently a point or arrow in
-      <Math tex="n" />-dimensional space. In ML, inputs, weights, embeddings and gradients are all vectors; the
-      dimension is the number of features.”
+      <Math tex="n" />-dimensional space. In ML, an example’s features, a model’s weights and the embeddings below
+      are all vectors; the dimension is the number of features.”
     </p>
   </Callout>
 
@@ -316,9 +321,10 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
     A positive scalar keeps the direction and changes the length; a negative scalar also flips the arrow around.
     Combine the two operations and you get a <span class="term">linear combination</span>: some amount of one vector
     plus some amount of another, <Math tex="c_1\mathbf{u} + c_2\mathbf{v}" />. For example
-    <Math tex="3\mathbf{u} - \mathbf{v} = (6, 3) - (1, 3) = (5, 0)" />. This phrase is worth knowing because a linear
-    layer’s output is a linear combination of its inputs, and “the span of these vectors” means “everything you can
-    reach with linear combinations of them”. That is as far as span needs to go for interviews.
+    <Math tex="3\mathbf{u} - \mathbf{v} = (6, 3) - (1, 3) = (5, 0)" />. This phrase is worth knowing because a model’s
+    prediction is a linear combination of its features (the weights are the amounts), and “the span of these
+    vectors” means “everything you can reach with linear combinations of them”. That is as far as span needs to go
+    for interviews.
   </p>
   <p>
     Subtraction is addition of a flipped vector, and it has a useful picture: <Math tex="\mathbf{a} - \mathbf{b}" /> is
@@ -342,10 +348,13 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
   <h2 id="dot">The dot product</h2>
   <Callout kind="plain">
     <p>
-      Here is the walk decision again. Weights (3, −2, −4) for sunny, cold, tired; today is (1, 0, 1): sunny, not
-      cold, tired. Multiply each pair and add: <Math tex="3 \cdot 1 + (-2) \cdot 0 + (-4) \cdot 1 = -1" />. You just
-      computed a dot product. It is a weighted sum: each input counted as much as its weight says, then totalled. That
-      is the whole definition, and everything else in this note is about what that number <em>means</em>.
+      A small decision rule, the kind a model learns. Should I walk to work today? Give each fact about the day a
+      weight: sunny counts +3, cold counts −2, tired counts −4. Today is sunny, not cold, and I am tired:
+      <Math tex="(1, 0, 1)" />. Multiply each pair and add: <Math tex="3 \cdot 1 + (-2) \cdot 0 + (-4) \cdot 1 = -1" />.
+      Negative, so stay home. You just computed a dot product. It is a weighted sum: each input counted as much as
+      its weight says, then totalled. That is the whole definition, and everything else in this note is about what
+      that number <em>means</em>. (We will call this the <em>walk score</em> below. In week 5 you will meet it again
+      under the name <Term id="neuron">neuron</Term>.)
     </p>
   </Callout>
   <p>
@@ -386,8 +395,8 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
   <Callout kind="say">
     <p>
       “The dot product is the sum of element-wise products of two equal-length vectors. It is a scalar, it is
-      symmetric, and it is linear in each argument. A neuron’s pre-activation is a dot product of its weight vector
-      with the input, plus a bias.”
+      symmetric, and it is linear in each argument. A linear model’s prediction is a dot product of its weight vector
+      with the input features, plus a bias.”
     </p>
   </Callout>
 
@@ -438,8 +447,8 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
   </p>
   <p>
     The formula also explains a subtlety that trips people up. A dot product can be large because the arrows are
-    aligned <em>or</em> because one of them is simply long. Two embeddings can have a big dot product just because one
-    has big numbers in it. When you only care about direction, you divide the lengths out, and what remains is
+    aligned <em>or</em> because one of them is simply long. Two of the word vectors from <a href="#embeddings">the
+    embeddings section</a> can have a big dot product just because one has big numbers in it. When you only care about direction, you divide the lengths out, and what remains is
     <Math tex="\cos\theta" /> itself: <span class="term">cosine similarity</span>. The
     <a href="/notes/math/norms-distance-cosine/">norms note</a> is about exactly when to use which.
   </p>
@@ -479,8 +488,8 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
     <Math tex="\sqrt{4} = 2" />. A vector of length exactly 1 is a <span class="term">unit vector</span>; it carries a
     direction and nothing else. You make one by dividing a vector by its own length, which is called
     <span class="term">normalizing</span>: <Math tex="(3, 4) / 5 = (0.6, 0.8)" />, and indeed
-    <Math tex="0.36 + 0.64 = 1" />. Embedding models often normalize their outputs to unit length so that dot
-    products between them are pure cosines.
+    <Math tex="0.36 + 0.64 = 1" />. Models that produce the word vectors of <a href="#embeddings">the embeddings
+    section</a> often normalize their outputs to unit length so that dot products between them are pure cosines.
   </p>
   <Figure n={4} caption="Projection. The shadow that a = (3, 4) casts onto the direction of b = (4, 3) has length (a·b)/‖b‖ = 24/5 = 4.8. The dot product is “how much of a points along b”, times the length of b.">
     <svg viewBox="0 0 720 320" role="img" aria-label="Vector a projected onto vector b with the perpendicular dropped from the tip of a">
@@ -506,7 +515,7 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
     </svg>
   </Figure>
   <p>
-    Fig. 4 is the second way to read a dot product, and it is the one that makes neurons make sense. Drop a
+    Fig. 4 is the second way to read a dot product, and it is the one that makes trained models make sense. Drop a
     perpendicular from the tip of <Math tex="\mathbf{a}" /> onto the line through <Math tex="\mathbf{b}" />. The piece
     of that line from the origin to the foot of the perpendicular is the <span class="term">projection</span> of
     <Math tex="\mathbf{a}" /> onto <Math tex="\mathbf{b}" />, the shadow <Math tex="\mathbf{a}" /> would cast if light
@@ -516,10 +525,10 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
   <p>
     If <Math tex="\mathbf{b}" /> is a unit vector, the shadow is simply <Math tex="\mathbf{a} \cdot \mathbf{b}" />: the
     dot product with a unit vector measures <em>how much of <Math tex="\mathbf{a}" /> lies along that direction</em>.
-    This is what a neuron does. Its weight vector <Math tex="\mathbf{w}" /> is a direction in input space, and
-    <Math tex="\mathbf{w} \cdot \mathbf{x}" /> asks how far the input <Math tex="\mathbf{x}" /> extends along that
-    direction. Training moves <Math tex="\mathbf{w}" /> until the direction it points in is the one that matters for
-    the task.
+    This is what a linear model does. Its weight vector <Math tex="\mathbf{w}" /> is a direction in the space of
+    features, and <Math tex="\mathbf{w} \cdot \mathbf{x}" /> asks how far the input <Math tex="\mathbf{x}" /> extends
+    along that direction. Training moves <Math tex="\mathbf{w}" /> until the direction it points in is the one that
+    matters for the task.
   </p>
   <p>
     One fact to file away: a dot product can never exceed the product of the two lengths,
@@ -530,8 +539,8 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
   <Callout kind="say">
     <p>
       “The norm is the square root of a vector’s dot product with itself. Dividing by the norm gives a unit vector,
-      and the dot product with a unit vector is the length of the projection onto that direction. A neuron’s weight
-      vector defines a direction; its pre-activation measures how far the input projects along it.”
+      and the dot product with a unit vector is the length of the projection onto that direction. A linear model’s
+      weight vector defines a direction; its score measures how far the input projects along it.”
     </p>
   </Callout>
 
@@ -541,7 +550,8 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
       Almost every model answers the same question over and over: “how well does this input match this pattern?”.
       Store the pattern as a vector, store the input as a vector, and the dot product is the match score. Train the
       pattern vectors, and you have a model. Compare two inputs instead, and you have a similarity search. Compare
-      every word in a sentence with every other word, and you have attention.
+      every word in a sentence with every other word, and you have the heart of a language model (week 8 calls it
+      <Term id="attention">attention</Term>).
     </p>
   </Callout>
   <p>Here is the same operation wearing five different names. In each row the thing being computed is one dot product.</p>
@@ -552,11 +562,11 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
       </thead>
       <tbody>
         <tr><td>Linear regression (week 1)</td><td><Math tex="\hat{y} = \mathbf{w}\cdot\mathbf{x} + b" /></td><td>The prediction is a weighted sum of the features.</td></tr>
-        <tr><td>Logistic regression (week 3)</td><td><Math tex="\sigma(\mathbf{w}\cdot\mathbf{x} + b)" /></td><td>Same score, squashed into a probability.</td></tr>
-        <tr><td>A neuron (week 5)</td><td><Math tex="f(\mathbf{w}\cdot\mathbf{x} + b)" /></td><td>Same score, passed through an activation.</td></tr>
-        <tr><td>Embedding similarity (weeks 1, 11)</td><td><Math tex="\mathbf{e}_{\text{cat}} \cdot \mathbf{e}_{\text{dog}}" /></td><td>How alike two things are, as learned by a model.</td></tr>
-        <tr><td>Attention (week 8)</td><td><Math tex="\mathbf{q}\cdot\mathbf{k}" /></td><td>How much one token should look at another.</td></tr>
-        <tr><td>Output logits (week 8)</td><td><Math tex="\mathbf{h}\cdot\mathbf{e}_{\text{token}}" /></td><td>How well the model’s state matches each possible next token.</td></tr>
+        <tr><td>Yes/no prediction (week 3)</td><td><Math tex="\sigma(\mathbf{w}\cdot\mathbf{x} + b)" /></td><td>Same score, squashed into a probability by the S-curve (<Term id="sigmoid">sigmoid</Term>).</td></tr>
+        <tr><td>A <Term id="neuron">neuron</Term> (week 5)</td><td><Math tex="f(\mathbf{w}\cdot\mathbf{x} + b)" /></td><td>Same score, passed through a simple bend.</td></tr>
+        <tr><td>Embedding similarity (below; week 11)</td><td><Math tex="\mathbf{e}_{\text{cat}} \cdot \mathbf{e}_{\text{dog}}" /></td><td>How alike two things are, as learned by a model.</td></tr>
+        <tr><td><Term id="attention">Attention</Term> (week 8)</td><td><Math tex="\mathbf{q}\cdot\mathbf{k}" /></td><td>How much one word in a sentence should look at another.</td></tr>
+        <tr><td>Choosing the next <Term id="token">token</Term> (week 8)</td><td><Math tex="\mathbf{h}\cdot\mathbf{e}_{\text{token}}" /></td><td>How well the model’s current state matches each possible next word.</td></tr>
       </tbody>
     </table>
   </div>
@@ -564,15 +574,15 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
     Why is the dot product the match score, rather than something else? Because it has the geometric meaning you just
     saw (big when aligned), because it is cheap (one multiply and one add per component, which GPUs do by the
     trillion), and because it is <em>linear</em>: doubling a component of <Math tex="\mathbf{w}" /> exactly doubles its
-    contribution. Linearity is what makes the gradient in week 2 easy: the derivative of
-    <Math tex="\mathbf{w}\cdot\mathbf{x}" /> with respect to <Math tex="w_i" /> is just <Math tex="x_i" />. Hold onto
-    that sentence; it is the reason training a linear model is simple.
+    contribution. Linearity is what makes the calculus in week 2 easy: nudge <Math tex="w_i" /> by a tiny amount and
+    <Math tex="\mathbf{w}\cdot\mathbf{x}" /> moves by exactly <Math tex="x_i" /> times that amount, nothing more
+    complicated. Hold onto that sentence; it is the reason training a linear model is simple.
   </p>
   <Callout kind="say">
     <p>
-      “Linear models, neurons, attention scores and similarity search all compute a dot product between a learned
-      vector and an input vector. It is the natural match score: it measures alignment, it is linear so its gradients
-      are trivial, and it maps directly onto matrix-multiply hardware.”
+      “Linear models, similarity search and, later, neurons and attention scores all compute a dot product between a
+      learned vector and an input vector. It is the natural match score: it measures alignment, it is linear so its
+      slopes are trivial, and it maps directly onto matrix-multiply hardware.”
     </p>
   </Callout>
 
@@ -650,13 +660,13 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
   <h2 id="many">Many dot products at once</h2>
   <Callout kind="plain">
     <p>
-      A layer has many neurons, each with its own weight vector, all reading the same input. That is many dot products
-      with the same <Math tex="\mathbf{x}" />. Stack the weight vectors as rows of a table and the whole layer becomes
-      one operation: table times vector. The next note is about those tables, but the idea is already here, so see it
-      once now.
+      Often you want several scores from the same input: “should I walk?” and “is the weather good?”, each with its
+      own weights. That is many dot products with the same <Math tex="\mathbf{x}" />. Stack the weight vectors as rows
+      of a table and all the scores become one operation: table times vector. The next note is about those tables,
+      but the idea is already here, so see it once now.
     </p>
   </Callout>
-  <p>Two neurons on the walk inputs, written as two dot products and then as one matrix-vector product:</p>
+  <p>Two scores on the walk inputs, written as two dot products and then as one matrix-vector product:</p>
   <Math block tex="\mathbf{w}_1 \cdot \mathbf{x} = (3, -2, -4)\cdot(1, 0, 1) = -1 \qquad \mathbf{w}_2 \cdot \mathbf{x} = (1, -1, 0)\cdot(1, 0, 1) = 1" />
   <Math block tex={String.raw`\begin{pmatrix} 3 & -2 & -4 \\ 1 & -1 & 0 \end{pmatrix} \begin{pmatrix} 1 \\ 0 \\ 1 \end{pmatrix} = \begin{pmatrix} -1 \\ 1 \end{pmatrix}`} />
   <p>
@@ -668,7 +678,7 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
 
   <h2 id="code">Code</h2>
   <p>Type these out. Each one is a sentence from above turned into NumPy.</p>
-  <h3>Vectors, shapes, addition, scaling, and the walk neuron</h3>
+  <h3>Vectors, shapes, addition, scaling, and the walk score</h3>
   <CodeBlock code={basicsCode} />
   <h3>The dot product three ways, the angle, and the projection</h3>
   <CodeBlock code={dotCode} />
@@ -681,30 +691,39 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
     meta="Read the first three bullet points: what dot does for two 1-D arrays, for 2-D arrays, and when it broadcasts. The @ operator is the modern spelling of the same thing for 1-D and 2-D inputs."
   />
 
-  <h2 id="llm">Where this lives in an LLM</h2>
+  <h2 id="later">Where you will meet this again</h2>
+  <Callout kind="note" label="Optional preview">
+    <p>
+      A look ahead, so the dot product is an old friend when it returns. Unfamiliar words link to the glossary. Skip
+      on a first read if you like.
+    </p>
+  </Callout>
   <ul>
     <li>
-      <strong>Token embeddings.</strong> Every token in GPT-2’s vocabulary has a 768-dimensional vector in a lookup
-      table. Feeding text to the model starts by replacing each token ID with its vector. A sentence becomes a stack
-      of vectors, one per token.
+      <strong>Tomorrow, linear regression.</strong> The house model with many features is
+      <Math tex="\hat{y} = \mathbf{w}\cdot\mathbf{x} + b" />, and the whole dataset’s predictions are one
+      matrix-vector product, exactly as in <a href="#many">the section above</a>.
     </li>
     <li>
-      <strong>Attention scores.</strong> For each pair of tokens the model computes the dot product of one token’s
+      <strong>Week 5, neural networks.</strong> A <Term id="neuron">neuron</Term> is the walk score with a bend
+      applied to the result; a <Term id="layer">layer</Term> is many of them, which is the matrix-vector product
+      again.
+    </li>
+    <li>
+      <strong>Week 7, embeddings inside a language model.</strong> Every <Term id="token">token</Term> the model
+      knows has a vector of 768 numbers in a lookup table. Feeding text to the model starts by replacing each token
+      with its vector, so a sentence becomes a stack of vectors.
+    </li>
+    <li>
+      <strong>Week 8, attention.</strong> For each pair of tokens the model computes the dot product of one token’s
       <em>query</em> vector with the other’s <em>key</em> vector. A large value means “pay attention to this one”.
-      This is Fig. 3 applied to every pair of positions in the sentence; week 8 adds the scaling and the softmax.
+      That is Fig. 3 applied to every pair of positions in the sentence. At the very end, the model’s state vector is
+      dotted with every token’s embedding; the biggest dot product is its best guess for the next word.
     </li>
     <li>
-      <strong>Output logits.</strong> At the end, the model’s hidden vector for a position is dotted with every token’s
-      embedding vector (GPT-2 reuses the input table for this, called weight tying). The 50,257 resulting numbers are
-      the logits from the previous note, and the biggest dot product is the model’s best guess for the next token.
-    </li>
-    <li>
-      <strong>Retrieval.</strong> A RAG system embeds documents and queries with a separate embedding model and ranks
-      documents by dot product or cosine similarity with the query. That ranking is the “R” in RAG.
-    </li>
-    <li>
-      <strong>LoRA.</strong> The low-rank update in LoRA is built from vectors and their products; the eigenvector note
-      in week 4 connects the pieces.
+      <strong>Weeks 11 and 12, retrieval.</strong> A <Term id="rag">RAG</Term> system turns documents and questions
+      into vectors with an embedding model and ranks documents by dot product or cosine similarity with the question.
+      That ranking is the “R” in RAG.
     </li>
   </ul>
 
@@ -716,25 +735,25 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
   <Callout kind="interview">
     <p>
       “The dot product of two equal-length vectors is the sum of their element-wise products. Algebraically it is a
-      weighted sum, which is why a linear model’s prediction and a neuron’s pre-activation are both
-      <Math tex="\mathbf{w}\cdot\mathbf{x} + b" />. Geometrically it equals the product of the two norms times the
+      weighted sum, which is why a linear model’s prediction is <Math tex="\mathbf{w}\cdot\mathbf{x} + b" />, and
+      so is the weighted sum inside a neuron. Geometrically it equals the product of the two norms times the
       cosine of the angle between the vectors, so it measures alignment: positive for vectors pointing the same way,
       zero for orthogonal ones, negative for opposed ones. Equivalently it is the length of one vector’s projection
       onto the other, scaled by the other’s length.
     </p>
     <p>
-      That is why it is used as a similarity score between embeddings and as the attention score between a query and
-      a key: a large dot product means the two vectors agree in direction. When vector lengths vary and only direction
-      matters, we divide the lengths out and use cosine similarity, which lies between −1 and 1. And because the dot
-      product is linear in each argument, its gradients are simple, and a whole layer of dot products is one
+      That is why it is used as a similarity score between embeddings, and later as the attention score between a
+      query and a key: a large dot product means the two vectors agree in direction. When vector lengths vary and only
+      direction matters, we divide the lengths out and use cosine similarity, which lies between −1 and 1. And because
+      the dot product is linear in each argument, its slopes are simple, and a whole stack of dot products is one
       matrix-vector multiply, which is what GPUs are built for.”
     </p>
   </Callout>
   <p><strong>If they push further, be ready for:</strong></p>
   <ul>
     <li>“Dot product or cosine for embeddings?” Cosine if lengths are not meaningful or not normalized; dot product if the embedding model was trained for it or vectors are already unit length (then they are the same).</li>
-    <li>“What is the derivative of <Math tex="\mathbf{w}\cdot\mathbf{x}" /> with respect to <Math tex="\mathbf{w}" />?” <Math tex="\mathbf{x}" />. Each weight’s gradient is the input it multiplies.</li>
-    <li>“Why do we scale attention scores by <Math tex="\sqrt{d}" />?” Dot products of long random vectors grow with the dimension; dividing keeps them in a range where softmax is not saturated. Week 8 works the numbers.</li>
+    <li>“If <Math tex="w_i" /> changes by a small amount, how much does <Math tex="\mathbf{w}\cdot\mathbf{x}" /> change?” By <Math tex="x_i" /> times that amount. (Week 2 calls this the <Term id="derivative">derivative</Term>, and it is why each weight’s update is proportional to the input it multiplies.)</li>
+    <li>“Why do we scale <Term id="attention">attention</Term> scores by <Math tex="\sqrt{d}" />?” (Week 8.) Dot products of long random vectors grow with the dimension; dividing keeps them on a fixed scale. Problem 14 below shows the numbers.</li>
     <li>“Can two different vectors have the same dot product with a third?” Yes, infinitely many: all vectors with the same projection onto it. The dot product throws away everything perpendicular to the other vector.</li>
   </ul>
 
@@ -755,11 +774,11 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
       the other’s direction.
     </p>
   </QA>
-  <QA q="Why is a neuron’s pre-activation called a weighted sum, and why is that a dot product?">
+  <QA q="Why is a linear model’s score called a weighted sum, and why is that a dot product?">
     <p>
-      Each input is multiplied by its own weight and the products are summed:
-      <Math tex="\sum_i w_i x_i" />. That is the definition of <Math tex="\mathbf{w}\cdot\mathbf{x}" />. The bias is
-      added afterwards.
+      Each feature is multiplied by its own weight and the products are summed:
+      <Math tex="\sum_i w_i x_i" />. That is the definition of <Math tex="\mathbf{w}\cdot\mathbf{x}" />. The bias
+      <Math tex="b" /> is added afterwards.
     </p>
   </QA>
   <QA q="Two embeddings have a large dot product. Name two different reasons that could be true.">
@@ -793,11 +812,11 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
       between −1 and 1.
     </p>
   </QA>
-  <QA q="What is a linear combination, and where does one appear in a neural network?">
+  <QA q="What is a linear combination, and where does one appear in machine learning?">
     <p>
-      A sum of vectors each scaled by a number: <Math tex="c_1\mathbf{u} + c_2\mathbf{v}" />. A linear layer’s output
-      is a linear combination of its input components (weights are the coefficients), and attention’s output is a
-      linear combination of value vectors (attention weights are the coefficients).
+      A sum of vectors each scaled by a number: <Math tex="c_1\mathbf{u} + c_2\mathbf{v}" />. A linear model’s
+      prediction is a linear combination of the features (the weights are the amounts). Later: a layer’s output is a
+      linear combination of its inputs, and attention’s output is a linear combination of “value” vectors.
     </p>
   </QA>
   <QA q="What does a matrix-vector product have to do with dot products?">
@@ -861,10 +880,11 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
       <Math tex="26 / \lVert\mathbf{a}\rVert = 26/\sqrt{40} = 4.11" />. Projection is not symmetric; the dot product is.
     </p>
   </QA>
-  <QA q="9. The walk neuron has weights (3, −2, −4) and bias −1. Write its pre-activation as a dot product and evaluate it for the days (1, 1, 0), (0, 0, 1) and (1, 0, 0).">
+  <QA q="9. The walk score has weights (3, −2, −4) and an added constant (bias) of −1. Write it as a dot product plus the bias and evaluate it for the days (1, 1, 0), (0, 0, 1) and (1, 0, 0).">
     <p>
       <Math tex="z = \mathbf{w}\cdot\mathbf{x} + b" />. Days: <Math tex="3 - 2 + 0 - 1 = 0" />;
-      <Math tex="-4 - 1 = -5" />; <Math tex="3 - 1 = 2" />. The first day sits exactly on the decision boundary.
+      <Math tex="-4 - 1 = -5" />; <Math tex="3 - 1 = 2" />. The first day sits exactly on the cutoff between “walk”
+      and “stay home”.
     </p>
   </QA>
   <QA q="10. Toy embeddings: cat = (0.9, 0.8, 0.1), dog = (0.8, 0.9, 0.2), car = (0.1, 0.2, 0.9), bus = (0.2, 0.1, 0.8). Which pair is most similar by dot product? Compute all six.">
@@ -917,7 +937,7 @@ for _ in range(1000):
 print("all good")`}
     />
   </QA>
-  <QA q="14. Generate 10,000 pairs of random vectors in 2, 10, 100 and 1000 dimensions (standard normal entries). For each dimension, print the mean and standard deviation of the dot product. What happens as the dimension grows, and why might attention divide by √d?">
+  <QA q="14. Generate 10,000 pairs of random vectors in 2, 10, 100 and 1000 dimensions (standard normal entries). For each dimension, print the mean and spread (standard deviation) of the dot product. What happens as the dimension grows? (Week 8 uses this fact to explain why attention divides its scores by √d.)">
     <CodeBlock
       code={`import numpy as np
 
@@ -932,7 +952,7 @@ for d in [2, 10, 100, 1000]:
 # d=  100  mean=  0.00  std= 10.00  std/sqrt(d)=1.00
 # d= 1000  mean=  0.00  std= 31.6   std/sqrt(d)=1.00
 # The spread of a dot product grows like the square root of the dimension.
-# Dividing attention scores by sqrt(d) puts them back on a fixed scale before the softmax.`}
+# In week 8: dividing attention scores by sqrt(d) puts them back on a fixed scale.`}
     />
   </QA>
   <QA q="15. Build a tiny nearest-neighbour search: 1,000 random 'document' vectors of dimension 64 and one query. Return the top 5 by dot product and by cosine similarity. Make one document vector 10× longer and see which ranking changes.">
@@ -1069,8 +1089,8 @@ plt.show()`}
       <li>Meaning: <Math tex="\mathbf{a}\cdot\mathbf{b} = \lVert\mathbf{a}\rVert\lVert\mathbf{b}\rVert\cos\theta" />. Positive = aligned, 0 = orthogonal, negative = opposed.</li>
       <li>Length: <Math tex="\lVert\mathbf{a}\rVert = \sqrt{\mathbf{a}\cdot\mathbf{a}}" />. Unit vector = divide by length. Projection of <Math tex="\mathbf{a}" /> on <Math tex="\mathbf{b}" /> = <Math tex="\mathbf{a}\cdot\mathbf{b}/\lVert\mathbf{b}\rVert" />.</li>
       <li>Big dot product: aligned, <em>or</em> one vector is long. Cosine similarity removes length.</li>
-      <li>Neuron, linear regression, attention score, embedding similarity, output logit: all <Math tex="\mathbf{w}\cdot\mathbf{x}" />.</li>
-      <li>Derivative of <Math tex="\mathbf{w}\cdot\mathbf{x}" /> with respect to <Math tex="w_i" /> is <Math tex="x_i" />.</li>
+      <li>Linear regression, embedding similarity, and later neurons and attention scores: all <Math tex="\mathbf{w}\cdot\mathbf{x}" />.</li>
+      <li>Nudge <Math tex="w_i" /> by a little and <Math tex="\mathbf{w}\cdot\mathbf{x}" /> moves by <Math tex="x_i" /> times that little (week 2 names this the derivative).</li>
       <li>Matrix-vector product = one dot product per row.</li>
       <li>NumPy: <code>w * x</code> is element-wise, <code>w @ x</code> is the dot product.</li>
     </ul>

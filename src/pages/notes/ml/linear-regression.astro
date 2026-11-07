@@ -6,6 +6,7 @@ import QA from '../../../components/QA.astro';
 import Figure from '../../../components/Figure.astro';
 import Math from '../../../components/Math.astro';
 import Source from '../../../components/Source.astro';
+import Term from '../../../components/Term.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -18,7 +19,7 @@ const sections = [
   { id: 'assumptions', label: 'What linear regression assumes' },
   { id: 'beyond-lines', label: 'Curves from a linear model' },
   { id: 'code', label: 'Code' },
-  { id: 'llm', label: 'Where this lives in an LLM' },
+  { id: 'later', label: 'Where you will meet this again' },
   { id: 'interview', label: 'The full interview answer' },
   { id: 'questions', label: 'Practice questions' },
   { id: 'practice', label: 'Practice problems' },
@@ -147,7 +148,7 @@ plt.show()
 <Note
   track="ml"
   slug="linear-regression"
-  lede="Linear regression predicts a number as a weighted sum of features. It is the simplest model that learns, the one interviewers ask about most, and the template for every neural network layer. This note builds it from a line through three points to the matrix formula, solves it two ways, and shows how to read and distrust the result."
+  lede="Linear regression predicts a number as a weighted sum of features. It is the simplest model that learns, the one interviewers ask about most, and the pattern that every bigger model repeats inside itself. This note builds it from a line through three points to the matrix formula, solves it two ways, and shows how to read and distrust the result."
   sections={sections}
 >
   <h2 id="why">Why this note matters</h2>
@@ -155,8 +156,9 @@ plt.show()
     “Explain linear regression” is the most common opening question in ML interviews, because a good answer touches
     everything: the model, the loss, how it is optimized, what the coefficients mean, what can go wrong. It is also the
     model you should fit first on any numeric problem, because it trains in milliseconds and gives you a baseline that
-    a fancier model must beat. And every linear layer in a neural network is literally this model with many outputs,
-    so the shapes and the gradient you learn here are reused in week 5 without change.
+    a fancier model must beat. And every layer of a <Term id="neural-network">neural network</Term> (week 5) is
+    literally this model with many outputs, so the shapes and the update rule you learn here are reused in week 5
+    without change.
   </p>
   <p>Questions that are really this note:</p>
   <ul>
@@ -232,9 +234,12 @@ plt.show()
     A small trick makes the formulas cleaner and is used in every textbook: pretend there is an extra feature
     <Math tex="x_0" /> that is always equal to 1, and call the intercept <Math tex="w_0" />. Then
     <Math tex="\hat{y} = w_0 \cdot 1 + w_1 x_1 + \dots = \boldsymbol{\theta}\cdot\mathbf{x}" /> with no separate
-    <Math tex="b" />. For a whole dataset, stack the examples as rows of a matrix <Math tex="X" /> of shape
+    <Math tex="b" />. For a whole dataset, stack the examples as rows of a table (a matrix) <Math tex="X" /> of shape
     <Math tex="n \times (d+1)" /> whose first column is all ones, and every prediction at once is one matrix-vector
-    product from the <a href="/notes/math/matrices-and-shapes/">matrices note</a>:
+    product: every row of <Math tex="X" /> dotted with <Math tex="\boldsymbol{\theta}" />, the “many dot products at
+    once” idea from the <a href="/notes/math/vectors-dot-product/#many">end of the vectors note</a>. (The
+    <a href="/notes/math/matrices-and-shapes/">matrices note</a>, next in the reading order, does the bookkeeping of
+    shapes properly.)
   </p>
   <Math block tex={String.raw`\hat{\mathbf{y}} = X\boldsymbol{\theta} \qquad \text{for the houses: } \begin{pmatrix} 1 & 1 \\ 1 & 1.5 \\ 1 & 2 \end{pmatrix}\begin{pmatrix} b \\ w \end{pmatrix} = \begin{pmatrix} b + w \\ b + 1.5w \\ b + 2w \end{pmatrix}`} />
   <Figure n={1} caption="The least-squares line for the three houses, ŷ = 180 x + 23.3. The red ticks are the residuals, y − ŷ: −3.3, +6.7, −3.3. They sum to zero, as least-squares residuals always do when there is an intercept.">
@@ -289,18 +294,19 @@ plt.show()
   <ul>
     <li>
       <strong>It is smooth with a single minimum.</strong> As a function of the parameters, MSE is a parabola in each
-      one and a bowl overall (Fig. 2). There is exactly one bottom, no local traps, and the derivative exists
-      everywhere. Absolute error has a sharp corner at zero, which makes both the formula and gradient descent messier.
+      one and a bowl overall (Fig. 2). There is exactly one bottom, no local traps, and the slope exists everywhere
+      (the technical word is <Term id="convex">convex</Term>). Absolute error has a sharp corner at zero, which makes
+      both the formula and gradient descent messier.
     </li>
     <li>
-      <strong>It has a closed-form solution.</strong> Setting the derivative to zero gives linear equations you can
-      solve directly. The next section does it.
+      <strong>It has a closed-form solution.</strong> “Find where the bowl is flat” can be written as equations you
+      can solve directly. The next section does it.
     </li>
     <li>
-      <strong>It is maximum likelihood under Gaussian noise.</strong> If the true relationship is linear plus
-      bell-curve noise, the line that maximizes the probability of the observed data is exactly the least-squares
-      line. The <a href="/notes/math/maximum-likelihood/">maximum likelihood note</a> in week 3 derives this; it is the
-      deep reason behind the choice.
+      <strong>It is what “most likely” gives you under bell-curve noise.</strong> If the truth is a line plus random
+      wobble shaped like a bell curve, then the line that makes the observed prices most probable is exactly the
+      least-squares line. The <a href="/notes/math/maximum-likelihood/">maximum likelihood note</a> in week 3 derives
+      this; it is the deep reason behind the choice.
     </li>
     <li>
       <strong>It penalizes large errors heavily.</strong> An error of 10 costs 100; two errors of 5 cost 50. If big
@@ -330,9 +336,9 @@ plt.show()
   </Figure>
   <Callout kind="say">
     <p>
-      “The loss is mean squared error, the average squared residual. It is convex and differentiable, has a
-      closed-form minimizer, and corresponds to maximum likelihood under Gaussian noise; the price is sensitivity to
-      outliers, which is when I would consider absolute or Huber loss.”
+      “The loss is mean squared error, the average squared residual. It is convex and smooth, has a closed-form
+      minimizer, and corresponds to <Term id="likelihood">maximum likelihood</Term> under Gaussian noise; the price is
+      sensitivity to outliers, which is when I would consider absolute or Huber loss.”
     </p>
   </Callout>
 
@@ -379,9 +385,14 @@ plt.show()
     yourself in ten lines.
   </p>
   <p>
-    For many features, the same “set the derivative to zero” step produces the <span class="term">normal
-    equation</span>. With <Math tex="X" /> the <Math tex="n \times (d+1)" /> data matrix (ones column included) and
-    <Math tex="\mathbf{y}" /> the <Math tex="n" /> targets:
+    For many features, the same “find where the bowl is flat” step produces the <span class="term">normal
+    equation</span>. Two matrix moves appear in it that the <a href="/notes/math/matrices-and-shapes/">matrices
+    note</a> (next in the reading order) makes precise, so here is the one-line version of each: <Math tex="X^\top" />,
+    the <em>transpose</em>, is the table flipped so its rows become columns; and a superscript <Math tex="-1" /> on a
+    square matrix means its <em>inverse</em>, the matrix that undoes it, the way multiplying by <Math tex="1/5" />
+    undoes multiplying by 5 (in code, <code>np.linalg.inv</code>). With <Math tex="X" /> the
+    <Math tex="n \times (d+1)" /> data matrix (ones column included) and <Math tex="\mathbf{y}" /> the
+    <Math tex="n" /> targets:
   </p>
   <Math block tex="\boldsymbol{\theta} = (X^\top X)^{-1} X^\top \mathbf{y}" />
   <Figure n={3} caption="Shapes in the normal equation for n examples and d features (plus the ones column). XᵀX is a small square matrix, (d+1) × (d+1), whatever n is; inverting it costs about (d+1)³ operations.">
@@ -423,8 +434,8 @@ plt.show()
     <li>
       <strong>When it breaks.</strong> <Math tex="X^\top X" /> has no inverse if some feature is an exact combination of
       others (a column of temperatures in Celsius next to one in Fahrenheit, or more features than examples). The
-      model is then not unique. Regularization (week 3) or <code>lstsq</code>, which returns the minimum-norm solution,
-      handles it.
+      model is then not unique. Adding a penalty on big weights (<Term id="regularization">regularization</Term>,
+      week 3) or using <code>lstsq</code>, which returns the shortest of the tied solutions, handles it.
     </li>
     <li>
       <strong>In code, do not invert.</strong> <code>np.linalg.lstsq</code> or <code>solve</code> is more stable and
@@ -446,9 +457,10 @@ plt.show()
   <Callout kind="say">
     <p>
       “Ordinary least squares has a closed form: the normal equation <Math tex="\theta = (X^\top X)^{-1}X^\top y" />,
-      which comes from setting the gradient of the MSE to zero. It costs about <Math tex="nd^2 + d^3" />, so it is the
+      which comes from setting the slope of the MSE to zero. It costs about <Math tex="nd^2 + d^3" />, so it is the
       right choice for moderate <Math tex="d" />; for very many features, or when <Math tex="X^\top X" /> is singular
-      because of collinear features, I use gradient descent or add regularization.”
+      because of collinear features, I use gradient descent or add a <Term id="regularization">regularization</Term>
+      penalty.”
     </p>
   </Callout>
 
@@ -457,13 +469,14 @@ plt.show()
     <p>
       The other way to find the bottom of the bowl is to stand somewhere on it, feel which way is downhill, take a
       small step that way, and repeat. For a bowl this always works and always reaches the same bottom the formula
-      finds. It is slower for small problems and the only option for huge ones, and it is the method every neural
-      network uses, so linear regression is the right place to meet it.
+      finds. It is slower for small problems and the only option for huge ones, and it is the method every big model
+      is trained with, so linear regression is the right place to meet it.
     </p>
   </Callout>
   <p>
-    “Which way is downhill” is the gradient, the subject of week 2. For MSE on a line it comes out as two simple
-    expressions, which you can take on trust for one week:
+    “Which way is downhill” is the <Term id="gradient">gradient</Term>, the subject of week 2. For MSE on a line it
+    comes out as two simple expressions, which you can take on trust for one week (the symbol <Math tex="\partial" />
+    just means “the slope of the loss when only this one parameter moves”):
   </p>
   <Math block tex="\frac{\partial L}{\partial w} = \frac{2}{n}\sum_i (\hat{y}_i - y_i)\,x_i \qquad \frac{\partial L}{\partial b} = \frac{2}{n}\sum_i (\hat{y}_i - y_i)" />
   <p>
@@ -527,7 +540,8 @@ plt.show()
       <strong>Correlated features.</strong> When two features move together (house size and number of rooms), the
       model can split the credit between them almost arbitrarily. Individual coefficients become unstable and can
       even flip sign, while predictions stay fine. This is <span class="term">multicollinearity</span>; it is a
-      problem for interpretation, not for prediction, and the fix is to drop or combine features or regularize.
+      problem for interpretation, not for prediction, and the fix is to drop or combine features, or to add a penalty
+      on big weights (week 3).
     </li>
     <li>
       <strong>Not causation.</strong> The coefficient says what the data associates with what. Ice-cream sales have a
@@ -621,7 +635,7 @@ plt.show()
         <tr><td><span class="term">Independent errors</span></td><td>One example’s wobble tells you nothing about another’s.</td><td>Residuals correlated over time or within groups.</td><td>Time-series or grouped models; at least, split data by group not by row.</td></tr>
         <tr><td><span class="term">Constant variance</span> (homoscedasticity)</td><td>The wobble is about the same size for small and large predictions.</td><td>Fan-shaped residual plot.</td><td>Predict <Math tex="\log y" /> instead of <Math tex="y" />; weighted least squares.</td></tr>
         <tr><td><span class="term">Normal errors</span></td><td>The wobble is bell-shaped. Needed for confidence intervals, not for the fit itself.</td><td>Histogram or Q-Q plot of residuals.</td><td>Usually ignore for prediction; matters for inference.</td></tr>
-        <tr><td><span class="term">No perfect multicollinearity</span></td><td>No feature is an exact combination of others.</td><td><Math tex="X^\top X" /> singular; huge, unstable coefficients; variance inflation factors.</td><td>Drop or combine features; regularize (ridge).</td></tr>
+        <tr><td><span class="term">No perfect multicollinearity</span></td><td>No feature is an exact combination of others.</td><td><Math tex="X^\top X" /> singular; huge, unstable coefficients; variance inflation factors.</td><td>Drop or combine features; add a penalty on big weights (ridge regression, week 3).</td></tr>
         <tr><td>No influential outliers</td><td>No single point is dragging the line.</td><td>Points with huge residuals or extreme <Math tex="x" />.</td><td>Investigate them; consider a robust loss.</td></tr>
       </tbody>
     </table>
@@ -644,7 +658,7 @@ plt.show()
       “OLS assumes a linear relationship, independent errors with constant variance, and no perfect multicollinearity;
       normality of errors is needed only for inference. I check them with residual plots: curvature means add
       non-linear features, a fan means heteroscedasticity, and unstable coefficients point to collinearity, which I
-      handle by dropping features or using ridge.”
+      handle by dropping features or using ridge regression.”
     </p>
   </Callout>
 
@@ -683,10 +697,10 @@ plt.show()
     <li><strong>One-hot encoding.</strong> Turn a category (city) into several 0/1 features so the model can give each city its own offset. The <a href="/notes/ml/feature-scaling-encoding/">next note</a> covers how.</li>
   </ul>
   <p>
-    This is also the bridge to neural networks. A network is “linear regression on features it invented itself”: the
-    hidden layers learn the transformations, and the last layer is exactly the weighted sum on this page. Classical
-    feature engineering and deep learning are two answers to the same question of which features to hand the final
-    line.
+    This is also the bridge to <Term id="neural-network">neural networks</Term> (week 5). A network is “linear
+    regression on features it invented itself”: its inner <Term id="layer">layers</Term> learn the transformations,
+    and the last layer is exactly the weighted sum on this page. Classical feature engineering and deep learning are
+    two answers to the same question of which features to hand the final line.
   </p>
   <Callout kind="say">
     <p>
@@ -718,28 +732,41 @@ plt.show()
     title="scikit-learn user guide: Linear models"
     meta="Section 1.1.1 (Ordinary Least Squares) now; sections 1.1.2–1.1.3 (Ridge, Lasso) when you reach the regularization note."
   />
+  <Callout kind="note" label="Reading the code">
+    <p>
+      Every <code>np.</code> call is a link to the <a href="/numpy/">NumPy reference</a>. The two that matter most here
+      are <code>np.linalg.lstsq</code> and <code>np.column_stack</code>; scikit-learn’s <code>fit</code> and
+      <code>predict</code> were introduced in the first ML note.
+    </p>
+  </Callout>
 
-  <h2 id="llm">Where this lives in an LLM</h2>
+  <h2 id="later">Where you will meet this again</h2>
+  <Callout kind="note" label="Optional preview">
+    <p>A look ahead; unfamiliar words link to the glossary. Skip on a first read.</p>
+  </Callout>
   <ul>
     <li>
-      <strong>Every linear layer is multi-output linear regression.</strong> <code>nn.Linear(768, 3072)</code> is 3,072
-      linear regressions sharing the same 768 inputs, computed as one matrix multiply. The gradient formulas above,
-      “error times input”, are exactly what backpropagation computes for such a layer.
+      <strong>Week 2.</strong> The loss functions note compares squared error with absolute error and Huber; the
+      gradient descent note derives the two slope formulas above and explains the learning rate properly.
     </li>
     <li>
-      <strong>The output head is a linear regression onto logits.</strong> The final hidden state is mapped to 50,257
-      scores by a linear layer; softmax then turns them into probabilities. Classification fine-tuning in week 9
-      replaces that head with a new, small linear layer, and trains it with the same ideas.
+      <strong>Week 3.</strong> Logistic regression is this model with the output squashed into a probability. Ridge
+      and Lasso are this model with a penalty on big weights (<Term id="regularization">regularization</Term>), and
+      maximum likelihood explains where squared error comes from.
     </li>
     <li>
-      <strong>Linear probes.</strong> To ask “does layer 6 know the sentiment of the text?”, researchers fit a linear
-      regression or logistic regression from layer-6 activations to the label. If a line can read it off, the
-      information is there. It is the standard interpretability tool, and it is this note.
+      <strong>Week 5, neural networks.</strong> Every <Term id="layer">layer</Term> is multi-output linear regression:
+      a 768-to-3072 layer is 3,072 linear regressions sharing the same 768 inputs, computed as one matrix multiply.
+      The “error times input” slope formula above is exactly what <Term id="backpropagation">backpropagation</Term>
+      computes for such a layer.
     </li>
     <li>
-      <strong>Features matter more than the model.</strong> The section on curves is the whole philosophy of deep
-      learning in miniature: give a linear model good enough features and it solves hard problems. Networks learn the
-      features; this note is the last layer.
+      <strong>Weeks 7 to 9, language models.</strong> The final step of a language model is a linear regression from
+      its internal state onto 50,257 scores (<Term id="logit">logits</Term>), one per possible next token, which the
+      scores-to-percentages recipe (<Term id="softmax">softmax</Term>) turns into probabilities.
+      <Term id="fine-tuning">Fine-tuning</Term> for classification replaces that last linear step with a new, small
+      one. And “linear probes”, the standard tool for asking what a model knows internally, are linear regressions
+      fitted from its internal numbers to a label.
     </li>
   </ul>
 
@@ -752,8 +779,8 @@ plt.show()
     <p>
       “Linear regression predicts a continuous target as a weighted sum of the features plus an intercept,
       <Math tex="\hat{y} = \mathbf{w}\cdot\mathbf{x} + b" />. We fit it by minimizing the mean squared error, the
-      average squared residual. Squared error is convex and differentiable, has a closed-form minimizer, and
-      corresponds to maximum likelihood under Gaussian noise; its downside is sensitivity to outliers.
+      average squared residual. Squared error is convex and smooth, has a closed-form minimizer, and corresponds to
+      maximum likelihood under Gaussian noise; its downside is sensitivity to outliers.
     </p>
     <p>
       There are two ways to solve it. The normal equation, <Math tex="\theta = (X^\top X)^{-1}X^\top y" />, gives the
@@ -789,13 +816,13 @@ plt.show()
     <p><Math tex="r_i = y_i - \hat{y}_i" />, the vertical gap. With an intercept they sum to zero, because the intercept’s gradient being zero is exactly <Math tex="\sum_i r_i = 0" />.</p>
   </QA>
   <QA q="Give three reasons squared error is the default loss for regression.">
-    <p>Convex and differentiable (one minimum, easy optimization); closed-form solution; equals maximum likelihood under Gaussian noise. A fourth: it penalizes large errors strongly, which is often desired.</p>
+    <p>Convex and smooth (one minimum, easy optimization); closed-form solution; it is the most-likely line under bell-curve noise (maximum likelihood, week 3). A fourth: it penalizes large errors strongly, which is often desired.</p>
   </QA>
   <QA q="State the normal equation and the shape of each piece for n examples and d features.">
     <p><Math tex="\theta = (X^\top X)^{-1}X^\top y" />. <Math tex="X" /> is <Math tex="n \times (d+1)" />, <Math tex="X^\top X" /> is <Math tex="(d+1) \times (d+1)" />, <Math tex="X^\top y" /> is a <Math tex="(d+1)" />-vector, <Math tex="\theta" /> is a <Math tex="(d+1)" />-vector.</p>
   </QA>
   <QA q="When would you choose gradient descent over the closed form, and vice versa?">
-    <p>Closed form for moderate <Math tex="d" /> (thousands or fewer): exact and fast. Gradient descent for very large <Math tex="d" />, for data that does not fit in memory or arrives as a stream, or as the same machinery you already run for a neural network.</p>
+    <p>Closed form for moderate <Math tex="d" /> (thousands or fewer): exact and fast. Gradient descent for very large <Math tex="d" />, for data that does not fit in memory or arrives as a stream, or because it is the same machinery every bigger model is trained with.</p>
   </QA>
   <QA q="Write the gradient of the MSE with respect to w for a single feature, and say what it means in words.">
     <p><Math tex="\frac{2}{n}\sum_i(\hat{y}_i - y_i)x_i" />: the average error weighted by the input. Over-predicting on large inputs makes it positive, which pushes <Math tex="w" /> down.</p>
@@ -1018,7 +1045,7 @@ print("prediction RMSE:", np.sqrt(np.mean((X @ theta - y) ** 2)))   # ~0.3: pred
     <p>
       <strong>Saying linear regression “can only fit straight lines”.</strong> It fits any function that is linear in
       the parameters; curves come from the features. The limitation is that you must choose those features, which is
-      what neural networks automate.
+      what <Term id="neural-network">neural networks</Term> automate.
     </p>
   </Callout>
 

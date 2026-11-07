@@ -1,6 +1,6 @@
 ---
 import Base from './Base.astro';
-import { tracks, noteHref } from '../data/roadmap';
+import { tracks, noteHref, readingOrder } from '../data/roadmap';
 
 interface Props {
   track: string;
@@ -11,7 +11,8 @@ interface Props {
 
 const { track: trackId, slug, lede, sections } = Astro.props;
 
-const flat = tracks.flatMap((t) => t.notes.map((n) => ({ track: t, note: n })));
+// Previous and next follow the reading order (math and ML interleaved), not the track list.
+const flat = readingOrder;
 const index = flat.findIndex((e) => e.track.id === trackId && e.note.slug === slug);
 if (index === -1) throw new Error(`Note ${trackId}/${slug} is not listed in src/data/roadmap.ts`);
 

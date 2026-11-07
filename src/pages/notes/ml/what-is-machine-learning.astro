@@ -6,6 +6,7 @@ import QA from '../../../components/QA.astro';
 import Figure from '../../../components/Figure.astro';
 import Math from '../../../components/Math.astro';
 import Source from '../../../components/Source.astro';
+import Term from '../../../components/Term.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -18,7 +19,7 @@ const sections = [
   { id: 'vocabulary', label: 'The vocabulary, in one table' },
   { id: 'nesting', label: 'AI, ML, deep learning, LLMs' },
   { id: 'code', label: 'Code' },
-  { id: 'llm', label: 'Where this lives in an LLM' },
+  { id: 'later', label: 'Where you will meet this again' },
   { id: 'interview', label: 'The full interview answer' },
   { id: 'questions', label: 'Practice questions' },
   { id: 'practice', label: 'Practice problems' },
@@ -118,6 +119,16 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
   sections={sections}
 >
   <h2 id="why">Why this note matters</h2>
+  <Callout kind="note" label="Start here">
+    <p>
+      This is the first note of the whole path, and it assumes nothing: no math beyond school arithmetic, no AI
+      vocabulary. It introduces the dozen words that every later note is built from (model, parameters, loss, training
+      and friends), each with an everyday picture first and the exact term second. Every note after this one is
+      written so that it only uses words taught before it, in <a href="/roadmap/">reading order</a>. When a note must
+      mention a later word early, the word is marked like <Term id="softmax">this</Term>: hover for a one-line
+      meaning, or click to reach the <a href="/glossary/">glossary</a>.
+    </p>
+  </Callout>
   <p>
     Interviewers for AI roles ask the big-picture question more often than juniors expect, because it reveals whether
     you have a mental model or a pile of memorized terms. “Explain machine learning to someone non-technical.” “What
@@ -229,8 +240,9 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
   </p>
   <p>
     <strong>Model.</strong> A function with adjustable parameters that turns features into a prediction. The simplest
-    one for house prices is a line, <Math tex="\hat{y} = w \cdot \text{size} + b" />, with two parameters. A neural
-    network is the same idea with millions of parameters and a more flexible shape. Choosing the <em>form</em> of the
+    one for house prices is a line, <Math tex="\hat{y} = w \cdot \text{size} + b" />, with two parameters. A
+    <Term id="neural-network">neural network</Term> (week 5) is the same idea with millions of parameters and a more
+    flexible shape. Choosing the <em>form</em> of the
     model (line? tree? network? how big?) is your job; choosing the parameter <em>values</em> is the optimizer’s.
   </p>
   <p>
@@ -402,7 +414,7 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
       reward after a sequence of moves. Four situations, four names.
     </p>
   </Callout>
-  <Figure n={4} caption="The kinds of learning, split by where the label comes from. Interviews mostly ask about the first two; LLM pretraining is the third.">
+  <Figure n={4} caption="The kinds of learning, split by where the label comes from. Interviews mostly ask about the first two; the way language models are trained is the third.">
     <svg viewBox="0 0 740 300" role="img" aria-label="Tree diagram: machine learning splits into supervised (regression, classification), unsupervised (clustering, dimensionality reduction), self-supervised (next-token prediction) and reinforcement learning">
       <g class="sketch">
         <rect class="stroke fill-gold" x="290" y="20" width="160" height="46" rx="8"></rect>
@@ -424,11 +436,11 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
       <text class="small" x="280" y="214" text-anchor="middle">clustering (k-means)</text>
       <text class="small" x="280" y="236" text-anchor="middle">dimensionality reduction (PCA)</text>
       <text class="small" x="460" y="192" text-anchor="middle">labels made from the data</text>
-      <text class="small" x="460" y="214" text-anchor="middle">predict the next token</text>
-      <text class="small label-red" x="460" y="236" text-anchor="middle">LLM pretraining</text>
+      <text class="small" x="460" y="214" text-anchor="middle">predict the next word</text>
+      <text class="small label-red" x="460" y="236" text-anchor="middle">how language models learn</text>
       <text class="small" x="640" y="192" text-anchor="middle">rewards, not labels</text>
       <text class="small" x="640" y="214" text-anchor="middle">games, robots</text>
-      <text class="small" x="640" y="236" text-anchor="middle">RLHF for chat models</text>
+      <text class="small" x="640" y="236" text-anchor="middle">teaching chat models manners</text>
     </svg>
   </Figure>
   <div class="table-wrap">
@@ -452,25 +464,29 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
         <tr>
           <td><span class="term">Self-supervised</span></td>
           <td>Raw data, with labels manufactured from it</td>
-          <td>Predict a hidden part from the visible part: the next word, a masked word, a missing image patch.</td>
-          <td>LLM pretraining, weeks 7–9</td>
+          <td>Predict a hidden part from the visible part: the next word, a hidden word, a missing patch of an image.</td>
+          <td>How language models are trained, weeks 7–9</td>
         </tr>
         <tr>
           <td><span class="term">Reinforcement</span></td>
           <td>An agent acting in an environment, receiving rewards</td>
-          <td>Learn a policy that maximizes long-run reward: games, control, and preference tuning of chat models.</td>
-          <td>RLHF and DPO, week 10, at the depth interviews need</td>
+          <td>Learn behaviour that collects the most reward over time: games, robots, and teaching chat models which answers people prefer.</td>
+          <td>Preference tuning of chat models, week 10, at the depth interviews need</td>
         </tr>
       </tbody>
     </table>
   </div>
   <p>
     Two clarifications that interviewers like. First, regression and classification differ only in the type of the
-    label, and that changes the loss: squared error for numbers, cross-entropy for categories. The rest of the loop
-    is identical. Second, the question “is training an LLM supervised?” has a precise answer: the mechanics are
-    supervised (there is a label and a loss for every position), but the labels cost nothing because they are the
-    next tokens of the text itself. That is what “self-supervised” means, and it is why LLMs could be trained on the
-    whole internet without anyone labelling it.
+    label, and that changes the loss: squared error for numbers, and a different loss for categories that you meet
+    next week (the <Term id="log-loss">log loss</Term>). The rest of the loop is identical. Second, a word you will
+    hear constantly: a <span class="term">language model</span> is a model whose only job is to guess the next piece
+    of text given the text so far, and the pieces of text it works with, usually words or parts of words, are called
+    <span class="term">tokens</span>. “Large language model” (LLM) just means one with billions of parameters. So the
+    question “is training an LLM supervised?” has a precise answer: the mechanics are supervised (there is a label and
+    a loss at every position), but the labels cost nothing because they are the next tokens of the text itself. That
+    is what “self-supervised” means, and it is why LLMs could be trained on the whole internet without anyone
+    labelling it.
   </p>
   <Source
     kind="read"
@@ -482,8 +498,8 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
     <p>
       “Supervised learning uses labelled examples, with regression for numeric targets and classification for
       categorical ones. Unsupervised learning finds structure without labels, such as clusters or low-dimensional
-      representations. Language-model pretraining is self-supervised: the next token serves as the label, so the loss
-      is ordinary supervised cross-entropy but the labels are free.”
+      representations. Language-model training is self-supervised: the next token serves as the label, so the loss
+      is an ordinary supervised loss but the labels are free.”
     </p>
   </Callout>
 
@@ -587,6 +603,8 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
         <tr><td><span class="term">Epoch</span></td><td>One full pass over the training data.</td><td>A <em>step</em> (iteration), one parameter update, usually on one <em>batch</em> of examples. An epoch is many steps.</td></tr>
         <tr><td><span class="term">Baseline</span></td><td>The simplest reference model, or a previous model, that a new one must beat.</td><td>A <em>benchmark</em>, which is a standard dataset and metric used to compare methods across papers.</td></tr>
         <tr><td><span class="term">Generalization</span></td><td>Performance on data not seen in training.</td><td><em>Training performance</em>, which is only evidence of fitting, not of learning.</td></tr>
+        <tr><td><span class="term">Language model</span> (LLM)</td><td>A model whose job is to guess the next piece of text. “Large” means billions of parameters.</td><td>A <em>chat assistant</em>, which is a language model plus extra training and a product around it.</td></tr>
+        <tr><td><span class="term">Token</span></td><td>One piece of text as the model sees it: usually a word or part of a word.</td><td>A <em>word</em>: long or rare words are several tokens; “unbelievable” might be “un”, “believ”, “able”.</td></tr>
       </tbody>
     </table>
   </div>
@@ -603,9 +621,9 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
     <p>
       These words nest like boxes. Artificial intelligence is the biggest box, anything that makes a computer do
       something that looks smart, including hand-written rules. Machine learning is the box inside it where the rules
-      are learned from data. Deep learning is the box inside that where the model is a neural network with many
-      layers. Large language models are a corner of the deep learning box: very large networks trained on text to
-      predict the next token.
+      are learned from data. Deep learning is the box inside that where the model is a neural network: a model built
+      from many layers of simple weighted sums, which week 5 opens up. Large language models are a corner of the deep
+      learning box: very large networks trained on text to guess the next token.
     </p>
   </Callout>
   <Figure n={6} caption="Nested boxes. Everything in this track lives in the machine learning box; the deep learning and LLM tracks go deeper into the inner boxes. The four-part loop is the same in all of them.">
@@ -623,7 +641,7 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
       <text x="250" y="150">deep learning</text>
       <text class="small" x="250" y="250">multi-layer neural networks: weeks 5–6</text>
       <text x="380" y="190">large language models</text>
-      <text class="small" x="380" y="214">transformers trained on text: weeks 7+</text>
+      <text class="small" x="380" y="214">huge networks trained on text: weeks 7+</text>
     </svg>
   </Figure>
   <p>
@@ -637,8 +655,8 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
   <Callout kind="say">
     <p>
       “Machine learning is the subset of AI where behaviour is learned from data; deep learning is the subset of ML
-      using multi-layer neural networks; LLMs are large transformers trained self-supervised on text. Classical ML
-      still dominates tabular problems and is the right baseline before reaching for a network.”
+      using multi-layer neural networks; LLMs are very large neural networks trained self-supervised on text.
+      Classical ML still dominates tabular problems and is the right baseline before reaching for a network.”
     </p>
   </Callout>
 
@@ -660,18 +678,30 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
     kind="code"
     href="https://github.com/rasbt/machine-learning-book/tree/main/ch02"
     title="Raschka, Machine Learning with PyTorch and Scikit-Learn, chapter 2 code"
-    meta="A perceptron trained from scratch on the iris dataset: the four parts with no library hiding any of them. Read along with the chapter."
+    meta="A tiny classifier trained from scratch on the iris flower dataset: the four parts with no library hiding any of them. Read along with the chapter."
   />
+  <Callout kind="note" label="Reading the code">
+    <p>
+      Every <code>np.</code> call in a code block on this site is a link. Click it to open that function’s entry on
+      the <a href="/numpy/">NumPy reference page</a>, which explains it in plain words with a small example and its
+      output. You do not need to know NumPy in advance; look things up as they appear.
+    </p>
+  </Callout>
 
-  <h2 id="llm">Where this lives in an LLM</h2>
-  <p>Find the four parts in GPT-2 and the picture stays the same; only the sizes change.</p>
+  <h2 id="later">Where you will meet this again</h2>
+  <Callout kind="note" label="Optional preview">
+    <p>
+      Find the four parts in a real language model (GPT-2, from 2019) and the picture stays the same; only the sizes
+      change. Words from later weeks link to the glossary. Skip this on a first read if you like.
+    </p>
+  </Callout>
   <ul>
     <li><strong>Data.</strong> About 40 GB of web text. Each training example is a window of 1,024 tokens, and the label at each position is simply the next token. No human labelled anything: self-supervised.</li>
-    <li><strong>Model.</strong> A transformer with 124 million parameters (small) up to 1.5 billion (large). A function from a token sequence to a probability over the next token, with knobs.</li>
-    <li><strong>Loss.</strong> Cross-entropy, the <Math tex="-\log p" /> from the <a href="/notes/math/functions-exponents-logs/">logarithms note</a>, of the true next token, averaged over all positions.</li>
-    <li><strong>Optimizer.</strong> AdamW, a variant of gradient descent, run for hundreds of thousands of steps on batches of sequences.</li>
-    <li><strong>Hyperparameters.</strong> Number of layers, width, learning rate, batch size, context length. Chosen by people, before training, and reported in the paper.</li>
-    <li><strong>Inference.</strong> Run the trained model on a prompt, get a probability over the next token, pick one, append it, repeat. That is “generation”.</li>
+    <li><strong>Model.</strong> A particular kind of neural network called a <Term id="transformer">transformer</Term>, with 124 million parameters (small) up to 1.5 billion (large). A function from a token sequence to a probability for each possible next token, with knobs.</li>
+    <li><strong>Loss.</strong> The <Term id="log-loss">log loss</Term>: minus the logarithm of the probability the model gave to the token that actually came next, averaged over all positions. The <a href="/notes/math/functions-exponents-logs/">next note</a> builds it; week 4 gives it its grown-up name, <Term id="cross-entropy">cross-entropy</Term>.</li>
+    <li><strong>Optimizer.</strong> A polished variant of gradient descent called <Term id="adam">Adam</Term> (week 6), run for hundreds of thousands of steps, each on a batch of sequences.</li>
+    <li><strong>Hyperparameters.</strong> Number of layers, width, learning rate, batch size, how many tokens the model sees at once. Chosen by people, before training, and reported in the paper.</li>
+    <li><strong>Inference.</strong> Run the trained model on a prompt, get a probability for each next token, pick one, append it, repeat. That is “generation”.</li>
     <li><strong>Generalization.</strong> Measured as loss on held-out text the model never trained on; a model that memorized its training set would have low training loss and useless outputs on anything new, exactly the wiggly curve of Fig. 3.</li>
   </ul>
   <p>
@@ -694,13 +724,13 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
     <p>
       Precisely: every ML system has four parts. Training data, pairs of features and labels. A model, which is a
       parameterized function from features to a prediction. A loss function, a single number measuring how wrong the
-      predictions are, such as mean squared error for regression or cross-entropy for classification. And an
+      predictions are, such as mean squared error for regression or the log loss for classification. And an
       optimizer, usually a form of gradient descent, that adjusts the parameters to minimize the loss. Training
       iterates that loop; inference applies the learned parameters to new inputs. The actual objective is
       generalization, performance on held-out data, so we split off a test set before training and tune any
       hyperparameters, the settings we choose rather than learn, on a separate validation set. Supervised learning
-      has human labels; unsupervised learning finds structure without them; language-model pretraining is
-      self-supervised, because the next token is the label and the loss is ordinary cross-entropy.”
+      has human labels; unsupervised learning finds structure without them; language-model training is
+      self-supervised, because the next token is the label and the loss is an ordinary supervised one.”
     </p>
   </Callout>
   <p><strong>If they push further, be ready for:</strong></p>
@@ -724,10 +754,10 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
     <p>The goal is generalization: good predictions on unseen data. Training loss can be driven to zero by memorizing, which does not generalize. Held-out data is the only honest measure.</p>
   </QA>
   <QA q="Define regression and classification in one sentence each. What changes in the training loop between them?">
-    <p>Regression predicts a continuous number; classification predicts a category. Only the model’s output layer and the loss change: squared error for regression, cross-entropy for classification. Data, optimizer and loop are the same.</p>
+    <p>Regression predicts a continuous number; classification predicts a category. Only the model’s last step and the loss change: squared error for regression, the log loss for classification. Data, optimizer and loop are the same.</p>
   </QA>
   <QA q="Is training a language model supervised or unsupervised?">
-    <p>Self-supervised: the mechanics are supervised (a label and a cross-entropy loss at every position) but the labels are the next tokens of the text itself, so no human labelling is needed.</p>
+    <p>Self-supervised: the mechanics are supervised (a label and a loss at every position) but the labels are the next tokens of the text itself, so no human labelling is needed.</p>
   </QA>
   <QA q="What is a baseline and why do you build one first?">
     <p>The simplest reference predictor, such as the training mean or the majority class. Without it you cannot tell whether a model’s score is good; the gain over the baseline is the real measure of what the model learned.</p>
@@ -761,7 +791,7 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
       MSE 22.2; the linear regression note derives it.
     </p>
   </QA>
-  <QA q="2. Classify each as a parameter or a hyperparameter: the slope of a regression line; the number of trees in a random forest; the learning rate; the bias of a neuron; the number of neurons in a layer; the entries of an embedding table.">
+  <QA q="2. Classify each as a parameter or a hyperparameter: the slope of a regression line; the number of trees in a ‘random forest’ model (week 4); the learning rate; the intercept b of a line; the number of layers in a network; the entries of a model’s lookup table of word vectors.">
     <p>Parameter, hyperparameter, hyperparameter, parameter, hyperparameter, parameter.</p>
   </QA>
   <QA q="3. Classify each task: predicting tomorrow’s temperature; deciding whether a transaction is fraud; grouping news articles by topic with no labels; predicting the masked word in a sentence; choosing ad placements to maximize clicks over time.">
@@ -776,11 +806,11 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
   <QA q="6. You tuned the learning rate by trying ten values and picking the one with the best test accuracy. What is wrong, and what should you have done?">
     <p>The test set has been used for a choice, so its accuracy is now optimistically biased and no longer an honest estimate. Tune on a validation set (or cross-validation) and touch the test set once at the end.</p>
   </QA>
-  <QA q="7. Describe the four parts for a spam filter built with logistic regression.">
-    <p>Data: emails with spam/not-spam labels, turned into feature vectors (word counts). Model: logistic regression, <Math tex="\sigma(\mathbf{w}\cdot\mathbf{x} + b)" />. Loss: cross-entropy (log loss). Optimizer: gradient descent on <Math tex="\mathbf{w}" /> and <Math tex="b" />.</p>
+  <QA q="7. Describe the four parts for a spam filter that outputs a probability of spam.">
+    <p>Data: emails with spam/not-spam labels, turned into feature lists (word counts). Model: a weighted sum of the word counts, squashed into a probability between 0 and 1 (week 3 calls this logistic regression). Loss: the log loss, which charges a lot for being confidently wrong (next note). Optimizer: gradient descent on the weights and the bias.</p>
   </QA>
-  <QA q="8. Describe the four parts for GPT-2 pretraining.">
-    <p>Data: web text in 1,024-token windows, label = next token. Model: a 124M-parameter transformer. Loss: cross-entropy of the true next token, averaged over positions. Optimizer: AdamW. Self-supervised because the labels come from the data.</p>
+  <QA q="8. Describe the four parts for training a language model such as GPT-2.">
+    <p>Data: web text cut into 1,024-token windows, label = the next token at every position. Model: a very large neural network (124 million parameters) that outputs a probability for each possible next token. Loss: the log loss of the true next token, averaged over positions. Optimizer: a variant of gradient descent. Self-supervised because the labels come from the data.</p>
   </QA>
   <QA q="9. Explain, in two sentences a product manager would accept, why the model that scored 99% on the training data might be worthless.">
     <p>It may have memorized the training examples instead of learning the pattern, like a student who memorized last year’s exam. The only score that counts is on examples it has never seen, and we have not measured that yet.</p>

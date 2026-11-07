@@ -49,7 +49,13 @@ const themeOf = (week: number) => weeklyPractice.find((w) => w.week === week)?.t
     </p>
 
     <h2>How to study each day</h2>
-    <p>The order matters. Meeting an idea three times, in three forms, is what makes it stick.</p>
+    <p>
+      The order matters twice over. Read the notes in the order the week-by-week table below gives, because each note
+      only uses words that earlier notes explained; and meet each idea three times, in three forms, because that is
+      what makes it stick. If a word stops you, hover over it (dotted underline) or open the
+      <a href="/glossary/">glossary</a>; if a line of code stops you, click the <code>np.</code> call to open the
+      <a href="/numpy/">NumPy reference</a>.
+    </p>
     <ol>
       <li><strong>Watch or read the source</strong> for the topic (the lecture or chapter linked inside the note).</li>
       <li><strong>Read our note</strong> on the same topic. Redraw its main diagram on paper from memory.</li>
@@ -78,9 +84,11 @@ const themeOf = (week: number) => weeklyPractice.find((w) => w.week === week)?.t
       </p>
     </Callout>
 
-    <h2>Week by week</h2>
+    <h2 id="week-by-week">Week by week</h2>
     <p>
-      Each row is one week. The notes to read are listed by track; the full practice for the week is on the
+      Each row is one week, and the notes are listed <strong>in the order to read them</strong>. In weeks 1–4 that order
+      alternates between the ML and the math track on purpose: the ML note raises a question and the next math note
+      answers it, so no note uses a word that an earlier one has not explained. The full practice for the week is on the
       <a href="/practice/">practice page</a>.
     </p>
     <div class="table-wrap">
@@ -95,14 +103,14 @@ const themeOf = (week: number) => weeklyPractice.find((w) => w.week === week)?.t
                 <td>W{week}</td>
                 <td>{themeOf(week)}</td>
                 <td>
-                  {notesForWeek(week).map(({ track, notes }) => (
-                    <p class="schedule-track">
-                      <strong>{track.short}.</strong>{' '}
-                      {notes.map((n, i) => (
-                        <>{n.ready ? <a href={noteHref(track, n)}>{n.title}</a> : <span class="pending">{n.title}</span>}{i < notes.length - 1 ? ' · ' : ''}</>
-                      ))}
-                    </p>
-                  ))}
+                  <ol class="reading-order">
+                    {notesForWeek(week).map(({ track, note }) => (
+                      <li>
+                        <span class="badge track">{track.short}</span>
+                        {note.ready ? <a href={noteHref(track, note)}>{note.title}</a> : <span class="pending">{note.title}</span>}
+                      </li>
+                    ))}
+                  </ol>
                 </td>
               </tr>
             ))

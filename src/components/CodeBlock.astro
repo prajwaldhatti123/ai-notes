@@ -1,6 +1,9 @@
 ---
 // Syntax-highlighted code with a light and a dark theme; global.css switches between them.
-import { Code } from 'astro:components';
+// Every NumPy call in the code (np.log, np.linalg.norm, rng.normal, .reshape, @ ...)
+// becomes a link to its entry on the /numpy/ reference page.
+import { codeToHtml } from 'shiki';
+import { numpyLinks } from '../data/numpy';
 
 interface Props {
   code: string;
@@ -8,6 +11,45 @@ interface Props {
 }
 
 const { code, lang = 'python' } = Astro.props;
+
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const keys = Object.keys(numpyLinks).sort((a, b) => b.length - a.length);
+const pattern = new RegExp(keys.map(escape).join('|'), 'g');
+const ident = /[A-Za-z0-9_]/;
+const attributes = new Set(['.shape', '.ndim', '.size', '.dtype', '.T']);
+
+const decorations: { start: number; end: number; tagName: string; properties: Record<string, string> }[] = [];
+if (lang === 'python') {
+  for (const m of code.matchAll(pattern)) {
+    const key = m[0];
+    const start = m.index!;
+    const end = start + key.length;
+    const before = code[start - 1] ?? '';
+    const after = code[end] ?? '';
+    if (key === '@') {
+      if (before !== ' ' || after !== ' ') continue;
+    } else if (key.startsWith('[')) {
+      // "[:, None]" is matched literally.
+    } else if (key.startsWith('.')) {
+      // A method or attribute on an array: must follow a name or a closing bracket,
+      // and must be called (methods) or stand alone (attributes).
+      if (!(ident.test(before) || before === ')' || before === ']')) continue;
+      if (ident.test(after)) continue;
+      if (!attributes.has(key) && after !== '(') continue;
+    } else {
+      // np.* and rng.*: whole names only.
+      if (ident.test(before) || ident.test(after)) continue;
+    }
+    decorations.push({ start, end, tagName: 'a', properties: { href: `/numpy/#${numpyLinks[key]}`, class: 'np' } });
+  }
+}
+
+let html = await codeToHtml(code, {
+  lang: lang as any,
+  themes: { light: 'vitesse-light', dark: 'vitesse-dark' },
+  decorations,
+});
+html = html.replace('<pre class="shiki ', '<pre class="astro-code shiki ').replace('tabindex="0"', `tabindex="0" data-language="${lang}"`);
 ---
 
-<Code code={code} lang={lang as any} themes={{ light: 'vitesse-light', dark: 'vitesse-dark' }} />
+<Fragment set:html={html} />

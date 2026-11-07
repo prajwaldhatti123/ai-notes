@@ -6,6 +6,7 @@ import QA from '../../../components/QA.astro';
 import Figure from '../../../components/Figure.astro';
 import Math from '../../../components/Math.astro';
 import Source from '../../../components/Source.astro';
+import Term from '../../../components/Term.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -22,7 +23,7 @@ const sections = [
   { id: 'depth', label: 'Why deep, not just wide' },
   { id: 'init', label: 'How the weights start' },
   { id: 'code', label: 'Code' },
-  { id: 'llm', label: 'Where this lives in an LLM' },
+  { id: 'later', label: 'Where you will meet this again' },
   { id: 'interview', label: 'The full interview answer' },
   { id: 'questions', label: 'Practice questions' },
   { id: 'mistakes', label: 'Common mistakes' },
@@ -123,8 +124,11 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
   <h2 id="why">Why this note matters</h2>
   <p>
     Everything later in these notes is built from the idea on this page. A large language model such as GPT is a neural
-    network. Attention, embeddings, fine-tuning and LoRA are all ways of arranging or adjusting the same basic part: a
-    layer of numbers that multiplies its input and bends the result.
+    network. <Term id="attention">Attention</Term>, <Term id="embedding">embeddings</Term>,
+    <Term id="fine-tuning">fine-tuning</Term> and <Term id="lora">LoRA</Term> are all ways of arranging or adjusting
+    the same basic part: a layer of numbers that multiplies its input and bends the result. Everything you need to
+    read this note was covered in weeks 1 to 4: the dot product, matrices and shapes, the loss, gradient descent and
+    the chain rule.
   </p>
   <p>
     Interviewers rarely ask “what is a neural network?” to an experienced candidate, but they constantly ask questions
@@ -620,16 +624,18 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
     meta="Short paper. Read section 2 for the definition and Figure 1 for the comparison with ReLU. Skip the rest for now."
   />
   <p>
-    One more activation deserves a mention here, although it gets its own note:
-    <span class="term">softmax</span>. It is used on the <em>output</em> layer when the network must choose among many
-    options, and it turns a list of scores into percentages that add up to 100%. An LLM’s final step is a softmax over
-    every word-piece in its vocabulary: “the next token is ‘the’ with 31%, ‘a’ with 12%, …”.
+    One more activation deserves a mention here, although it gets <a href="/notes/dl/softmax-cross-entropy/">its own
+    note</a> later this week: <span class="term">softmax</span>, the scores-to-percentages recipe from the
+    <a href="/notes/math/functions-exponents-logs/#scores">logarithms note</a>. It is used on the <em>output</em> layer
+    when the network must choose among many options, and it turns a list of scores into percentages that add up to
+    100%. A language model’s final step is a softmax over every token in its vocabulary: “the next token is ‘the’
+    with 31%, ‘a’ with 12%, …”.
   </p>
   <Callout kind="say">
     <p>
       “ReLU is the default in hidden layers because it is cheap and its gradient is 1 for positive inputs, which avoids
-      the vanishing-gradient problem of sigmoid and tanh. Transformers typically use GELU, a smooth variant. Sigmoid
-      and softmax are mainly used at the output to produce probabilities.”
+      the vanishing-gradient problem of sigmoid and tanh. <Term id="transformer">Transformers</Term> typically use
+      GELU, a smooth variant. Sigmoid and softmax are mainly used at the output to produce probabilities.”
     </p>
   </Callout>
 
@@ -1009,7 +1015,11 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
     <code>X</code> is one example.
   </p>
   <CodeBlock code={xorCode} />
-  <h3>The network of Fig. 4 in PyTorch</h3>
+  <h3>The network of Fig. 4 in PyTorch (a preview of week 6)</h3>
+  <p>
+    PyTorch is the library the deep-learning track uses from <a href="/notes/dl/pytorch-essentials/">week 6</a>. Read
+    this block as a preview: it does exactly what the NumPy block above does, with the shapes handled for you.
+  </p>
   <CodeBlock code={torchCode} />
   <p>
     <code>nn.Linear(3, 4)</code> stores a weight matrix of shape <code>(4, 3)</code> and a bias of shape
@@ -1029,18 +1039,21 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
     meta="About 2.5 hours. He builds a neuron, a layer and an MLP from nothing in plain Python. Start it now and finish it alongside the backpropagation note."
   />
 
-  <h2 id="llm">Where this lives in an LLM</h2>
+  <h2 id="later">Where you will meet this again</h2>
+  <Callout kind="note" label="Optional preview">
+    <p>A look ahead to the LLM track; unfamiliar words link to the glossary.</p>
+  </Callout>
   <p>
-    None of this is just history. Every transformer block inside GPT contains a two-layer feed-forward network of
-    exactly the kind on this page: a linear layer, a GELU activation, and another linear layer. In GPT-2 small the
-    first of those layers goes from 768 numbers to 3,072, which is
+    None of this is just history. Every <Term id="transformer">transformer</Term> block inside GPT contains a
+    two-layer feed-forward network of exactly the kind on this page: a linear layer, a GELU activation, and another
+    linear layer. In GPT-2 small the first of those layers goes from 768 numbers to 3,072, which is
     <Math tex="768 \times 3072 + 3072 = 2{,}362{,}368" /> parameters in one layer.
   </p>
   <p>
-    Within each transformer block, these feed-forward layers hold roughly two thirds of the weights, and attention
-    holds the other third. So when you study the GPT architecture in the LLM internals track, a large part of each block will already
-    be familiar. The Vizuara course builds this block in code, and you can follow along from the start of the
-    playlist:
+    Within each transformer block, these feed-forward layers hold roughly two thirds of the weights, and
+    <Term id="attention">attention</Term> holds the other third. So when you study the GPT architecture in the LLM
+    internals track, a large part of each block will already be familiar. The Vizuara course builds this block in
+    code, and you can follow along from the start of the playlist:
   </p>
   <Source
     kind="watch"

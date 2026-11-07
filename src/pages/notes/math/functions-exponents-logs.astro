@@ -6,6 +6,7 @@ import QA from '../../../components/QA.astro';
 import Figure from '../../../components/Figure.astro';
 import Math from '../../../components/Math.astro';
 import Source from '../../../components/Source.astro';
+import Term from '../../../components/Term.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -16,10 +17,10 @@ const sections = [
   { id: 'logs', label: 'Logarithms: “which power?”' },
   { id: 'log-rules', label: 'The log rules you will use' },
   { id: 'why-logs', label: 'Why machine learning loves logs' },
-  { id: 'together', label: 'e and log together: softmax and log-sum-exp' },
+  { id: 'scores', label: 'Turning scores into percentages' },
   { id: 'zoo', label: 'The functions to recognise on sight' },
   { id: 'code', label: 'Code' },
-  { id: 'llm', label: 'Where this lives in an LLM' },
+  { id: 'later', label: 'Where you will meet this again' },
   { id: 'interview', label: 'The full interview answer' },
   { id: 'questions', label: 'Practice questions' },
   { id: 'practice', label: 'Practice problems' },
@@ -75,12 +76,12 @@ const lossDots = [
 ];
 // Fig. 5: the zoo, six small panels.
 const zoo = [
-  { name: 'y = 2x + 1', where: 'a neuron before activation', f: (x: number) => 2 * x + 1, yr: [-4, 6] as [number, number] },
+  { name: 'y = 2x + 1', where: 'a line: the simplest model', f: (x: number) => 2 * x + 1, yr: [-4, 6] as [number, number] },
   { name: 'y = x²', where: 'squared error', f: (x: number) => x * x, yr: [-1, 9] as [number, number] },
-  { name: 'y = eˣ', where: 'softmax', f: (x: number) => M.exp(x), yr: [-1, 9] as [number, number] },
-  { name: 'y = ln x', where: 'log loss, log-probs', f: (x: number) => M.log(x), yr: [-4, 2] as [number, number] },
-  { name: 'y = 1 / (1 + e⁻ˣ)', where: 'sigmoid, logistic regression', f: (x: number) => 1 / (1 + M.exp(-x)), yr: [-0.2, 1.2] as [number, number] },
-  { name: 'y = max(0, x)', where: 'ReLU', f: (x: number) => M.max(0, x), yr: [-1, 3] as [number, number] },
+  { name: 'y = eˣ', where: 'scores → percentages', f: (x: number) => M.exp(x), yr: [-1, 9] as [number, number] },
+  { name: 'y = ln x', where: 'the log loss', f: (x: number) => M.log(x), yr: [-4, 2] as [number, number] },
+  { name: 'y = 1 / (1 + e⁻ˣ)', where: 'the S curve (sigmoid), week 3', f: (x: number) => 1 / (1 + M.exp(-x)), yr: [-0.2, 1.2] as [number, number] },
+  { name: 'y = max(0, x)', where: 'keep positives only (ReLU), week 5', f: (x: number) => M.max(0, x), yr: [-1, 3] as [number, number] },
 ].map((z, i) => ({
   ...z,
   panel: { x: 40 + (i % 3) * 230, y: 40 + M.floor(i / 3) * 170, w: 180, h: 100, xr: [-3, 3] as [number, number], yr: z.yr },
@@ -107,36 +108,31 @@ p = np.full(1000, 0.001)
 print(np.prod(p))              # 0.0  -> underflow: the true value 1e-3000 is below float64's smallest number
 print(np.sum(np.log(p)))       # -6907.755...  -> the same quantity in log space, perfectly fine
 
-# Comparing two models by likelihood is impossible in raw space and trivial in log space:
+# Comparing two models by the probability they give the data is impossible in raw space, trivial in log space:
 q = np.full(1000, 0.002)
 print(np.prod(q) > np.prod(p))                  # False (both are 0.0!)
 print(np.sum(np.log(q)) > np.sum(np.log(p)))    # True`;
 
 const softmaxCode = `import numpy as np
 
-def softmax_naive(z):
+def scores_to_percentages_naive(z):
+    e = np.exp(z)              # step 1: make every score positive, keep the order
+    return e / e.sum()         # step 2: divide by the total so they add up to 1
+
+def scores_to_percentages(z):
+    z = z - np.max(z)          # shift every score down by the biggest one: the answer is identical, the numbers are safe
     e = np.exp(z)
     return e / e.sum()
 
-def softmax(z):
-    z = z - np.max(z)          # shift: the result is identical, the numbers are safe
-    e = np.exp(z)
-    return e / e.sum()
-
-def log_softmax(z):
-    z = z - np.max(z)
-    return z - np.log(np.sum(np.exp(z)))     # log(e^z / sum) = z - log(sum)
-
-print(softmax(np.array([2.0, 1.0, 0.0])))              # [0.665 0.245 0.090]
-print(softmax_naive(np.array([1000.0, 1001.0, 1002.0])))   # [nan nan nan]  -> exp(1000) overflows
-print(softmax(np.array([1000.0, 1001.0, 1002.0])))         # [0.090 0.245 0.665]
-print(log_softmax(np.array([2.0, 1.0, 0.0])))          # [-0.408 -1.408 -2.408]
-print(np.exp(log_softmax(np.array([2.0, 1.0, 0.0]))))  # same as softmax`;
+print(scores_to_percentages(np.array([2.0, 1.0, 0.0])))              # [0.665 0.245 0.090]
+print(scores_to_percentages_naive(np.array([1000.0, 1001.0, 1002.0])))   # [nan nan nan]  -> exp(1000) overflows
+print(scores_to_percentages(np.array([1000.0, 1001.0, 1002.0])))         # [0.090 0.245 0.665]
+# This recipe is called softmax. Week 5 builds on it; here it is just e^x doing its job.`;
 
 const lossCode = `import numpy as np
 
 def log_loss(p_correct):
-    """Cross-entropy for one example: the log loss of the probability given to the right answer."""
+    """The log loss for one example: minus the log of the probability the model gave to the right answer."""
     return -np.log(p_correct)
 
 for p in [0.99, 0.9, 0.5, 0.1, 0.01]:
@@ -147,35 +143,43 @@ for p in [0.99, 0.9, 0.5, 0.1, 0.01]:
 # p = 0.1    loss = 2.303
 # p = 0.01   loss = 4.605
 
-# Perplexity is e to the mean loss: "the model was as unsure as if choosing among this many options".
-mean_loss = 2.3
-print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
+# Compare with the obvious alternative, 1 - p: at p = 0.01 it is 0.99 and has stopped caring.
+print(1 - 0.01, log_loss(0.01))`;
 ---
 
 <Note
   track="math"
   slug="functions-exponents-logs"
-  lede="Three ideas from school algebra carry most of the math in machine learning: a function is a machine, an exponent is repeated growth, and a logarithm asks “which power?”. This note rebuilds them with the exact meanings you will need, and shows where each one hides inside a loss function and a language model."
+  lede="Three ideas from school algebra carry most of the math in machine learning: a function is a machine, an exponent is repeated growth, and a logarithm asks “which power?”. This note rebuilds them with small numbers, then shows the one place they matter most: how a model’s score for being wrong is written."
   sections={sections}
 >
   <h2 id="why">Why this note matters</h2>
   <p>
-    Open any machine-learning formula and you will find these three ideas doing the work. The loss that trains a
-    language model is a logarithm. The softmax that turns scores into probabilities is built from
-    <Math tex="e^x" />. “Perplexity”, the number everyone quotes for language models, is <Math tex="e" /> raised to the
-    loss. Learning rates are written as <Math tex="3 \cdot 10^{-4}" /> and tuned on a logarithmic scale. If these
-    symbols are comfortable, the rest of the math track is a series of short steps. If they are not, every later note
-    feels harder than it is.
+    The <a href="/notes/ml/what-is-machine-learning/">previous note</a> ended with a model, three houses, and a
+    <strong>loss</strong>: one number that says how wrong the model’s guesses are. For guessing a price, the loss was
+    the average of the squared errors. But a great deal of machine learning is not about guessing a number. It is
+    about guessing <em>how likely</em> something is: that this email is spam, that the next word is “the”, that this
+    picture shows a cat. How wrong is a guess of “70% likely” when the thing then happens? Or does not happen?
+  </p>
+  <p>
+    The answer that the whole field settled on is built from a logarithm, and the step that turns a model’s raw
+    scores into percentages is built from the number <Math tex="e" />. Those two facts are the reason this note
+    exists. Small things that look like notation also live here: a step size written as
+    <Math tex="3 \times 10^{-4}" />, a chart with a “log scale” axis. If these are comfortable, the rest of the math
+    track is a series of short steps.
   </p>
   <p>Interviewers do not ask “what is a logarithm?”. They ask questions whose answers are built from it:</p>
   <ul>
-    <li>“Why is the loss function the <em>negative log</em> of the probability, not just one minus the probability?”</li>
-    <li>“What does a perplexity of 10 mean?”</li>
-    <li>“Your softmax returns NaN on large inputs. Why, and how do you fix it?”</li>
-    <li>“Why do we sum log-probabilities instead of multiplying probabilities?”</li>
-    <li>“Why search learning rates on a log scale?”</li>
+    <li>“Why is the loss for a probability guess the <em>negative log</em> of the probability, not just one minus the probability?”</li>
+    <li>“Why do we add up logs of probabilities instead of multiplying the probabilities?”</li>
+    <li>“Your code that turns scores into percentages returns NaN on large inputs. Why, and how do you fix it?”</li>
+    <li>“Why search step sizes on a log scale?”</li>
   </ul>
-  <p>By the end of this note you can answer all five. Each is worked out below and then collected in the interview section.</p>
+  <p>
+    By the end of this note you can answer all four, in plain words. Each is worked out below and then collected in
+    the interview section. Words that belong to later notes are marked like <Term id="softmax">this</Term>: hover for
+    a one-line meaning, or ignore them on a first read.
+  </p>
   <Callout kind="note" label="The scope rule">
     <p>
       This note covers exactly the parts of functions, exponents and logarithms that the later notes use. No
@@ -275,9 +279,9 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
     <Math tex="g(x) = x^2" /> and <Math tex="f(x) = 2x + 1" />, then <Math tex="f(g(3))" /> means “first
     <Math tex="g" />, then <Math tex="f" />”: <Math tex="g(3) = 9" />, then <Math tex="f(9) = 19" />. The other order
     gives something else: <Math tex="f(3) = 7" />, then <Math tex="g(7) = 49" />. This is
-    <span class="term">composition</span>, and a neural network is nothing but a long composition: layer 1, then layer
-    2, then layer 3. The chain rule in week 2 is the tool for differentiating compositions, so make the idea solid
-    now.
+    <span class="term">composition</span>. It matters because the big models of later weeks are nothing but long
+    compositions: a <Term id="neural-network">neural network</Term> is “do this simple step, then this one, then this
+    one”, dozens of times. Week 2 adds the tool for finding the slope of a composition, the chain rule.
   </p>
   <p>
     <strong>3. A function has a picture.</strong> Plot inputs along the bottom and outputs up the side and you get its
@@ -294,8 +298,8 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
   <Callout kind="say">
     <p>
       “A model is a parameterized function <Math tex="f_\theta" />: it maps inputs to outputs, and <Math tex="\theta" />
-      is the set of learnable parameters. Training is a search over <Math tex="\theta" /> that minimizes a loss. A deep
-      network is a composition of simpler functions, one per layer.”
+      is the set of learnable parameters. Training is a search over <Math tex="\theta" /> that minimizes a loss. A
+      <Term id="neural-network">neural network</Term> is a composition of simpler functions, one per layer.”
     </p>
   </Callout>
 
@@ -354,9 +358,10 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
     </table>
   </div>
   <p>
-    The negative-exponent rule is the one that shows up most. Learning rates are written like
-    <Math tex="3 \times 10^{-4}" />, which is <Math tex="3 / 10^4 = 3 / 10{,}000 = 0.0003" />. In code that is
-    <code>3e-4</code>. Reading these without pausing is a small skill worth having before you tune your first model.
+    The negative-exponent rule is the one that shows up most. The size of each training step (the
+    <Term id="learning-rate">learning rate</Term>, week 2) is written like <Math tex="3 \times 10^{-4}" />, which is
+    <Math tex="3 / 10^4 = 3 / 10{,}000 = 0.0003" />. In code that is <code>3e-4</code>. Reading these without pausing
+    is a small skill worth having before you tune your first model.
   </p>
   <Figure n={2} caption="Growth curves. All pass through (0, 1) because anything to the power 0 is 1. e^x grows faster than 2^x; e^(−x) is the same curve mirrored, and it is how probabilities shrink.">
     <svg viewBox="0 0 720 290" role="img" aria-label="Graphs of 2 to the x, e to the x and e to the minus x">
@@ -381,8 +386,9 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
     Two facts about Fig. 2 are used constantly. First, <Math tex="a^x" /> is <strong>always positive</strong>: no
     matter how negative <Math tex="x" /> gets, <Math tex="e^{-x}" /> only creeps towards zero and never touches or
     crosses it. Second, it is <strong>always increasing</strong>: a bigger <Math tex="x" /> always gives a bigger
-    <Math tex="e^x" />, so the order of inputs is preserved in the outputs. Keep both in mind; they are the reason
-    softmax is built from <Math tex="e^x" />.
+    <Math tex="e^x" />, so the order of inputs is preserved in the outputs. Keep both in mind. They are exactly the
+    two properties you need to turn a list of scores, which can be negative, into a list of percentages, which cannot,
+    without changing which score was biggest. <a href="#scores">That recipe</a> is below.
   </p>
   <Source
     kind="read"
@@ -410,8 +416,8 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
   </p>
   <p>
     You will see <Math tex="e^x" /> written as <Math tex="\exp(x)" /> when the exponent is long, for example
-    <Math tex="\exp(-(x-\mu)^2 / 2\sigma^2)" /> in the normal distribution. In code it is <code>np.exp(x)</code> and
-    <code>torch.exp(x)</code>. A few values to have in your head:
+    <Math tex="\exp(-(x-\mu)^2 / 2\sigma^2)" />, the formula for the bell curve you will meet in week 3. In code it is
+    <code>np.exp(x)</code>. A few values to have in your head:
   </p>
   <div class="table-wrap">
     <table>
@@ -427,7 +433,7 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
     Notice how quickly the right side explodes. <Math tex="e^{10}" /> is already twenty-two thousand, and
     <Math tex="e^{710}" /> is larger than the biggest number a 64-bit float can hold. A model’s raw scores can easily be
     in the hundreds, so “<Math tex="e^x" /> overflows” is a real bug you will meet, and
-    <a href="#together">the log-sum-exp section</a> shows the standard fix.
+    <a href="#scores">the scores section</a> shows the standard fix.
   </p>
   <Source
     kind="watch"
@@ -443,9 +449,9 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
   />
   <Callout kind="say">
     <p>
-      “We use <Math tex="e^x" /> in softmax and the normal distribution because it is positive and strictly
-      increasing, so it maps any real score to a positive number while preserving order, and because its derivative
-      is itself, which keeps gradients clean.”
+      “We use <Math tex="e^x" /> to turn scores into probabilities because it is positive and strictly increasing,
+      so it maps any real score to a positive number while preserving order, and because its slope equals its value,
+      which keeps the calculus clean.”
     </p>
   </Callout>
 
@@ -477,15 +483,15 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
         <tr><th>Base</th><th>Written</th><th>Where it appears</th><th>In NumPy / PyTorch</th></tr>
       </thead>
       <tbody>
-        <tr><td><Math tex="e" /></td><td><Math tex="\ln x" /> or just <Math tex="\log x" /> in ML papers</td><td>Every loss function, log-probabilities, perplexity</td><td><code>np.log</code>, <code>torch.log</code></td></tr>
-        <tr><td>2</td><td><Math tex="\log_2 x" /></td><td>Entropy in bits, information theory</td><td><code>np.log2</code></td></tr>
-        <tr><td>10</td><td><Math tex="\log_{10} x" /></td><td>Learning-rate scales, plots, “orders of magnitude”</td><td><code>np.log10</code></td></tr>
+        <tr><td><Math tex="e" /></td><td><Math tex="\ln x" /> or just <Math tex="\log x" /> in ML papers</td><td>Every loss built from probabilities; the log-probabilities that model APIs return</td><td><code>np.log</code></td></tr>
+        <tr><td>2</td><td><Math tex="\log_2 x" /></td><td>Measuring information in bits (<Term id="entropy">entropy</Term>, week 4)</td><td><code>np.log2</code></td></tr>
+        <tr><td>10</td><td><Math tex="\log_{10} x" /></td><td>Step-size scales, plots, “orders of magnitude”</td><td><code>np.log10</code></td></tr>
       </tbody>
     </table>
   </div>
   <Callout kind="pitfall" label="Read this twice">
     <p>
-      In machine-learning papers and in NumPy, PyTorch and every ML library, a bare <Math tex="\log" /> means the
+      In machine-learning papers, in NumPy and in every ML library, a bare <Math tex="\log" /> means the
       <em>natural</em> log, base <Math tex="e" />. School and calculators often use <Math tex="\log" /> for base 10.
       <code>np.log(100)</code> is 4.605, not 2. The rest of these notes write <Math tex="\log" /> and mean
       <Math tex="\ln" />.
@@ -507,7 +513,7 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
       <text class="small label-red" x={sx(lnPanel, 0.02)} y={lnPanel.y + lnPanel.h + 30}>no log of 0 or negatives</text>
     </svg>
   </Figure>
-  <p>Read the shape of Fig. 3 carefully, because it <em>is</em> the shape of the loss function you will train with:</p>
+  <p>Read the shape of Fig. 3 carefully, because it <em>is</em> the shape of the loss for probability guesses, which <a href="#why-logs">the next section</a> builds:</p>
   <ul>
     <li><Math tex="\log 1 = 0" />, because <Math tex="e^0 = 1" />. A probability of 1 will mean zero loss.</li>
     <li>
@@ -588,14 +594,14 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
     The change-of-base rule has a practical consequence: <em>which</em> base you use changes nothing except a
     constant factor. The place where a function is smallest is the same whether you measure in <Math tex="\ln" />,
     <Math tex="\log_2" /> or <Math tex="\log_{10}" />. This is why a paper can say “log” without caring, and why
-    entropy in bits (base 2) and entropy in nats (base <Math tex="e" />) carry the same information.
+    the same quantity can be reported “in bits” (base 2) or “in nats” (base <Math tex="e" />) and mean the same thing.
   </p>
   <p>Two things that look like rules but are <strong>not</strong>:</p>
   <Callout kind="pitfall">
     <p>
       <Math tex="\log(a + b)" /> is <em>not</em> <Math tex="\log a + \log b" />. Check: <Math tex="\log_2(4 + 4) = 3" />
-      but <Math tex="\log_2 4 + \log_2 4 = 4" />. There is no simple rule for the log of a sum; that gap is exactly
-      what the log-sum-exp trick below works around.
+      but <Math tex="\log_2 4 + \log_2 4 = 4" />. There is no simple rule for the log of a sum. (A trick for computing
+      one safely in code exists; it waits for week 5, where it is needed.)
     </p>
   </Callout>
   <Callout kind="pitfall">
@@ -637,10 +643,10 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
   <p>
     and <Math tex="e^{-0.380} = 0.684" />, the same answer. For three numbers this is no easier. For a million
     training examples, or for a 500-token sentence where each token has its own probability, a sum is something you
-    can compute, average and differentiate, and a product is not. This sum of logs is called the
-    <span class="term">log-likelihood</span>, and almost every model is trained by making it as large as possible.
-    The <a href="/notes/math/maximum-likelihood/">maximum likelihood note</a> in week 3 builds on exactly this
-    calculation.
+    can compute, average and take slopes of, and a product is not. Almost every model is trained by making this sum
+    of logs as large as possible, which is the same as making the product as large as possible. In week 3 the product
+    gets a name, the <Term id="likelihood">likelihood</Term>, and the
+    <a href="/notes/math/maximum-likelihood/">maximum likelihood note</a> builds on exactly this calculation.
   </p>
   <p>
     <strong>Reason 2: tiny numbers stay representable.</strong> Multiply a thousand probabilities of 0.001 and the
@@ -650,9 +656,11 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
     an ordinary number. The <a href="#code">code section</a> shows this happening.
   </p>
   <p>
-    <strong>Reason 3: confident mistakes are punished without limit.</strong> Flip the sign and you get the loss
-    actually used in training, <Math tex="-\log p" />, where <Math tex="p" /> is the probability the model gave to the
-    correct answer. Fig. 4 is its graph.
+    <strong>Reason 3: confident mistakes are punished without limit.</strong> A loss should be a number that is
+    small when the model is right and large when it is wrong, and logs of probabilities are negative, so flip the
+    sign. The loss used for probability guesses is <Math tex="-\log p" />, where <Math tex="p" /> is the probability
+    the model gave to the answer that turned out to be correct. It is called the <span class="term">log loss</span>.
+    Fig. 4 is its graph.
   </p>
   <Figure n={4} caption="The log loss −log p for one example, where p is the probability given to the correct answer. Nearly free when p is near 1; climbs without limit as p nears 0.">
     <svg viewBox="0 0 720 300" role="img" aria-label="Graph of negative log p against p with labelled points">
@@ -682,84 +690,71 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
     either way. But being 99% sure of the <em>wrong</em> answer, so <Math tex="p = 0.01" /> for the right one, costs
     0.99 under <Math tex="1 - p" /> and 4.6 under <Math tex="-\log p" />. Push to <Math tex="p = 0.0001" /> and the
     first loss barely moves to 0.9999 while the second jumps to 9.2. The log loss keeps caring, more and more, exactly
-    when the model is most confidently wrong, and that pressure is what trains calibrated probabilities. It is the
-    forecaster’s score from the plain-words box: cheap when right, unbounded when arrogantly wrong.
+    when the model is most confidently wrong, and that pressure is what teaches a model to say “70%” only when it
+    really is right about 70% of the time. It is the forecaster’s score from the plain-words box: cheap when right,
+    unbounded when arrogantly wrong.
   </p>
   <p>
-    <strong>A fourth, smaller reason: log scales.</strong> When you try learning rates, the useful candidates are
-    0.1, 0.01, 0.001, 0.0001: each a factor of 10 apart, not a fixed amount apart. On a log scale those are evenly
+    <strong>A fourth, smaller reason: log scales.</strong> When you try step sizes for training, the useful
+    candidates are 0.1, 0.01, 0.001, 0.0001: each a factor of 10 apart, not a fixed amount apart. On a log scale those are evenly
     spaced. The same holds for plotting a loss that falls from 1000 to 0.1: on a plain axis the interesting part is
     squashed into an invisible sliver at the bottom; on a log axis every factor of 10 gets equal room. Whenever a
     quantity varies by multiplication, think in logs.
   </p>
   <Callout kind="say">
     <p>
-      “We train on the log-likelihood rather than the likelihood because the log turns a product over examples into a
-      sum, which is numerically stable and easy to differentiate, and it has the same maximizer. Negating it gives the
-      cross-entropy loss, <Math tex="-\log p" />, which penalizes confident errors without bound, since
-      <Math tex="-\log p \to \infty" /> as <Math tex="p \to 0" />.”
+      “We work with the sum of log-probabilities rather than the product of probabilities because the log turns a
+      product over examples into a sum, which is numerically stable and easy to take slopes of, and it has the same
+      best point. Negating it gives the log loss, <Math tex="-\log p" />, which penalizes confident errors without
+      bound, since <Math tex="-\log p \to \infty" /> as <Math tex="p \to 0" />.” (Later notes call the same loss
+      <Term id="cross-entropy">cross-entropy</Term>.)
     </p>
   </Callout>
 
-  <h2 id="together">e and log together: softmax and log-sum-exp</h2>
+  <h2 id="scores">Turning scores into percentages</h2>
   <Callout kind="plain">
     <p>
-      A model ends with a list of raw scores, one per possible answer, and the scores can be any numbers at all:
-      negative, huge, tiny. You want to turn them into percentages that are all positive and add up to 100%. The
-      recipe is: raise <Math tex="e" /> to each score, which makes everything positive while keeping the order, then
-      divide by the total so they sum to 1. That recipe is softmax. The catch is that <Math tex="e" /> to a big score
-      overflows, and the fix uses one log rule.
+      Suppose a model has to choose between three answers, and it has given them raw scores of 2, 1 and 0. Scores
+      like these can be any numbers at all: negative, huge, tiny. You want to turn them into percentages that are all
+      positive and add up to 100%, so that you can say “66% sure it is the first one”. The recipe is two steps. Raise
+      <Math tex="e" /> to each score, which makes everything positive while keeping the order (Fig. 2). Then divide
+      each by the total, so they add up to 1. The catch is that <Math tex="e" /> to a big score overflows, and the fix
+      uses one exponent rule.
     </p>
   </Callout>
-  <p>
-    Raw scores are called <span class="term">logits</span>. For logits <Math tex="z = (2, 1, 0)" /> the
-    <span class="term">softmax</span> is
-  </p>
-  <Math block tex="\text{softmax}(z)_i = \frac{e^{z_i}}{\sum_j e^{z_j}}" />
-  <p>For our three logits:</p>
+  <p>For the scores <Math tex="z = (2, 1, 0)" />:</p>
   <Math block tex="\frac{(e^2,\ e^1,\ e^0)}{e^2 + e^1 + e^0} = \frac{(7.39,\ 2.72,\ 1)}{11.11} = (0.665,\ 0.245,\ 0.090)" />
   <p>
-    Check the properties: every entry is positive, they add to 1, and the biggest logit got the biggest probability.
-    The <a href="/notes/dl/softmax-cross-entropy/">softmax note</a> in the deep learning track does the full story;
-    here the point is only to see <Math tex="e^x" /> doing the job Fig. 2 promised.
+    Check the properties: every entry is positive, they add to 1, and the biggest score got the biggest share. Written
+    as a formula, the share for score number <Math tex="i" /> is
+  </p>
+  <Math block tex="p_i = \frac{e^{z_i}}{\sum_j e^{z_j}}" />
+  <p>
+    where <Math tex="\sum_j" /> just means “add up over all the scores”. This recipe is so common that it has a name,
+    <span class="term">softmax</span>, and the raw scores are called <span class="term">logits</span>. You do not need
+    either word yet; the <a href="/notes/dl/softmax-cross-entropy/">softmax note</a> in week 5 tells the full story.
+    Here the point is only to see <Math tex="e^x" /> doing the job Fig. 2 promised.
   </p>
   <p>
-    Now the bug. Logits of <Math tex="(1000, 1001, 1002)" /> are perfectly ordinary for an untrained network, but
-    <Math tex="e^{1000}" /> is far beyond the largest float, so every term becomes <code>inf</code> and the division
-    gives <code>nan</code>. The fix: subtract the largest logit from all of them first. The exponent rule says
-    <Math tex="e^{z_i - c} = e^{z_i} / e^c" />, and the <Math tex="e^c" /> appears in both the top and the bottom of
-    the softmax fraction, so it cancels. The probabilities are <em>identical</em>; only the intermediate numbers
+    Now the bug. Scores of <Math tex="(1000, 1001, 1002)" /> are perfectly ordinary for a model that has not been
+    trained yet, but <Math tex="e^{1000}" /> is far beyond the largest float, so every term becomes <code>inf</code>
+    and the division gives <code>nan</code>. The fix: subtract the largest score from all of them first. The exponent
+    rule says <Math tex="e^{z_i - c} = e^{z_i} / e^c" />, and the <Math tex="e^c" /> appears in both the top and the
+    bottom of the fraction, so it cancels. The percentages are <em>identical</em>; only the intermediate numbers
     change:
   </p>
   <Math block tex="(1000, 1001, 1002) - 1002 = (-2, -1, 0)" />
   <Math block tex="\frac{(e^{-2},\ e^{-1},\ e^{0})}{e^{-2} + e^{-1} + e^{0}} = \frac{(0.135,\ 0.368,\ 1)}{1.503} = (0.090,\ 0.245,\ 0.665)" />
   <p>
-    Taking the log of a softmax gives <span class="term">log-softmax</span>, which is what the loss actually needs
-    (remember, the loss is <Math tex="-\log p" />). Using the quotient rule:
+    After the shift the biggest exponent is 0, so the biggest term is <Math tex="e^0 = 1" /> and nothing can overflow.
+    Every machine-learning library does this inside its scores-to-percentages function, which is why hand-written
+    versions that forget it are a classic interview question. The <a href="#code">code section</a> shows both versions.
   </p>
-  <Math block tex="\log \text{softmax}(z)_i = z_i - \log \sum_j e^{z_j}" />
-  <p>
-    The second term, the log of a sum of exponentials, is so common it has a name,
-    <span class="term">log-sum-exp</span>, and the same max-subtraction trick makes it safe:
-  </p>
-  <Math block tex="\log \sum_j e^{z_j} = c + \log \sum_j e^{z_j - c} \qquad \text{with } c = \max_j z_j" />
-  <p>
-    For our logits: <Math tex="1002 + \log(0.135 + 0.368 + 1) = 1002 + \log 1.503 = 1002 + 0.408 = 1002.408" />.
-    No overflow anywhere. Every deep-learning library’s <code>log_softmax</code> and <code>cross_entropy</code> do
-    this internally, which is why you are told to pass raw logits to the loss and never your own softmax output.
-  </p>
-  <Source
-    kind="read"
-    href="https://pytorch.org/docs/stable/generated/torch.nn.functional.log_softmax.html"
-    title="PyTorch documentation: log_softmax"
-    meta="Note the sentence explaining that it is computed in one step for numerical stability. That sentence is this section."
-  />
   <Callout kind="say">
     <p>
-      “Softmax exponentiates logits to make them positive and normalizes them to sum to one. Exponentiating large
-      logits overflows, so we subtract the maximum logit first; the shift cancels in the ratio and leaves the output
-      unchanged. The same trick, log-sum-exp, is how log-softmax and cross-entropy are computed stably, which is why
-      the loss takes raw logits.”
+      “To turn raw scores into probabilities we exponentiate each score, which makes them positive and keeps their
+      order, and divide by the sum so they add to one. Exponentiating large scores overflows, so we subtract the
+      maximum score first; by the exponent rules the shift cancels in the ratio and leaves the output unchanged.”
     </p>
   </Callout>
 
@@ -788,12 +783,12 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
         <tr><th>Function</th><th>Shape</th><th>Key facts</th><th>Where you will meet it</th></tr>
       </thead>
       <tbody>
-        <tr><td><Math tex="wx + b" /></td><td>straight line</td><td>slope <Math tex="w" />, crosses the y-axis at <Math tex="b" /></td><td>linear regression, every neuron before its activation</td></tr>
-        <tr><td><Math tex="x^2" /></td><td>U shape</td><td>never negative, minimum at 0, grows fast</td><td>mean squared error, L2 regularization</td></tr>
-        <tr><td><Math tex="e^x" /></td><td>hockey stick up</td><td>always positive, increasing, slope equals value</td><td>softmax, the normal distribution</td></tr>
-        <tr><td><Math tex="\log x" /></td><td>steep then flat</td><td>only for <Math tex="x > 0" />, zero at 1, negative below 1</td><td>log loss, log-likelihood, perplexity, entropy</td></tr>
-        <tr><td><Math tex="\sigma(x) = \dfrac{1}{1 + e^{-x}}" /></td><td>S curve</td><td>squashes any number into (0, 1), <Math tex="\sigma(0) = 0.5" /></td><td>logistic regression, gates, attention masks</td></tr>
-        <tr><td><Math tex="\max(0, x)" /></td><td>flat then diagonal</td><td>zero for negatives, identity for positives</td><td>ReLU activation</td></tr>
+        <tr><td><Math tex="wx + b" /></td><td>straight line</td><td>slope <Math tex="w" />, crosses the y-axis at <Math tex="b" /></td><td>the house-price model; <a href="/notes/ml/linear-regression/">linear regression</a>; every layer of a <Term id="neural-network">neural network</Term> before its bend</td></tr>
+        <tr><td><Math tex="x^2" /></td><td>U shape</td><td>never negative, minimum at 0, grows fast</td><td>mean squared error; penalties on big parameters (<Term id="regularization">regularization</Term>, week 3)</td></tr>
+        <tr><td><Math tex="e^x" /></td><td>hockey stick up</td><td>always positive, increasing, slope equals value</td><td>scores to percentages (<a href="#scores">above</a>); the bell curve (week 3)</td></tr>
+        <tr><td><Math tex="\log x" /></td><td>steep then flat</td><td>only for <Math tex="x > 0" />, zero at 1, negative below 1</td><td>the log loss; measuring information (week 4)</td></tr>
+        <tr><td><Math tex="\sigma(x) = \dfrac{1}{1 + e^{-x}}" /></td><td>S curve</td><td>squashes any number into (0, 1), <Math tex="\sigma(0) = 0.5" /></td><td>turning one score into a yes/no probability (<Term id="sigmoid">sigmoid</Term>, week 3)</td></tr>
+        <tr><td><Math tex="\max(0, x)" /></td><td>flat then diagonal</td><td>zero for negatives, identity for positives</td><td>the bend between layers of a network (<Term id="relu">ReLU</Term>, week 5)</td></tr>
       </tbody>
     </table>
   </div>
@@ -816,78 +811,88 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
   <CodeBlock code={rulesCode} />
   <h3>Underflow, and why log space fixes it</h3>
   <CodeBlock code={underflowCode} />
-  <h3>Stable softmax and log-softmax</h3>
+  <h3>Scores to percentages, naive and safe</h3>
   <CodeBlock code={softmaxCode} />
-  <h3>The log loss and perplexity</h3>
+  <h3>The log loss</h3>
   <CodeBlock code={lossCode} />
-  <Source
-    kind="read"
-    href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.logsumexp.html"
-    title="SciPy documentation: scipy.special.logsumexp"
-    meta="The library version of the trick you just wrote. Use it in real code; write your own once so you know what it does."
-  />
+  <Callout kind="note" label="Reading the code">
+    <p>
+      Every <code>np.</code> function in these blocks is a link. Click <code>np.log</code> or <code>np.exp</code> to
+      open its entry on the <a href="/numpy/">NumPy reference page</a>, which explains it in plain words with its own
+      example and output.
+    </p>
+  </Callout>
 
-  <h2 id="llm">Where this lives in an LLM</h2>
-  <p>Every idea on this page is in the last few lines of a language model’s forward pass.</p>
+  <h2 id="later">Where you will meet this again</h2>
+  <Callout kind="note" label="Optional preview">
+    <p>
+      This section looks ahead so that, when the ideas return, you recognise them. Every unfamiliar word is linked to
+      the glossary. Skip it on a first read if you like, and come back after week 5.
+    </p>
+  </Callout>
   <ul>
     <li>
-      The model’s final layer produces one <strong>logit</strong> per token in its vocabulary, about 50,000 numbers
-      for GPT-2. <strong>Softmax</strong>, built from <Math tex="e^x" />, turns them into a probability for each
-      possible next token.
+      <strong>Week 2, loss functions.</strong> The log loss, <Math tex="-\log p" />, becomes the standard loss for
+      yes/no questions, with the probability <Math tex="p" /> coming out of the S-curve from the zoo.
     </li>
     <li>
-      The training loss is <Math tex="-\log p" /> of the token that actually came next, averaged over every position.
-      That is <strong>cross-entropy</strong>, and it is Fig. 4 applied billions of times.
+      <strong>Week 3, maximum likelihood.</strong> “Add up the logs of the probabilities the model gave to what really
+      happened, and make that as big as possible” turns out to be where almost every loss comes from. The product
+      gets the name <Term id="likelihood">likelihood</Term>.
     </li>
     <li>
-      <strong>Perplexity</strong> is <Math tex="e^{\text{mean loss}}" />. A loss of 2.3 gives a perplexity of
-      <Math tex="e^{2.3} \approx 10" />: on average the model was as uncertain as if it were choosing among 10 equally
-      likely tokens. A loss of 0.69 gives perplexity 2, a coin flip. This is why perplexity is reported instead of
-      loss: it has a meaning you can picture.
+      <strong>Week 4, entropy.</strong> <Math tex="-\log p" /> averaged over outcomes measures how unpredictable
+      something is; that is <Term id="entropy">entropy</Term>, and the log loss gets its grown-up name,
+      <Term id="cross-entropy">cross-entropy</Term>.
     </li>
     <li>
-      <strong>Temperature</strong> divides the logits before the softmax. Dividing by 0.5 doubles every logit, and
-      because <Math tex="e^{2z}" /> stretches gaps between scores, the distribution sharpens. Dividing by 2 halves
-      them and flattens it. The <a href="/notes/llm-internals/decoding-strategies/">decoding note</a> works the
-      numbers.
+      <strong>Week 5, softmax.</strong> The scores-to-percentages recipe becomes <Term id="softmax">softmax</Term>,
+      the last step of every model that chooses between categories, and the subtract-the-max trick returns with a
+      second trick for taking its log safely.
     </li>
     <li>
-      Model APIs return <strong>log-probabilities</strong> (“logprobs”), not probabilities, for the same reasons as
-      Reason 1 and 2 above. A logprob of −0.105 means <Math tex="p = e^{-0.105} = 0.9" />.
-    </li>
-    <li>
-      The learning rate of GPT-2’s training, <Math tex="6 \times 10^{-4}" />, with its <strong>cosine schedule</strong>
-      plotted on a <strong>log axis</strong>, is the exponent rules and log scales from above.
+      <strong>Weeks 7 to 9, language models.</strong> A <Term id="language-model">language model</Term> gives a score
+      to every <Term id="token">token</Term> it could write next, about 50,000 of them, and softmax turns those into
+      percentages. Its training loss is <Math tex="-\log p" /> of the token that actually came next, averaged over
+      every position: Fig. 4 applied billions of times. People report <Math tex="e" /> raised to that average loss and
+      call it <Term id="perplexity">perplexity</Term>; a value of 10 means “as unsure as choosing among 10 equally
+      likely tokens”. And model APIs return log-probabilities rather than probabilities, for Reasons 1 and 2 above.
     </li>
   </ul>
 
   <h2 id="interview">The full interview answer</h2>
   <p>
-    The most common form this note takes in an interview is “why is cross-entropy a log?” or “why not just use one
-    minus the probability?”. Here is a complete answer in about sixty seconds, built from the short lines above.
+    The most common form this note takes in an interview is “why is the loss for a probability a log?” or “why not
+    just use one minus the probability?”. (After week 4 you will hear it asked as “why is cross-entropy a log?”; same
+    question.) Here is a complete answer in about sixty seconds, built from the short lines above.
   </p>
   <Callout kind="interview">
     <p>
-      “The model outputs a probability for the correct class, and we want a loss that is small when that probability
-      is high. We use the negative log of it for three reasons. First, likelihoods of independent examples multiply,
-      and the log turns that product into a sum, which we can average and differentiate, and which has the same
-      optimum. Second, the product of many probabilities underflows to zero in floating point, while the sum of logs
-      stays representable. Third, the shape is right: negative log p is nearly zero when p is near one, but it grows
-      without bound as p goes to zero, so a model that is confidently wrong is penalized heavily, which pushes it
-      towards calibrated probabilities. A loss like one minus p would cap the penalty at one and give weak gradients
-      exactly when the model is most wrong.
+      “The model outputs a probability for the correct answer, and we want a loss that is small when that probability
+      is high. We use the negative log of it for three reasons. First, the probabilities of independent examples
+      multiply, and the log turns that product into a sum, which we can average and take slopes of, and which has the
+      same best point. Second, the product of many probabilities underflows to zero in floating point, while the sum
+      of logs stays representable. Third, the shape is right: negative log p is nearly zero when p is near one, but it
+      grows without bound as p goes to zero, so a model that is confidently wrong is penalized heavily, which pushes
+      it towards honest probabilities. A loss like one minus p would cap the penalty at one and stop pushing exactly
+      when the model is most wrong.
     </p>
     <p>
-      In practice we compute it from the raw logits with log-softmax, subtracting the maximum logit before
-      exponentiating so that nothing overflows; the shift cancels in the softmax ratio. And the exponential of the
-      mean loss is the perplexity, which is the effective number of choices the model is hesitating between.”
+      In practice the probabilities come from exponentiating raw scores and dividing by their sum, and we subtract the
+      maximum score before exponentiating so that nothing overflows; by the exponent rules the shift cancels in the
+      ratio.”
+    </p>
+    <p>
+      <em>After week 5 you can add:</em> “we compute the log directly from the scores with log-softmax”. <em>After
+      week 9:</em> “and <Math tex="e" /> to the mean loss is the perplexity, the effective number of choices the model
+      is hesitating between.”
     </p>
   </Callout>
   <p><strong>If they push further, be ready for:</strong></p>
   <ul>
     <li>“Why base <Math tex="e" /> rather than 2?” Any base differs by a constant factor, so the minimizer is the same; <Math tex="e" /> makes derivatives clean. Base 2 gives the loss in bits.</li>
-    <li>“What is a perplexity of 1?” Loss 0: the model assigned probability 1 to every correct token. Perfect, and in practice a sign of a bug or data leakage.</li>
-    <li>“Why does my loss show NaN?” Usually <Math tex="\log 0" /> somewhere: a probability that reached exactly zero, or an overflow in a hand-written softmax. Pass logits to the library loss.</li>
+    <li>“What loss means the model was perfect?” 0: it gave probability 1 to every correct answer. In practice that is a sign of a bug or of test answers leaking into training.</li>
+    <li>“Why does my loss show NaN?” Usually <Math tex="\log 0" /> somewhere: a probability that reached exactly zero, or an overflow in a hand-written scores-to-percentages step. Clip probabilities away from zero, or use the library’s loss function, which does the safe version.</li>
     <li>“Why are logprobs negative?” Probabilities are at most 1 and <Math tex="\log 1 = 0" />, so every log-probability is zero or below.</li>
   </ul>
 
@@ -896,15 +901,15 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
   <QA q="What does f(x; θ) mean, and what changes during training?">
     <p>
       It is a function of the input <Math tex="x" /> whose behaviour depends on parameters <Math tex="\theta" />. The
-      input comes from the data and is fixed; training changes <Math tex="\theta" /> to minimize a loss. In a neural
+      input comes from the data and is fixed; training changes <Math tex="\theta" /> to minimize a loss. In a big
       network <Math tex="\theta" /> is every weight and bias.
     </p>
   </QA>
-  <QA q="Why is e^x used in softmax instead of, say, x² or |x| to make scores positive?">
+  <QA q="Why is e^x used to turn scores into percentages instead of, say, x² or |x|, which also make numbers positive?">
     <p>
-      <Math tex="e^x" /> is strictly increasing, so a larger logit always gets a larger probability; <Math tex="x^2" />
-      and <Math tex="|x|" /> would give the logits −5 and 5 the same probability. It is also smooth with a derivative
-      equal to itself, which makes the gradient of softmax and cross-entropy simple (prediction minus target).
+      <Math tex="e^x" /> is strictly increasing, so a larger score always gets a larger percentage; <Math tex="x^2" />
+      and <Math tex="|x|" /> would give the scores −5 and 5 the same percentage. It is also smooth, with a slope equal
+      to its own value, which makes the calculus in week 5 come out clean.
     </p>
   </QA>
   <QA q="Without a calculator: log₂ 32, log₁₀ 0.001, ln(e⁵), e^(ln 7), ln 1.">
@@ -925,23 +930,23 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
       finds the same parameters as maximizing the product.
     </p>
   </QA>
-  <QA q="What does a perplexity of 20 mean?">
+  <QA q="Each extra zero in a probability (0.1, 0.01, 0.001) adds how much to the log loss? Why?">
     <p>
-      The mean cross-entropy loss is <Math tex="\ln 20 \approx 3.0" />, and the model is on average as uncertain as if
-      it were choosing uniformly among 20 tokens. Lower is better; 1 is perfect.
+      About 2.3 each time, because <Math tex="\log 10 = 2.303" /> and <Math tex="\log(p/10) = \log p - \log 10" />.
+      Dividing the input by a fixed factor subtracts a fixed amount from the log: that is the power rule in action.
     </p>
   </QA>
-  <QA q="Your hand-written softmax returns NaN for logits around 1000. What happened and what is the fix?">
+  <QA q="Your hand-written scores-to-percentages function returns NaN for scores around 1000. What happened and what is the fix?">
     <p>
       <Math tex="e^{1000}" /> overflows to infinity, and infinity divided by infinity is NaN. Subtract the maximum
-      logit from all logits before exponentiating. The factor <Math tex="e^{\max}" /> cancels between numerator and
+      score from all scores before exponentiating. The factor <Math tex="e^{\max}" /> cancels between numerator and
       denominator, so the output is unchanged and all intermediate values are at most 1.
     </p>
   </QA>
   <QA q="Is log(a + b) = log a + log b?">
     <p>
       No. There is no simple rule for the log of a sum. <Math tex="\log(ab) = \log a + \log b" /> is the product rule.
-      Computing the log of a sum of exponentials stably is exactly what log-sum-exp is for.
+      Check: <Math tex="\log_2(4 + 4) = 3" /> but <Math tex="\log_2 4 + \log_2 4 = 4" />.
     </p>
   </QA>
   <QA q="Why does changing the base of the log not change which parameters minimize a loss?">
@@ -951,17 +956,17 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
       changes.
     </p>
   </QA>
-  <QA q="Why are learning rates searched on a log scale?">
+  <QA q="Why are training step sizes (learning rates) searched on a log scale?">
     <p>
-      Because the effect of a learning rate is multiplicative: 0.01 and 0.001 behave very differently, while 0.011
+      Because the effect of a step size is multiplicative: 0.01 and 0.001 behave very differently, while 0.011
       and 0.010 behave the same. Spacing candidates by a constant factor (evenly spaced in log space) spends the
       budget where behaviour actually changes.
     </p>
   </QA>
   <QA q="If g(x) = x² and f(x) = 2x + 1, what are f(g(2)) and g(f(2))?">
     <p>
-      <Math tex="f(g(2)) = f(4) = 9" /> and <Math tex="g(f(2)) = g(5) = 25" />. Order matters in composition; a neural
-      network is a specific order of compositions.
+      <Math tex="f(g(2)) = f(4) = 9" /> and <Math tex="g(f(2)) = g(5) = 25" />. Order matters in composition; a big
+      model is a specific order of compositions.
     </p>
   </QA>
   <QA q="What is 3e-4 as a decimal, and what does the notation mean?">
@@ -1012,28 +1017,32 @@ print(np.exp(mean_loss))     # 9.97 -> about 10 equally likely options`;
       <Math tex="x = \log_{10} 3 + (-4) = 0.477 - 4 = -3.52" />.
     </p>
   </QA>
-  <QA q="7. A model’s mean loss is 1.386. What is its perplexity? (ln 4 = 1.386.)">
+  <QA q="7. A loss falls from 1000 to 0.1 over training. On a plain axis, what fraction of the chart’s height does the part from 1 to 0.1 occupy? On a log₁₀ axis?">
     <p>
-      <Math tex="e^{1.386} = 4" />. The model is choosing among four equally likely options on average.
+      Plain axis: the range is 1000, and the interesting final stretch spans 0.9 of it, so 0.09% of the height,
+      invisible. Log axis: the range is <Math tex="\log_{10} 1000 - \log_{10} 0.1 = 3 - (-1) = 4" /> units, and the
+      stretch from 1 to 0.1 is 1 unit, a quarter of the chart. That is why loss curves are plotted on log axes.
     </p>
   </QA>
-  <QA q="8. Compute softmax(2, 1, 0) by hand. (e² = 7.389, e = 2.718.)">
+  <QA q="8. Turn the scores (2, 1, 0) into percentages by hand. (e² = 7.389, e = 2.718.)">
     <p>
-      Sum <Math tex="7.389 + 2.718 + 1 = 11.107" />. Probabilities <Math tex="(0.665, 0.245, 0.090)" />. They add to
-      1 and keep the order of the logits.
+      Sum <Math tex="7.389 + 2.718 + 1 = 11.107" />. Percentages <Math tex="(0.665, 0.245, 0.090)" />. They add to 1
+      and keep the order of the scores.
     </p>
   </QA>
-  <QA q="9. Compute softmax(1000, 1001, 1002) by hand without overflowing anything.">
+  <QA q="9. Turn the scores (1000, 1001, 1002) into percentages by hand without overflowing anything.">
     <p>
       Subtract 1002: <Math tex="(-2, -1, 0)" />. Exponentials <Math tex="(0.135, 0.368, 1)" />, sum 1.503, so
       <Math tex="(0.090, 0.245, 0.665)" />. Note it is the mirror image of problem 8, because the gaps between the
-      logits are the same but reversed.
+      scores are the same but reversed.
     </p>
   </QA>
-  <QA q="10. Compute log-softmax(2, 1, 0) and log-sum-exp(1000, 1001, 1002).">
+  <QA q="10. Scores (3, 3, 3). What percentages come out, and why? What about scores (3, 3, 3) + 100?">
     <p>
-      <Math tex="\log \sum e^{z} = \ln 11.107 = 2.408" />, so log-softmax is <Math tex="(2 - 2.408, 1 - 2.408, 0 - 2.408) = (-0.408, -1.408, -2.408)" />.
-      For the second: <Math tex="1002 + \ln 1.503 = 1002 + 0.408 = 1002.408" />.
+      Equal scores give equal shares: <Math tex="(e^3, e^3, e^3) / 3e^3 = (1/3, 1/3, 1/3)" />. Adding the same number
+      to every score multiplies every <Math tex="e^{z}" /> by the same <Math tex="e^{100}" />, which cancels in the
+      division, so the shares are unchanged. Only the <em>gaps</em> between scores matter. That is also why
+      subtracting the maximum is harmless.
     </p>
   </QA>
   <QA q="11. Sketch, from memory, y = ln x, y = −ln x for 0 < x ≤ 1, and y = eˣ on the same axes. Mark where each crosses an axis.">
@@ -1089,26 +1098,28 @@ print(logspace)            # -921.03...: still a perfectly ordinary number
 print(np.exp(logspace))    # 0.0 again, as soon as you leave log space`}
     />
   </QA>
-  <QA q="15. Implement softmax and log_softmax with the max-subtraction trick and compare against torch.softmax and torch.log_softmax on random logits in the range [−1000, 1000].">
+  <QA q="15. Write scores_to_percentages(z) with the subtract-the-max trick so that it works on a whole matrix of scores at once, one row per example. Check on random scores in [−1000, 1000] that every row is positive, adds to 1, and agrees with the naive version where the naive version does not overflow.">
     <CodeBlock
       code={`import numpy as np
-import torch
 
-def softmax(z):
-    z = z - z.max(axis=-1, keepdims=True)
+def scores_to_percentages(z):
+    z = z - z.max(axis=1, keepdims=True)     # per row: subtract that row's biggest score
     e = np.exp(z)
-    return e / e.sum(axis=-1, keepdims=True)
+    return e / e.sum(axis=1, keepdims=True)  # per row: divide by that row's total
 
-def log_softmax(z):
-    z = z - z.max(axis=-1, keepdims=True)
-    return z - np.log(np.exp(z).sum(axis=-1, keepdims=True))
+def naive(z):
+    e = np.exp(z)
+    return e / e.sum(axis=1, keepdims=True)
 
-z = np.random.default_rng(0).uniform(-1000, 1000, size=(8, 50))
-t = torch.tensor(z)
-assert np.allclose(softmax(z), torch.softmax(t, dim=-1).numpy())
-assert np.allclose(log_softmax(z), torch.log_softmax(t, dim=-1).numpy())
-assert np.allclose(softmax(z).sum(axis=-1), 1.0)
-print("stable and matching")`}
+rng = np.random.default_rng(0)
+big = rng.uniform(-1000, 1000, size=(8, 50))
+p = scores_to_percentages(big)
+assert np.all(p > 0) and np.allclose(p.sum(axis=1), 1.0)
+assert np.isnan(naive(big)).any()                      # the naive version breaks on these
+
+small = rng.uniform(-5, 5, size=(8, 50))
+assert np.allclose(scores_to_percentages(small), naive(small))   # and agrees where it works
+print("stable, rows sum to 1, matches the naive version on small scores")`}
     />
   </QA>
   <QA q="16. Plot −log p for p from 0.001 to 1, and on the same axes plot 1 − p. Mark p = 0.01 on both. Write one sentence about what you see.">
@@ -1133,7 +1144,7 @@ plt.show()
   <Callout kind="pitfall">
     <p>
       <strong>Reading <Math tex="\log" /> as base 10.</strong> In ML it is base <Math tex="e" />. <code>np.log(10)</code>
-      is 2.303, and a perplexity is <Math tex="e^{\text{loss}}" />, not <Math tex="10^{\text{loss}}" />.
+      is 2.303, not 1.
     </p>
   </Callout>
   <Callout kind="pitfall">
@@ -1145,15 +1156,15 @@ plt.show()
   <Callout kind="pitfall">
     <p>
       <strong>Taking the log of zero or a negative number.</strong> It is undefined, and in code it silently produces
-      <code>-inf</code> or <code>nan</code> that poisons everything downstream. Clamp probabilities away from zero,
-      or better, compute losses from logits with log-softmax.
+      <code>-inf</code> or <code>nan</code> that poisons everything downstream. NumPy prints a warning, not an error,
+      and carries on. Clip probabilities away from zero before the log (<code>np.clip(p, 1e-12, 1)</code>).
     </p>
   </Callout>
   <Callout kind="pitfall">
     <p>
-      <strong>Feeding softmax output into a loss that expects logits.</strong> <code>nn.CrossEntropyLoss</code> and
-      <code>F.cross_entropy</code> apply log-softmax themselves. Passing probabilities applies softmax twice and gives
-      a model that trains badly without any error message.
+      <strong>Comparing the results of exp and log with <code>==</code>.</strong> <code>np.log(np.exp(2.5)) == 2.5</code>
+      can be False because of rounding in the last decimal place. Use <code>np.isclose</code>, as every check in the
+      code section does.
     </p>
   </Callout>
   <Callout kind="pitfall">
@@ -1172,7 +1183,7 @@ plt.show()
   </Callout>
 
   <h2 id="sources">All sources</h2>
-  <p>Everything linked above, in the order to use it, plus one reference for later.</p>
+  <p>Everything linked above, in the order to use it, plus one reference for later. Every <code>np.</code> function used on this page is explained on the <a href="/numpy/">NumPy reference</a>.</p>
   <ol>
     <li>
       <a href="https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:functions" target="_blank" rel="noopener noreferrer">Khan Academy, Functions</a>
@@ -1196,11 +1207,6 @@ plt.show()
       <a href="https://www.desmos.com/calculator" target="_blank" rel="noopener noreferrer">Desmos</a> (interactive), for the function zoo.
     </li>
     <li>
-      <a href="https://pytorch.org/docs/stable/generated/torch.nn.functional.log_softmax.html" target="_blank" rel="noopener noreferrer">PyTorch, log_softmax</a>
-      and <a href="https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.logsumexp.html" target="_blank" rel="noopener noreferrer">SciPy, logsumexp</a>
-      (documentation).
-    </li>
-    <li>
       <a href="https://mml-book.github.io/" target="_blank" rel="noopener noreferrer">Deisenroth, Faisal and Ong, <em>Mathematics for Machine Learning</em></a>
       (free PDF). Not needed for this note; it is the reference for the rest of the math track, and its chapter 2 starts
       where the next note starts.
@@ -1212,13 +1218,12 @@ plt.show()
     <ul>
       <li>Function: a rule, one output per input. <Math tex="f(x;\theta)" />: inputs from data, parameters <Math tex="\theta" /> learned. A network is a composition.</li>
       <li>Exponent rules: add when multiplying, multiply when raising, <Math tex="a^0 = 1" />, <Math tex="a^{-n} = 1/a^n" />. <code>3e-4</code> = 0.0003.</li>
-      <li><Math tex="e \approx 2.718" />. <Math tex="e^x" /> is always positive, always increasing, slope equals height. That is why softmax uses it.</li>
+      <li><Math tex="e \approx 2.718" />. <Math tex="e^x" /> is always positive, always increasing, slope equals height. That is why scores-to-percentages uses it.</li>
       <li>Log = “which power?”. In ML, <Math tex="\log" /> means <Math tex="\ln" />. <Math tex="\log 1 = 0" />; logs of probabilities are negative; <Math tex="\log 0" /> does not exist.</li>
       <li>Rules: <Math tex="\log ab = \log a + \log b" />, <Math tex="\log a^n = n\log a" />, <Math tex="\log_b x = \ln x / \ln b" />. Not a rule: <Math tex="\log(a+b)" />.</li>
       <li>Why logs in ML: products → sums, no underflow, same optimum, and <Math tex="-\log p" /> punishes confident errors without bound.</li>
-      <li>Softmax: <Math tex="e^{z_i} / \sum e^{z_j}" />. Subtract the max first; it cancels. Log-sum-exp is the same trick for log-softmax.</li>
-      <li>Perplexity = <Math tex="e^{\text{mean loss}}" />: the effective number of choices. Loss 2.3 → 10; loss 0.69 → 2.</li>
-      <li>Learning rates and loss plots live on log scales because their effects are multiplicative.</li>
+      <li>Scores to percentages: <Math tex="e^{z_i} / \sum_j e^{z_j}" /> (its name is softmax, week 5). Subtract the max first; it cancels. Only gaps between scores matter.</li>
+      <li>Step sizes and loss plots live on log scales because their effects are multiplicative.</li>
     </ul>
   </Callout>
 </Note>

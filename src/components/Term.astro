@@ -1,0 +1,16 @@
+---
+// A word used before the note that teaches it. Renders as a dotted-underlined
+// link to the glossary, with the one-line plain meaning shown on hover or focus,
+// so a first-time reader is never stuck on a word. Usage: <Term id="loss">loss</Term>
+import { glossaryById } from '../data/glossary';
+
+interface Props {
+  id: string;
+}
+
+const { id } = Astro.props;
+const entry = glossaryById[id];
+if (!entry) throw new Error(`Term "${id}" is not in src/data/glossary.ts`);
+---
+
+<a class="term-link" href={`/glossary/#${entry.id}`} data-tip={entry.plain}><slot />{' '}<span class="term-mark" aria-hidden="true">?</span></a>

@@ -1035,3 +1035,240 @@ figure.figure.wide {
 figure.figure.wide svg {
   min-width: 36rem;
 }
+
+/* ---------- Glossary terms used before they are taught ---------- */
+
+.term-link {
+  position: relative;
+  color: inherit;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--blue);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.term-link .term-mark {
+  font-family: var(--hand);
+  font-size: 0.75em;
+  color: var(--blue);
+  vertical-align: super;
+  line-height: 0;
+}
+
+.term-link:hover,
+.term-link:focus-visible {
+  text-decoration-style: solid;
+  color: var(--blue);
+}
+
+@media (hover: hover) {
+  .term-link::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 0.5rem);
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 22rem;
+    padding: 0.55rem 0.75rem;
+    background: var(--ink);
+    color: var(--paper);
+    font-size: var(--text-small);
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1.45;
+    border-radius: var(--radius);
+    box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease;
+    z-index: 20;
+  }
+  .term-link:hover::after,
+  .term-link:focus-visible::after {
+    opacity: 1;
+  }
+}
+
+/* ---------- NumPy links inside code blocks ---------- */
+
+pre.astro-code a.np {
+  color: inherit;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--ink-faint);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+pre.astro-code a.np:hover,
+pre.astro-code a.np:focus-visible {
+  text-decoration-style: solid;
+  text-decoration-color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 12%, transparent);
+  border-radius: 2px;
+}
+
+/* ---------- Reference pages: NumPy and glossary ---------- */
+
+.ref-toc {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  margin: 0 0 var(--space-4);
+  background: var(--paper-raised);
+  font-size: var(--text-small);
+}
+
+.ref-toc section + section {
+  margin-top: var(--space-2);
+}
+
+.ref-toc p {
+  margin: 0.2rem 0 0;
+  line-height: 1.9;
+}
+
+.ref-group {
+  margin-top: var(--space-5);
+}
+
+.ref-entry {
+  padding: var(--space-3) 0 var(--space-2);
+  border-top: 1px dashed var(--rule);
+  scroll-margin-top: 5rem;
+}
+
+.ref-entry h3 {
+  margin-top: 0;
+}
+
+.ref-entry h3 code {
+  font-size: 1.05rem;
+  background: none;
+  padding: 0;
+}
+
+.ref-anchor {
+  color: var(--ink-faint);
+  text-decoration: none;
+  font-weight: 400;
+  margin-right: 0.15rem;
+}
+
+.ref-anchor:hover {
+  color: var(--blue);
+}
+
+.ref-plain {
+  font-size: 1.05rem;
+}
+
+.ref-sig {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+
+.ref-sig span {
+  font-style: italic;
+  margin-right: 0.35rem;
+}
+
+.ref-output {
+  position: relative;
+  font-family: var(--mono);
+  font-size: 0.84rem;
+  line-height: 1.55;
+  margin: calc(-1 * var(--space-3) + 0.35rem) 0 var(--space-3);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-2);
+  border: 1px dashed var(--rule);
+  border-left: 3px solid var(--green);
+  border-radius: var(--radius);
+  background: var(--paper-shade);
+  color: var(--ink);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.ref-output-label {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.6rem;
+  font-family: var(--hand);
+  font-size: 0.95rem;
+  color: var(--green);
+}
+
+.ref-pitfalls {
+  font-size: var(--text-small);
+  margin: 0 0 var(--space-2);
+}
+
+.ref-pitfalls strong {
+  color: var(--red);
+}
+
+.ref-pitfalls ul {
+  margin: 0.25rem 0 0;
+}
+
+.ref-doc {
+  font-size: var(--text-small);
+  margin-top: 0;
+}
+
+.glossary-letters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  font-family: var(--mono);
+  font-size: var(--text-small);
+}
+
+.glossary {
+  margin: var(--space-3) 0;
+}
+
+.glossary dt {
+  margin-top: var(--space-2);
+  scroll-margin-top: 5rem;
+}
+
+.glossary dt.glossary-letter {
+  font-family: var(--hand);
+  font-size: 1.6rem;
+  color: var(--red);
+  margin-top: var(--space-4);
+  border-bottom: 1px solid var(--rule);
+}
+
+.glossary dd {
+  margin: 0.15rem 0 0;
+}
+
+.glossary dd small {
+  display: block;
+  color: var(--ink-soft);
+  margin-top: 0.15rem;
+}
+
+/* ---------- Reading order ---------- */
+
+.reading-order {
+  margin: 0;
+  padding-left: 1.4rem;
+}
+
+.reading-order li {
+  margin: 0 0 0.3rem;
+  font-size: var(--text-small);
+}
+
+.reading-order .badge {
+  margin-right: 0.35rem;
+}
+
+.badge.track {
+  background: var(--paper-shade);
+  color: var(--ink-soft);
+  font-family: var(--mono);
+}
