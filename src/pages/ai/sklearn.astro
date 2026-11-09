@@ -1,0 +1,39 @@
+---
+import Base from '../../layouts/Base.astro';
+import Callout from '../../components/Callout.astro';
+import RefEntries from '../../components/RefEntries.astro';
+import { sklearnGroups, sklearnEntries } from '../../data/sklearn';
+---
+
+<Base title="scikit-learn reference" description="Every scikit-learn class and function the notes use, in plain words, with a runnable example and its real output.">
+  <div class="note-layout">
+    <article class="prose">
+      <p class="eyebrow">Reference · {sklearnEntries.length} entries</p>
+      <h1>scikit-learn, as the notes use it</h1>
+      <p class="lede">
+        Every scikit-learn name that appears in a code block on this site has an entry here, and clicking the name in
+        the code brings you to it. Each entry says what it does in plain words, which note teaches the idea behind it,
+        and shows a small example with its real output.
+      </p>
+      <Callout kind="plain" label="The three ideas that explain all of scikit-learn">
+        <p>
+          <strong>1. Everything is an object you make, then fit.</strong> <code>model = LinearRegression()</code> makes
+          an untrained model. <code>model.fit(X, y)</code> trains it. Preprocessing steps work the same way.
+        </p>
+        <p>
+          <strong>2. Models predict, preprocessing steps transform.</strong> A model has <code>predict</code>; a scaler
+          or encoder has <code>transform</code>. Both learn what they need in <code>fit</code>, from training data only.
+        </p>
+        <p>
+          <strong>3. X is a table, y is a column.</strong> X is 2-D: one row per example, one column per feature. y is
+          1-D: one answer per row. Almost every error message for beginners is about this shape.
+        </p>
+      </Callout>
+      <RefEntries groups={sklearnGroups} entries={sklearnEntries} />
+    </article>
+    <aside class="note-toc" aria-label="On this page">
+      <strong>On this page</strong>
+      {sklearnGroups.map((g) => <a href={`#g-${g.id}`}>{g.title}</a>)}
+    </aside>
+  </div>
+</Base>

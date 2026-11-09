@@ -115,7 +115,7 @@ e("shape", "newaxis", "v[:, None] and np.newaxis", "Adds a new axis of length 1.
   D + "numpy.newaxis.html")
 e("shape", "stack", "np.stack, np.vstack, np.column_stack, np.concatenate", "Ways to glue arrays together. concatenate joins along an existing axis. vstack stacks rows on top of each other. column_stack puts 1-D arrays side by side as columns. stack creates a new axis.",
   "np.concatenate([a, b], axis=0)  np.vstack([a, b])  np.column_stack([a, b])  np.stack([a, b])",
-  "import numpy as np\na = np.array([1, 2, 3]); b = np.array([4, 5, 6])\nprint(np.concatenate([a, b]))\nprint(np.vstack([a, b]))\nprint(np.column_stack([a, b]))\nprint(np.stack([a, b]).shape, np.stack([a, b], axis=1).shape)",
+  "import numpy as np\na = np.array([1, 2, 3])\nb = np.array([4, 5, 6])\nprint(np.concatenate([a, b]))\nprint(np.vstack([a, b]))\nprint(np.column_stack([a, b]))\nprint(np.stack([a, b]).shape, np.stack([a, b], axis=1).shape)",
   ["concatenate needs the arrays to already have the axis you join on; to turn two 1-D arrays into two rows, use vstack or stack.",
    "All of them take one list of arrays, not several arguments: np.vstack([a, b]), not np.vstack(a, b)."],
   "“concatenate joins along an existing axis; stack adds one. column_stack is the quick way to build a feature matrix from separate feature vectors.”",
@@ -170,7 +170,7 @@ e("index", "unravel-index", "np.unravel_index", "Turns a position in a flattened
 # ---------------- elementwise ----------------
 e("elementwise", "arith", "Element-wise arithmetic and broadcasting", "+, -, *, / and ** work number by number on arrays of the same shape. If the shapes differ, NumPy stretches the smaller one along axes of length 1 (broadcasting). A number against an array is the simplest case.",
   "a + b  a * b  a ** 2  a - a.mean(axis=0)",
-  "import numpy as np\nx = np.array([1.0, 1.5, 2.0]); y = np.array([200.0, 300.0, 380.0])\nprint(180 * x + 23.33)                # a line, for every house at once\nprint(((180 * x + 23.33 - y) ** 2).mean())   # mean squared error\nX = np.array([[1.0, 100.0], [2.0, 300.0], [3.0, 500.0]])\nprint(X - X.mean(axis=0))              # (3,2) minus (2,): centre each column",
+  "import numpy as np\nx = np.array([1.0, 1.5, 2.0])\ny = np.array([200.0, 300.0, 380.0])\nprint(180 * x + 23.33)                # a line, for every house at once\nprint(((180 * x + 23.33 - y) ** 2).mean())   # mean squared error\nX = np.array([[1.0, 100.0], [2.0, 300.0], [3.0, 500.0]])\nprint(X - X.mean(axis=0))              # (3,2) minus (2,): centre each column",
   ["* is element-wise, not matrix multiplication. Use @ for matrices.",
    "Shapes (3,) and (3, 1) broadcast to (3, 3), which is almost never what you wanted; check shapes when a result is suddenly square."],
   "“Broadcasting aligns trailing axes and stretches length-1 axes; a (n, d) matrix minus a (d,) vector subtracts per column, which is how standardisation is written in one line.”",
@@ -290,13 +290,13 @@ e("reduce", "prod", "np.prod", "Multiplies all the elements together. Products o
 # ---------------- linalg ----------------
 e("linalg", "dot", "np.dot", "The dot product of two vectors: multiply matching elements and add. Also written v @ w. For 2-D inputs it does matrix multiplication, but @ is clearer for that.",
   "np.dot(a, b)  a @ b",
-  "import numpy as np\nw = np.array([180.0, 1.0]); x = np.array([1.5, 23.33])\nprint(np.dot(w, x), w @ x, (w * x).sum())   # three spellings of one thing\nu = np.array([1.0, 0.0]); v = np.array([0.0, 1.0])\nprint(u @ v)        # perpendicular -> 0",
+  "import numpy as np\nw = np.array([180.0, 1.0])\nx = np.array([1.5, 23.33])\nprint(np.dot(w, x), w @ x, (w * x).sum())   # three spellings of one thing\nu = np.array([1.0, 0.0])\nv = np.array([0.0, 1.0])\nprint(u @ v)        # perpendicular -> 0",
   ["np.dot(a, b) with two 1-D arrays is a number. With 2-D arrays it multiplies matrices; prefer @ there so the reader knows what you meant."],
   "“The dot product is Σ wᵢxᵢ, written w @ x; a linear model's prediction is a dot product of weights and features plus a bias.”",
   D + "numpy.dot.html")
 e("linalg", "matmul", "@ and np.matmul", "Matrix multiplication. The inner dimensions must match: (m, n) @ (n, p) gives (m, p). Each output entry is a dot product of a row of the left matrix with a column of the right one.",
   "A @ B  np.matmul(A, B)",
-  "import numpy as np\nX = np.array([[1.0, 1.0], [1.0, 1.5], [1.0, 2.0]])   # 3 houses, bias column + size\nw = np.array([23.33, 180.0])\nprint(X @ w)                 # (3,2) @ (2,) -> (3,): all predictions at once\nA = np.array([[1, 2], [3, 4]]); B = np.array([[0, 1], [1, 0]])\nprint(A @ B)\nprint(B @ A)                 # order matters\nprint(A * B)                 # NOT matrix multiplication",
+  "import numpy as np\nX = np.array([[1.0, 1.0], [1.0, 1.5], [1.0, 2.0]])   # 3 houses, bias column + size\nw = np.array([23.33, 180.0])\nprint(X @ w)                 # (3,2) @ (2,) -> (3,): all predictions at once\nA = np.array([[1, 2], [3, 4]])\nB = np.array([[0, 1], [1, 0]])\nprint(A @ B)\nprint(B @ A)                 # order matters\nprint(A * B)                 # NOT matrix multiplication",
   ["* is element-wise. @ is matrix multiplication. Mixing them up is the most common NumPy bug in ML code.",
    "Shape error 'shapes (3,2) and (3,2) not aligned' means the inner dimensions differ; transpose one side.",
    "A @ B is not B @ A in general."],
@@ -304,7 +304,7 @@ e("linalg", "matmul", "@ and np.matmul", "Matrix multiplication. The inner dimen
   D + "numpy.matmul.html")
 e("linalg", "linalg-norm", "np.linalg.norm", "The length of a vector. By default the ordinary Euclidean length (square root of the sum of squares, the L2 norm). ord=1 gives the L1 norm (sum of absolute values). With axis it gives the length of every row or column.",
   "np.linalg.norm(v)  np.linalg.norm(v, ord=1)  np.linalg.norm(M, axis=1)",
-  "import numpy as np\nv = np.array([3.0, 4.0])\nprint(np.linalg.norm(v))\nprint(np.linalg.norm(v, ord=1), np.linalg.norm(v, ord=np.inf))\na = np.array([1.0, 2.0]); b = np.array([4.0, 6.0])\nprint(np.linalg.norm(a - b))              # distance between two points\nprint(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))   # cosine similarity\nE = np.array([[3.0, 4.0], [1.0, 0.0]])\nprint(np.linalg.norm(E, axis=1))          # length of each row\nprint(E / np.linalg.norm(E, axis=1, keepdims=True))   # unit rows",
+  "import numpy as np\nv = np.array([3.0, 4.0])\nprint(np.linalg.norm(v))\nprint(np.linalg.norm(v, ord=1), np.linalg.norm(v, ord=np.inf))\na = np.array([1.0, 2.0])\nb = np.array([4.0, 6.0])\nprint(np.linalg.norm(a - b))              # distance between two points\nprint(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))   # cosine similarity\nE = np.array([[3.0, 4.0], [1.0, 0.0]])\nprint(np.linalg.norm(E, axis=1))          # length of each row\nprint(E / np.linalg.norm(E, axis=1, keepdims=True))   # unit rows",
   ["On a matrix with no axis it returns the Frobenius norm (all entries squared, summed, rooted), not a per-row result.",
    "Distance is the norm of the difference; cosine similarity is the dot product divided by both norms."],
   "“np.linalg.norm defaults to L2; Euclidean distance is norm(a − b), cosine similarity is a·b / (‖a‖‖b‖), and normalising rows uses axis=1 with keepdims.”",
@@ -318,17 +318,31 @@ e("linalg", "linalg-inv", "np.linalg.inv", "The inverse of a square matrix: the 
   D + "numpy.linalg.inv.html")
 e("linalg", "linalg-solve", "np.linalg.solve", "Solves A x = b for x without computing an inverse. Faster and more accurate than inv(A) @ b.",
   "np.linalg.solve(A, b)",
-  "import numpy as np\nA = np.array([[2.0, 1.0], [1.0, 3.0]]); b = np.array([3.0, 5.0])\nx = np.linalg.solve(A, b)\nprint(x)\nprint(np.allclose(A @ x, b))",
+  "import numpy as np\nA = np.array([[2.0, 1.0], [1.0, 3.0]])\nb = np.array([3.0, 5.0])\nx = np.linalg.solve(A, b)\nprint(x)\nprint(np.allclose(A @ x, b))",
   ["A must be square and invertible; for tall matrices (more equations than unknowns) use lstsq."],
   "“solve(A, b) is the right way to compute A⁻¹b; the normal equations of linear regression are solve(XᵀX, Xᵀy).”",
   D + "numpy.linalg.solve.html")
 e("linalg", "linalg-lstsq", "np.linalg.lstsq", "Least squares: finds the weights that make X @ w as close as possible to y. This is linear regression in one call, and it works even when the exact solution does not exist.",
   "w, residuals, rank, sv = np.linalg.lstsq(X, y, rcond=None)",
-  "import numpy as np\nx = np.array([1.0, 1.5, 2.0]); y = np.array([200.0, 300.0, 380.0])\nX = np.column_stack([np.ones(3), x])          # bias column, then size\nw, res, rank, sv = np.linalg.lstsq(X, y, rcond=None)\nprint(np.round(w, 2))         # [b, w] = [23.33, 180]\nprint(res / 3)                # sum of squared residuals / n = MSE",
+  "import numpy as np\nx = np.array([1.0, 1.5, 2.0])\ny = np.array([200.0, 300.0, 380.0])\nX = np.column_stack([np.ones(3), x])          # bias column, then size\nw, res, rank, sv = np.linalg.lstsq(X, y, rcond=None)\nprint(np.round(w, 2))         # [b, w] = [23.33, 180]\nprint(res / 3)                # sum of squared residuals / n = MSE",
   ["It returns four things; the weights are the first. Pass rcond=None to silence the deprecation warning.",
    "Remember the column of ones, or you are fitting a line through the origin."],
   "“lstsq solves min‖Xw − y‖² via SVD, which is numerically stable even when XᵀX is nearly singular.”",
   D + "numpy.linalg.lstsq.html")
+e("compare", "errstate", "np.errstate", "Temporarily changes what NumPy does about overflow, division by zero and invalid results (like 0/0). By default it prints a RuntimeWarning and carries on with inf or nan; inside with np.errstate(all=\"ignore\"): the warnings are hidden, used when a demo blows up on purpose.",
+  "with np.errstate(all=\"ignore\"):\n    ...",
+  "import numpy as np\nwith np.errstate(all=\"ignore\"):\n    print(np.array([1.0, 0.0]) / 0.0)      # inf and nan, no warning\n    print(np.exp(np.array([1000.0])))      # overflow to inf",
+  ["Hiding warnings hides real bugs too; use it only where the inf or nan is expected and explained."],
+  "“np.errstate is a context manager for floating-point error handling: ignore, warn or raise.”",
+  D + "numpy.errstate.html")
+e("linalg", "polyfit", "np.polyfit and np.polyval", "Fits a polynomial curve to points. A polynomial of degree d is a curve built from powers of x up to x to the d: degree 1 is a straight line (w·x + b), degree 2 a parabola (one bend), and a higher degree can bend more times. polyfit returns the best coefficients by least squares, highest power first; polyval uses them to compute the curve at new x values.",
+  "coeffs = np.polyfit(x, y, degree)\ny_hat = np.polyval(coeffs, x_new)",
+  "import numpy as np\nsizes = np.array([1.0, 1.5, 2.0])\nprices = np.array([200.0, 300.0, 380.0])\n\nline = np.polyfit(sizes, prices, 1)     # degree 1: a straight line\nprint(line.round(2))                    # [slope, intercept] = [180, 23.33]\nprint(np.polyval(line, 1.8).round(2))   # price predicted for a new house\n\ncurve = np.polyfit(sizes, prices, 2)    # degree 2: three points, three coefficients\nprint(np.polyval(curve, sizes).round(2))   # passes through every point exactly",
+  ["The coefficients come highest power first: for degree 1 that is [slope, intercept], the opposite of the usual b, w order.",
+   "With as many coefficients as points the curve passes through every point: zero training error and usually a bad model. That is overfitting in one line.",
+   "High degrees on large x values give huge powers and a RankWarning; that is a sign the degree is too high."],
+  "“polyfit is least squares on powers of x; raising the degree lowers training error monotonically and eventually overfits.”",
+  D + "numpy.polyfit.html")
 e("linalg", "linalg-rank", "np.linalg.matrix_rank", "How many independent rows (or columns) a matrix has. A feature matrix with rank less than its number of columns has a redundant feature, and XᵀX cannot be inverted.",
   "np.linalg.matrix_rank(M)",
   "import numpy as np\nX = np.array([[1.0, 2.0], [2.0, 4.0], [3.0, 6.0]])   # column 2 = 2 x column 1\nprint(np.linalg.matrix_rank(X))\nX2 = np.array([[1.0, 2.0], [2.0, 5.0], [3.0, 6.0]])\nprint(np.linalg.matrix_rank(X2))",
@@ -377,7 +391,7 @@ e("random", "rng-integers", "rng.integers", "Random whole numbers from low up to
   R + "numpy.random.Generator.integers.html")
 e("random", "rng-permutation", "rng.permutation and rng.shuffle", "permutation returns the numbers 0..n−1 in random order (or a shuffled copy of an array). shuffle reorders an array in place. Either one is the heart of a train/test split.",
   "rng.permutation(n)  rng.shuffle(a)",
-  "import numpy as np\nrng = np.random.default_rng(0)\nidx = rng.permutation(10)\nprint(idx)\ntrain, test = idx[:8], idx[8:]\nprint(train, test)               # 80/20 split of row positions\na = np.arange(5); rng.shuffle(a); print(a)",
+  "import numpy as np\nrng = np.random.default_rng(0)\nidx = rng.permutation(10)\nprint(idx)\ntrain, test = idx[:8], idx[8:]\nprint(train, test)               # 80/20 split of row positions\na = np.arange(5)\nrng.shuffle(a)\nprint(a)",
   ["Shuffle the index, then apply the same index to X and y; shuffling X and y separately breaks their pairing."],
   "“A permutation of row indices, applied to both X and y, is the simplest correct random split.”",
   R + "numpy.random.Generator.permutation.html")
@@ -391,7 +405,7 @@ e("random", "rng-choice", "rng.choice", "Picks elements at random from an array,
 # ---------------- compare ----------------
 e("compare", "isclose", "np.isclose and np.allclose", "Floating-point arithmetic has rounding error, so 0.1 + 0.2 is not 0.3. isclose compares element by element within a small tolerance and returns a boolean array; allclose returns a single True if every element is close.",
   "np.isclose(a, b)  np.allclose(a, b, rtol=1e-5, atol=1e-8)",
-  "import numpy as np\nprint(0.1 + 0.2 == 0.3)\nprint(np.isclose(0.1 + 0.2, 0.3))\nA = np.array([[2.0, 1.0], [1.0, 3.0]])\nprint(np.allclose(A @ np.linalg.inv(A), np.eye(2)))\nprint(np.isclose(np.log(np.array([0.9, 0.8, 0.95])).sum(), np.log(0.684), atol=1e-3))",
+  "import numpy as np\nprint(0.1 + 0.2 == 0.3)\nprint(np.isclose(0.1 + 0.2, 0.3))\nA = np.array([[2.0, 1.0], [1.0, 3.0]])\nprint(np.allclose(A @ np.linalg.inv(A), np.eye(2)))\ntotal = np.log(np.array([0.9, 0.8, 0.95])).sum()\nprint(np.isclose(total, np.log(0.684), atol=1e-3))",
   ["Never test floats with ==. Every 'check it numerically' line in these notes uses isclose or allclose.",
    "The default tolerance is relative, so comparing against 0 needs an explicit atol."],
   "“Compare floats with allclose, not ==; it checks |a − b| ≤ atol + rtol·|b|.”",
@@ -404,15 +418,33 @@ e("compare", "set-printoptions", "np.set_printoptions", "Controls how arrays pri
   D + "numpy.set_printoptions.html")
 e("compare", "fill", ".fill and in-place updates", "a.fill(value) sets every element to one value without making a new array. a += b, a *= 2 and a[mask] = 0 also change the array in place. Useful in training loops where a gradient array is reused.",
   "a.fill(0)  a += b  a[mask] = value",
-  "import numpy as np\ng = np.ones(3)\ng.fill(0)\nprint(g)\nw = np.array([1.0, 2.0])\nw -= 0.1 * np.array([10.0, 20.0])      # one gradient-descent step, in place\nprint(w)\nx = np.array([-1.0, 2.0, -3.0]); x[x < 0] = 0; print(x)",
+  "import numpy as np\ng = np.ones(3)\ng.fill(0)\nprint(g)\nw = np.array([1.0, 2.0])\nw -= 0.1 * np.array([10.0, 20.0])      # one gradient-descent step, in place\nprint(w)\nx = np.array([-1.0, 2.0, -3.0])\nx[x < 0] = 0\nprint(x)",
   ["In-place on an integer array with a float value truncates: np.array([1, 2]) -= 0.5 raises an error in modern NumPy, which is a feature."],
   "“In-place updates avoid allocating a new array each step; w -= lr * grad is the literal gradient-descent update.”",
   D + "numpy.ndarray.fill.html")
 
 # -------- run every example and capture its output --------
+WIDTH = 74  # characters that fit in a code block on a laptop screen
+
+
+def tidy(code):
+    """Move a trailing comment onto its own line above when the line is too wide for the code box."""
+    out = []
+    for line in code.split("\n"):
+        if len(line) > WIDTH and "  # " in line and not line.lstrip().startswith("#"):
+            stmt, comment = line.split("  # ", 1)
+            indent = line[: len(line) - len(line.lstrip())]
+            out.append(indent + "# " + comment.strip())
+            out.append(stmt.rstrip())
+        else:
+            out.append(line)
+    return "\n".join(out)
+
+
 import warnings
 out_entries = []
 for ent in E:
+    ent["code"] = tidy(ent["code"])
     buf = io.StringIO()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -464,7 +496,7 @@ links = {
  "np.sum":"sum","np.mean":"mean","np.median":"median","np.percentile":"median","np.std":"std","np.var":"std","np.max":"max","np.min":"max",
  "np.argmax":"argmax","np.argmin":"argmax","np.sort":"sort","np.argsort":"sort","np.prod":"prod",
  "np.dot":"dot","np.matmul":"matmul","np.linalg.norm":"linalg-norm","np.linalg.inv":"linalg-inv","np.linalg.solve":"linalg-solve",
- "np.linalg.lstsq":"linalg-lstsq","np.linalg.matrix_rank":"linalg-rank","np.linalg.LinAlgError":"linalg-error",
+ "np.linalg.lstsq":"linalg-lstsq","np.polyfit":"polyfit","np.errstate":"errstate","np.polyval":"polyfit","np.linalg.matrix_rank":"linalg-rank","np.linalg.LinAlgError":"linalg-error",
  "np.linalg.eigh":"linalg-eig-svd","np.linalg.eig":"linalg-eig-svd","np.linalg.svd":"linalg-eig-svd",
  "np.random.default_rng":"default-rng","rng.normal":"rng-normal","rng.standard_normal":"rng-normal","rng.uniform":"rng-uniform","rng.random":"rng-uniform",
  "rng.integers":"rng-integers","rng.permutation":"rng-permutation","rng.shuffle":"rng-permutation","rng.choice":"rng-choice",

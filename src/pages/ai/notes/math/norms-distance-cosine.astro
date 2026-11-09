@@ -7,6 +7,7 @@ import Figure from '../../../../components/Figure.astro';
 import Math from '../../../../components/Math.astro';
 import Source from '../../../../components/Source.astro';
 import Term from '../../../../components/Term.astro';
+import NewInCode from '../../../../components/NewInCode.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -69,78 +70,150 @@ const spreads = [
 const normsCode = `import numpy as np
 
 v = np.array([3.0, -4.0])
-print(np.linalg.norm(v))             # 5.0   L2 (default): sqrt(9 + 16)
-print(np.linalg.norm(v, ord=1))      # 7.0   L1: |3| + |-4|
-print(np.linalg.norm(v, ord=np.inf)) # 4.0   L-infinity: the largest |component|
-print(np.sqrt(v @ v))                # 5.0   the L2 norm is the square root of the self dot product
+print(np.linalg.norm(v))               # 5.0  L2, the default: sqrt(9 + 16)
+print(np.linalg.norm(v, ord=1))        # 7.0  L1: |3| + |-4|
+# L-infinity: the largest |entry|
+print(np.linalg.norm(v, ord=np.inf))
+# prints 4.0
+# the L2 norm is the square root of v·v
+print(np.sqrt(v @ v))
+# prints 5.0
 
-a, b = np.array([1.0, 2.0]), np.array([4.0, 6.0])
-print(np.linalg.norm(a - b))         # 5.0   Euclidean distance: the norm of the difference
-print(np.abs(a - b).sum())           # 7.0   Manhattan distance
+a = np.array([1.0, 2.0])
+b = np.array([4.0, 6.0])
+# Euclidean distance: the norm of the difference
+print(np.linalg.norm(a - b))
+# prints 5.0
+# Manhattan distance: add up the absolute differences
+print(np.abs(a - b).sum())
+# prints 7.0
 
 def cosine(a, b):
     return (a @ b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
-print(cosine(np.array([1.0, 2.0]), np.array([2.0, 4.0])))   # 1.0   same direction, different length
-print(cosine(np.array([1.0, 2.0]), np.array([2.0, 1.0])))   # 0.8
-print(cosine(np.array([1.0, 2.0]), np.array([-2.0, 1.0])))  # 0.0   orthogonal
-print(cosine(np.array([1.0, 2.0]), np.array([-1.0, -2.0]))) # -1.0  opposite`;
+q = np.array([1.0, 2.0])
+# same direction, twice as long
+print(round(cosine(q, np.array([2.0, 4.0])), 3))
+# prints 1.0
+print(round(cosine(q, np.array([2.0, 1.0])), 3))     # 0.8   a bit apart
+# at a right angle
+print(round(cosine(q, np.array([-2.0, 1.0])), 3))
+# prints 0.0
+# opposite direction
+print(round(cosine(q, np.array([-1.0, -2.0])), 3))
+# prints -1.0`;
 
 const rankingCode = `import numpy as np
 
-q = np.array([1.0, 1.0])
-D = np.array([[4.0, 4.0],      # d1: same direction as q, four times as long
-              [0.8, 1.2],      # d2: very close to q as a point
-              [3.0, 0.3]])     # d3: long, pointing elsewhere
+q = np.array([1.0, 1.0])          # the query
+# document 1: same direction as q, four times as long
+D = np.array([[4.0, 4.0],
+              [0.8, 1.2],         # document 2: very close to q as a point
+              [3.0, 0.3]])        # document 3: long, pointing elsewhere
 
+# one dot product per row
 dot = D @ q
+# axis=1: the length of each row
 cos = dot / (np.linalg.norm(D, axis=1) * np.linalg.norm(q))
+# distance from each row to q
 euc = np.linalg.norm(D - q, axis=1)
+# dot product: biggest is 'best'
+print(np.round(dot, 2))
+# prints [8.   2.   3.3 ]
+print(np.round(cos, 2))      # [1.   0.98 0.77]  cosine: biggest is 'best'
+# distance: smallest is 'best'
+print(np.round(euc, 2))
+# prints [4.24 0.28 2.12]
 
-for name, scores, best_is in [("dot", dot, "largest"), ("cosine", cos, "largest"), ("euclidean", euc, "smallest")]:
-    order = np.argsort(-scores) if best_is == "largest" else np.argsort(scores)
-    print(f"{name:>9}: {np.round(scores, 2)}  ranking: {['d'+str(i+1) for i in order]}")
-#       dot: [8.   2.   3.3 ]  ranking: ['d1', 'd3', 'd2']
-#    cosine: [1.   0.98 0.77]  ranking: ['d1', 'd2', 'd3']
-# euclidean: [4.24 0.28 2.12]  ranking: ['d2', 'd3', 'd1']
+# Rankings, best first. argsort gives the positions that would sort the
+# array, smallest first;
+# sorting -dot puts the largest dot product first. +1 turns positions 0, 1,
+# 2 into document numbers.
+print("dot      ranks:", np.argsort(-dot) + 1)   # [1 3 2]
+print("cosine   ranks:", np.argsort(-cos) + 1)   # [1 2 3]
+# smallest distance first
+print("distance ranks:", np.argsort(euc) + 1)
+# prints [2 3 1]`;
 
-# Normalize everything to unit length and the three metrics agree:
-Dn = D / np.linalg.norm(D, axis=1, keepdims=True)
-qn = q / np.linalg.norm(q)
-print(np.argsort(-(Dn @ qn)), np.argsort(np.linalg.norm(Dn - qn, axis=1)))   # same order`;
+const rankingCode2 = `import numpy as np
+
+q = np.array([1.0, 1.0])
+D = np.array([[4.0, 4.0], [0.8, 1.2], [3.0, 0.3]])
+
+# Normalize every row and the query to length 1, then rank again.
+# shape (3, 1): one length per row
+lengths = np.linalg.norm(D, axis=1, keepdims=True)
+# each row divided by its own length
+D_unit = D / lengths
+q_unit = q / np.linalg.norm(q)
+dot_unit = D_unit @ q_unit
+euc_unit = np.linalg.norm(D_unit - q_unit, axis=1)
+print("dot      ranks:", np.argsort(-dot_unit) + 1)   # [1 2 3]
+# now all three agree
+print("distance ranks:", np.argsort(euc_unit) + 1)
+# prints [1 2 3]`;
 
 const libraryCode = `import numpy as np
 
-E = np.random.default_rng(0).normal(size=(5, 8))      # five "embeddings", one per row
+# a random-number generator with a fixed seed
+rng = np.random.default_rng(0)
+# five vectors of 8 random numbers, one per row
+E = rng.normal(size=(5, 8))
 
-# Every pairwise cosine similarity in two lines: normalize the rows, then one matrix product.
-En = E / np.linalg.norm(E, axis=1, keepdims=True)     # (5, 8) / (5, 1): each row now has length 1
-S = En @ En.T                                         # (5, 5): cosine = dot product of unit vectors
+# Every pairwise cosine similarity: make each row length 1, then one matrix
+# product.
+# shape (5, 1): one length per row
+lengths = np.linalg.norm(E, axis=1, keepdims=True)
+# each row now has length 1
+E_unit = E / lengths
+# (5, 5): S[i, j] = cosine of rows i and j
+S = E_unit @ E_unit.T
 print(np.round(S, 2))
-print(np.allclose(np.diag(S), 1.0))                   # every vector has cosine 1 with itself
+# [[ 1.   -0.25  0.1  -0.47  0.78]
+#  [-0.25  1.    0.18  0.35 -0.2 ]
+#  [ 0.1   0.18  1.   -0.22  0.07]
+#  [-0.47  0.35 -0.22  1.   -0.39]
+#  [ 0.78 -0.2   0.07 -0.39  1.  ]]
+# each row with itself: 1
+print(np.allclose(np.diag(S), 1.0))
+# prints True`;
 
-# Capping the length of a vector: "if it is longer than 1, shrink it to length 1, keep its direction".
-v = np.array([3.0, 4.0, 12.0])                        # length 13
+const capCode = `import numpy as np
+
+# Capping a vector's length: if it is longer than the cap,
+# shrink it to exactly the cap and keep its direction.
+v = np.array([3.0, 4.0, 12.0])            # length 13
 cap = 1.0
-scale = min(1.0, cap / np.linalg.norm(v))
+length = np.linalg.norm(v)
+# 1.0 means "already short enough, leave it alone"
+scale = min(1.0, cap / length)
 v_capped = v * scale
-print(v_capped, np.linalg.norm(v_capped))             # [0.231 0.308 0.923] 1.0
-# Training code does exactly this to the update step every iteration; week 6 calls it gradient clipping.`;
+# same direction as v
+print(np.round(v_capped, 3))
+# prints [0.231 0.308 0.923]
+print(np.linalg.norm(v_capped))           # 1.0  length now equals the cap`;
 
 const concentrationCode = `import numpy as np
 
 rng = np.random.default_rng(0)
 for d in [3, 30, 300, 768]:
+    # 5000 random vectors with d entries each
     A = rng.normal(size=(5000, d))
-    B = rng.normal(size=(5000, d))
-    cos = np.sum(A * B, axis=1) / (np.linalg.norm(A, axis=1) * np.linalg.norm(B, axis=1))
-    print(f"d={d:>4}  mean={cos.mean():+.3f}  std={cos.std():.3f}  1/sqrt(d)={1/np.sqrt(d):.3f}")
-# d=   3  mean=+0.00x  std=0.577  1/sqrt(d)=0.577
-# d=  30  mean=+0.00x  std=0.18   1/sqrt(d)=0.183
-# d= 300  mean=+0.00x  std=0.058  1/sqrt(d)=0.058
-# d= 768  mean=+0.00x  std=0.036  1/sqrt(d)=0.036
-# Unrelated random directions in 768-D have cosine within about +-0.04 of zero.
-# A cosine of 0.3 between two real embeddings is therefore a strong signal, not a weak one.`;
+    B = rng.normal(size=(5000, d))        # 5000 more
+    # row-by-row dot products: 5000 numbers
+    dots = np.sum(A * B, axis=1)
+    cos = dots / (np.linalg.norm(A, axis=1) * np.linalg.norm(B, axis=1))
+    average = round(cos.mean(), 3)        # the average cosine
+    # how far the cosines typically sit from their average
+    spread = round(cos.std(), 3)
+    # the 1 / sqrt(d) rule from the section above
+    rule = round(1 / np.sqrt(d), 3)
+    print("d =", d, " average cosine =", average, " spread =", spread, " 1/sqrt(d) =", rule)
+# d = 3  average cosine = -0.012  spread = 0.579  1/sqrt(d) = 0.577
+# d = 30  average cosine = -0.0  spread = 0.182  1/sqrt(d) = 0.183
+# d = 300  average cosine = -0.0  spread = 0.058  1/sqrt(d) = 0.058
+# d = 768  average cosine = 0.0  spread = 0.036  1/sqrt(d) = 0.036`;
+
 ---
 
 <Note
@@ -160,9 +233,15 @@ for d in [3, 30, 300, 768]:
     note</a> needs the distance half of this, and “how big is this vector?” comes back in week 3 as a way to keep a
     model’s weights small.
   </p>
+  <p>
+    One word before the questions. In AI, a list of numbers that stands for a word, a sentence or a whole document,
+    built so that similar meanings get similar lists, is called an <Term id="embedding">embedding</Term>. The word
+    vectors from the last note are embeddings. You will learn how models make them later; in this note an embedding
+    is simply a vector, and everything here works on any vector.
+  </p>
   <p>Interview questions that are really this note:</p>
   <ul>
-    <li>“Cosine similarity or dot product for <Term id="embedding">embeddings</Term>? When would they rank differently?”</li>
+    <li>“Cosine similarity or dot product for embeddings? When would they rank differently?”</li>
     <li>“Why do we normalize embeddings before storing them for search?”</li>
     <li>“Is a cosine similarity of 0.3 high or low?”</li>
     <li>“What is the difference between L1 and L2 <Term id="regularization">regularization</Term>, and why does L1 produce zeros?” (Week 3; the picture is here.)</li>
@@ -674,13 +753,51 @@ for d in [3, 30, 300, 768]:
   <h2 id="code">Code</h2>
   <p>Type these out. Predict every printed number before running.</p>
   <h3>Norms, distances and cosine by hand and by library</h3>
+  <NewInCode items={[
+    ['np.linalg.norm(v)', 'The length (norm) of a vector. With nothing else it is the L2 norm; ord=1 gives L1 and ord=np.inf gives L∞.', 'numpy/linalg-norm'],
+    ['np.inf', 'NumPy’s name for infinity. Here it only selects the L∞ norm.', 'numpy/constants'],
+    ['np.sqrt(x)', 'The square root.', 'numpy/sqrt'],
+    ['np.abs(a - b).sum()', 'np.abs makes every entry positive; .sum() then adds all the entries up.', 'numpy/abs'],
+  ]} />
   <CodeBlock code={normsCode} />
-  <h3>Three measures, three rankings, and how normalization reconciles them</h3>
+  <h3>Three measures, three rankings</h3>
+  <NewInCode items={[
+    ['np.linalg.norm(D, axis=1)', 'With axis=1 it measures every row of the table separately and gives one length per row.', 'numpy/linalg-norm'],
+    ['D - q', 'Subtracting one vector from a table subtracts it from every row. NumPy calls this broadcasting.', 'numpy/arith'],
+    ['np.round(x, 2)', 'Rounds every entry to 2 decimals, only to make printing tidy.', 'numpy/round'],
+    ['np.argsort(x)', 'The positions that would put x in order, smallest value first. np.argsort(-x) puts the largest first.', 'numpy/sort'],
+  ]} />
   <CodeBlock code={rankingCode} />
-  <h3>All pairwise cosines in two lines, and capping a vector’s length</h3>
+  <p>
+    The three measures disagree because they answer different questions. Make every vector length 1 first, and the
+    disagreement disappears:
+  </p>
+  <NewInCode items={[
+    ['keepdims=True', 'Keeps the answer shaped (3, 1), one length per row in a column, so that dividing the table by it divides each row by its own length.', 'numpy/linalg-norm'],
+  ]} />
+  <CodeBlock code={rankingCode2} />
+  <h3>All pairwise cosines at once</h3>
+  <NewInCode items={[
+    ['np.random.default_rng(0)', 'Makes a random-number generator. The 0 is a seed: the same seed gives the same numbers every run.', 'numpy/default-rng'],
+    ['rng.normal(size=(5, 8))', 'A table of random numbers centred on 0, here 5 rows of 8.', 'numpy/rng-normal'],
+    ['E_unit.T', 'The transpose: rows become columns, so E_unit @ E_unit.T takes the dot product of every row with every row.', 'numpy/T'],
+    ['np.diag(S)', 'The diagonal of a square table: S[0, 0], S[1, 1], and so on.', 'numpy/diag'],
+    ['np.allclose(a, b)', 'True when every entry matches up to tiny rounding differences. Never compare decimals with ==.', 'numpy/isclose'],
+  ]} />
   <CodeBlock code={libraryCode} />
+  <h3>Capping a vector’s length</h3>
+  <CodeBlock code={capCode} />
   <h3>Cosine between random vectors as the dimension grows</h3>
+  <NewInCode items={[
+    ['A * B', 'Multiplies entry by entry, not a dot product. Summing each row afterwards gives one dot product per row.', 'numpy/arith'],
+    ['np.sum(x, axis=1)', 'Adds up each row, giving one total per row.', 'numpy/sum'],
+    ['cos.mean(), cos.std()', 'The average, and the standard deviation: how far the values typically sit from that average.', 'numpy/std'],
+  ]} />
   <CodeBlock code={concentrationCode} />
+  <p>
+    The spread of the cosines matches <Math tex="1/\sqrt{d}" /> closely. Two unrelated random directions in 768
+    dimensions have a cosine within a few hundredths of zero, so a cosine of 0.3 there is a strong signal, not a weak one.
+  </p>
   <Source
     kind="read"
     href="https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html"
@@ -886,97 +1003,213 @@ for d in [3, 30, 300, 768]:
   </QA>
   <h3>Code</h3>
   <QA q="13. Implement norms for p = 1, 2, ∞, Euclidean and Manhattan distance, and cosine similarity, with plain Python loops. Test against NumPy on random vectors, including the property L∞ ≤ L2 ≤ L1.">
+    <NewInCode items={[
+      ['assert condition', 'Stops the program with an error if the condition is false. Here it is a self-check: my answer must match NumPy’s.', 'python/assert'],
+      ['np.isclose(x, y)', 'True when two numbers are equal up to tiny rounding differences.', 'numpy/isclose'],
+      ['a <= b <= c', 'Python allows chained comparisons: it means a <= b and b <= c.', 'python/comparisons-in'],
+    ]} />
     <CodeBlock
       code={`import numpy as np
 
 def norm(a, p=2):
-    if p == 1:   return sum(abs(x) for x in a)
-    if p == 2:   return sum(x * x for x in a) ** 0.5
-    if p == float("inf"): return max(abs(x) for x in a)
-    raise ValueError(p)
+    if p == 1:
+        total = 0.0
+        for x in a:
+            total += abs(x)               # add up the sizes of the entries
+        return total
+    if p == 2:
+        total = 0.0
+        for x in a:
+            total += x * x                # add up the squares
+        return total ** 0.5               # then take the square root
+    # otherwise p is infinity: the largest size of any entry
+    largest = 0.0
+    for x in a:
+        largest = max(largest, abs(x))
+    return largest
 
-def distance(a, b, p=2):     return norm([x - y for x, y in zip(a, b)], p)
-def cosine(a, b):            return sum(x * y for x, y in zip(a, b)) / (norm(a) * norm(b))
+def distance(a, b, p=2):
+    difference = []
+    for i in range(len(a)):
+        difference.append(a[i] - b[i])
+    # distance = norm of the difference
+    return norm(difference, p)
+
+def cosine(a, b):
+    dot = 0.0
+    for i in range(len(a)):
+        dot += a[i] * b[i]
+    return dot / (norm(a) * norm(b))
 
 rng = np.random.default_rng(0)
-for _ in range(500):
-    a, b = rng.normal(size=20), rng.normal(size=20)
-    assert np.isclose(norm(a, 1), np.linalg.norm(a, 1))
+for trial in range(500):                  # 500 random tests
+    a = rng.normal(size=20)
+    b = rng.normal(size=20)
+    assert np.isclose(norm(a, 1), np.linalg.norm(a, ord=1))
     assert np.isclose(norm(a, 2), np.linalg.norm(a))
-    assert np.isclose(norm(a, float("inf")), np.linalg.norm(a, np.inf))
-    assert norm(a, float("inf")) <= norm(a, 2) <= norm(a, 1)
+    assert np.isclose(norm(a, np.inf), np.linalg.norm(a, ord=np.inf))
+    assert norm(a, np.inf) <= norm(a, 2) <= norm(a, 1)
     assert np.isclose(distance(a, b), np.linalg.norm(a - b))
     assert np.isclose(distance(a, b, 1), np.abs(a - b).sum())
     assert np.isclose(cosine(a, b), (a @ b) / (np.linalg.norm(a) * np.linalg.norm(b)))
-print("ok")`}
+print("all 500 tests passed")    # all 500 tests passed`}
     />
   </QA>
   <QA q="14. Load the iris dataset, pick one flower as the query, and find its 5 nearest neighbours by Euclidean distance (a) on raw features and (b) after standardizing each column. Compare the two neighbour lists.">
+    <NewInCode items={[
+      ['load_iris(return_X_y=True)', 'Loads a small built-in dataset: X holds 4 measurements (in centimetres) for each of 150 iris flowers, y their species.', 'sklearn/toy-datasets'],
+      ['order[1:6]', 'A slice: the entries at positions 1 up to, but not including, 6. Position 0 is the query itself, at distance 0.', 'python/slicing-steps'],
+      ['X.mean(axis=0)', 'axis=0 runs down the rows, so this gives one average per column. X.std(axis=0) likewise gives one spread per column.', 'numpy/mean'],
+      ['X[:, 0]', 'Column 0, every row.', 'numpy/slicing'],
+      ['X.copy()', 'A separate copy of the array, so changing the copy leaves X as it was.', 'python/copy'],
+      ['row in second', 'True if the value appears anywhere in second.', 'python/comparisons-in'],
+    ]} />
     <CodeBlock
       code={`import numpy as np
 from sklearn.datasets import load_iris
 
-X = load_iris().data                       # (150, 4): four measurements in centimetres
-q_idx = 10
-def neighbours(M):
-    d = np.linalg.norm(M - M[q_idx], axis=1)
-    return np.argsort(d)[1:6]              # skip index 0, which is the query itself
+# X: (150, 4), four measurements in centimetres
+X, y = load_iris(return_X_y=True)
+query = 10                               # the flower in row 10 is our query
 
-raw = neighbours(X)
-Xs = (X - X.mean(axis=0)) / X.std(axis=0)  # standardize each COLUMN (axis=0)
-std = neighbours(Xs)
-print("raw         :", raw)
-print("standardized:", std)
-print("overlap     :", len(set(raw) & set(std)), "of 5")
-# Iris features are all in cm with similar ranges, so the lists overlap a lot.
-# Repeat with X[:, 0] *= 100 (pretend one column is in metres x 100) and watch the raw list collapse
-# to whichever flowers match on that one column.`}
+def five_nearest(M):
+    # distance from every row to the query
+    distances = np.linalg.norm(M - M[query], axis=1)
+    # row numbers, closest first
+    order = np.argsort(distances)
+    # skip position 0: that is the query itself
+    return order[1:6]
+
+def overlap(first, second):
+    count = 0
+    for row in first:
+        # is this row in the other list too?
+        if row in second:
+            count += 1
+    return count
+
+raw = five_nearest(X)
+# standardize each COLUMN (axis=0)
+X_std = (X - X.mean(axis=0)) / X.std(axis=0)
+std = five_nearest(X_std)
+print("raw         :", raw)          # [48 27 36 19 46]
+print("standardized:", std)          # [48 46 21 19 18]
+print("shared      :", overlap(raw, std), "of 5")   # 3 of 5
+
+# Now pretend column 0 was recorded in different units (times 100) and look
+# again.
+X_big = X.copy()
+X_big[:, 0] = X_big[:, 0] * 100
+big = five_nearest(X_big)
+print("column 0 x100:", big, " shared with raw:", overlap(raw, big), "of 5")
+# column 0 x100: [ 5 16 20 31 84]  shared with raw: 0 of 5   one column now decides everything
+X_big_std = (X_big - X_big.mean(axis=0)) / X_big.std(axis=0)
+# units no longer matter
+print("standardized again:", five_nearest(X_big_std))
+# prints [48 46 21 19 18]`}
     />
   </QA>
-  <QA q="15. Sentence embeddings without a model: represent 6 short sentences as bag-of-words count vectors, compute pairwise dot products and cosine similarities, and show one pair where the two measures disagree about which sentence is most similar to the first.">
+  <QA q="15. Sentences as word-count vectors: represent 6 short sentences by how many times each word appears in them, compute pairwise dot products and cosine similarities, and show one pair where the two measures disagree about which sentence is most similar to the first.">
+    <NewInCode items={[
+      ['s.split()', 'Cuts a sentence into a list of words at the spaces.', 'python/string-methods'],
+      ['sorted(vocab)', 'A new list in sorted order, here alphabetical.', 'python/sorted-key'],
+      ['np.zeros((6, 10))', 'A table of zeros with that shape, to be filled in.', 'numpy/zeros'],
+      ['words.count(w)', 'How many times w appears in the list words.', 'python/string-methods'],
+    ]} />
     <CodeBlock
       code={`import numpy as np
-from collections import Counter
 
-sents = ["the cat sat on the mat",
-         "the cat sat on the mat the cat sat on the mat the cat sat on the mat",   # same words, three times
-         "a dog sat on a rug",
-         "the cat",
-         "stocks fell sharply on the news",
-         "the mat"]
-vocab = sorted({w for s in sents for w in s.split()})
-V = np.array([[Counter(s.split())[w] for w in vocab] for s in sents], dtype=float)   # (6, len(vocab))
+sentences = ["the cat sat on the mat",
+             # three times
+             "the cat sat on the mat the cat sat on the mat the cat sat on the mat",
+             "a dog sat on a rug",
+             "the cat",
+             "stocks fell sharply on the news",
+             "the mat"]
 
+# The vocabulary: every different word, in alphabetical order.
+vocab = []
+for s in sentences:
+    # split() cuts a sentence into words at the spaces
+    for word in s.split():
+        if word not in vocab:
+            vocab.append(word)
+vocab = sorted(vocab)
+
+# One row per sentence, one column per vocabulary word: how many times the
+# word appears.
+V = np.zeros((len(sentences), len(vocab)))
+for i in range(len(sentences)):
+    words = sentences[i].split()
+    for j in range(len(vocab)):
+        # list.count: how many times this word is in the list
+        V[i, j] = words.count(vocab[j])
+
+# dot product of every sentence with sentence 0
 dot = V @ V[0]
 cos = dot / (np.linalg.norm(V, axis=1) * np.linalg.norm(V[0]))
-for i, s in enumerate(sents):
-    print(f"{i}: dot={dot[i]:5.1f}  cos={cos[i]:.2f}  {s[:40]}")
-# Sentence 1 (the triple repeat) has the largest dot product by far because it is long,
-# but its cosine with sentence 0 is exactly 1.0, the same as... itself: direction is identical.
-# Sentence 3 ("the cat") has a small dot product but a high cosine. Cosine is the sensible measure here.`}
+for i in range(len(sentences)):
+    print(i, " dot =", dot[i], " cos =", round(cos[i], 2), " ", sentences[i])
+# 0  dot = 8.0  cos = 1.0   the cat sat on the mat
+# 1  dot = 24.0  cos = 1.0   the cat sat on the mat the cat sat on ...
+# 2  dot = 2.0  cos = 0.25   a dog sat on a rug
+# 3  dot = 3.0  cos = 0.75   the cat
+# 4  dot = 3.0  cos = 0.43   stocks fell sharply on the news
+# 5  dot = 3.0  cos = 0.75   the mat
+# The dot product scores sentence 1 three times higher than sentence 0
+# itself,
+# only because sentence 1 is longer. Cosine gives both 1.0: same words, same
+# direction.
+# "the cat" and "stocks fell ..." tie on dot product (3.0), but cosine rightly ranks
+# "the cat" far higher. Cosine is the sensible measure here.`}
     />
   </QA>
   <QA q="16. Several arrays together form one long vector (think: all the weights of a model, in pieces). Write clip_by_global_norm(arrays, max_norm) that treats them as one vector, caps its L2 norm, and leaves the direction unchanged. Test that the joint norm afterwards is exactly max_norm, that nothing happens when it was already small, and that every array was scaled by the same factor.">
+    <NewInCode items={[
+      ['(a ** 2).sum()', 'Squares every entry of the array, then adds them all up.', 'numpy/sum'],
+      ['1e-12', 'Scientific notation for 0.000000000001: a tiny number added so that we never divide by zero.', 'python/number-literals'],
+    ]} />
     <CodeBlock
       code={`import numpy as np
 
+def joint_norm(arrays):
+    total = 0.0
+    for a in arrays:
+        # squares of every entry of every piece
+        total += (a ** 2).sum()
+    # the length of all pieces taken as one vector
+    return np.sqrt(total)
+
 def clip_by_global_norm(arrays, max_norm):
-    total = np.sqrt(sum((a ** 2).sum() for a in arrays))     # norm of all the pieces stacked into one vector
-    scale = min(1.0, max_norm / (total + 1e-12))             # only shrink, never grow
-    return [a * scale for a in arrays], total
+    length = joint_norm(arrays)
+    # only shrink, never grow
+    scale = min(1.0, max_norm / (length + 1e-12))
+    # (1e-12 is a tiny number that avoids dividing by zero)
+    clipped = []
+    for a in arrays:
+        # the SAME factor for every piece keeps the direction
+        clipped.append(a * scale)
+    return clipped
 
 rng = np.random.default_rng(0)
-pieces = [rng.normal(size=(3, 3)) * 5, rng.normal(size=(4,)) * 5]
-clipped, before = clip_by_global_norm(pieces, 1.0)
-after = np.sqrt(sum((a ** 2).sum() for a in clipped))
-print(round(before, 2), round(after, 6))                     # (large) 1.0
-assert np.isclose(after, 1.0)
-assert np.allclose(clipped[0] / pieces[0], clipped[1][0] / pieces[1][0])   # same factor everywhere: direction kept
+pieces = [rng.normal(size=(3, 3)) * 5, rng.normal(size=4) * 5]
+clipped = clip_by_global_norm(pieces, 1.0)
+print(round(joint_norm(pieces), 2), round(joint_norm(clipped), 6))
+# prints 16.85 1.0
+assert np.isclose(joint_norm(clipped), 1.0)
+
+# how much each entry of piece 0 was scaled
+factor_0 = clipped[0] / pieces[0]
+factor_1 = clipped[1] / pieces[1]        # and piece 1
+# one shared factor everywhere
+assert np.allclose(factor_0, factor_1[0])
 
 small = [np.array([0.1, 0.2])]
-assert np.allclose(clip_by_global_norm(small, 1.0)[0][0], small[0])        # already short: untouched
-print("ok")
-# In week 6 this exact function, applied to the training step, is called gradient clipping.`}
+# already short: untouched
+assert np.allclose(clip_by_global_norm(small, 1.0)[0], small[0])
+print("all checks passed")
+# Week 6 applies this exact function to each training step and calls it
+# gradient clipping.`}
     />
   </QA>
 

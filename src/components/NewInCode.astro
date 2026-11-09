@@ -1,0 +1,44 @@
+---
+// "New in this code": placed right above the first code block that uses something not yet taught.
+// Each item: [what it looks like in code, one plain sentence, reference "page/id"].
+// page is numpy, sklearn, python or glossary. A wrong id fails the build, so links never rot.
+import { numpyEntries } from '../data/numpy';
+import { sklearnEntries } from '../data/sklearn';
+import { pyEntries } from '../data/pytools';
+import { glossaryById } from '../data/glossary';
+
+type Item = [code: string, plain: string, ref?: string];
+interface Props {
+  items: Item[];
+  label?: string;
+}
+const { items, label = 'New in this code' } = Astro.props;
+
+const known: Record<string, Set<string>> = {
+  numpy: new Set(numpyEntries.map((e) => e.id)),
+  sklearn: new Set(sklearnEntries.map((e) => e.id)),
+  python: new Set(pyEntries.map((e) => e.id)),
+  glossary: new Set(Object.keys(glossaryById)),
+};
+const hrefOf = (ref?: string) => {
+  if (!ref) return undefined;
+  const [page, id] = ref.split('/');
+  if (!known[page]?.has(id)) throw new Error(`NewInCode: unknown reference "${ref}"`);
+  return `/ai/${page}/#${id}`;
+};
+---
+
+<aside class="callout new-in-code">
+  <span class="callout-label">{label}</span>
+  <dl>
+    {items.map(([code, plain, ref]) => {
+      const href = hrefOf(ref);
+      return (
+        <>
+          <dt><code>{code}</code></dt>
+          <dd>{plain}{href && <> <a href={href}>More</a></>}</dd>
+        </>
+      );
+    })}
+  </dl>
+</aside>

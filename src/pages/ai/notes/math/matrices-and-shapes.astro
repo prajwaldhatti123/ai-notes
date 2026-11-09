@@ -7,6 +7,7 @@ import Figure from '../../../../components/Figure.astro';
 import Math from '../../../../components/Math.astro';
 import Source from '../../../../components/Source.astro';
 import Term from '../../../../components/Term.astro';
+import NewInCode from '../../../../components/NewInCode.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -61,23 +62,44 @@ const scores = cells(480, 60, Array.from({ length: 4 }, () => Array(4).fill(''))
 const shapesCode = `import numpy as np
 
 A = np.array([[1, 2, 3],
-              [4, 5, 6]])            # shape (2, 3): 2 rows, 3 columns
+              [4, 5, 6]])      # 2 rows, 3 columns
 B = np.array([[7, 8],
               [9, 10],
-              [11, 12]])             # shape (3, 2)
+              [11, 12]])       # 3 rows, 2 columns
 
-print(A.shape, B.shape)             # (2, 3) (3, 2)
-print(A @ B)                        # [[ 58  64]
-                                    #  [139 154]]      shape (2, 2): inner 3s matched
-print(B @ A)                        # a different 3x3 matrix: order matters
-print(A.T)                          # [[1 4] [2 5] [3 6]]   shape (3, 2)
-print(A[0], A[:, 1])                # row 0: [1 2 3]      column 1: [2 5]
-print(A[1, 2])                      # 6   (row 1, column 2, counting from 0)
+print(A.shape)                 # (2, 3)
+print(B.shape)                 # (3, 2)
 
+print(A @ B)                   # @ is matrix multiplication
+# [[ 58  64]
+#  [139 154]]                  shape (2, 2): the inner 3s matched
+
+# the other order gives a different, 3 x 3 answer
+print(B @ A)
+# [[ 39  54  69]
+#  [ 49  68  87]
+#  [ 59  82 105]]
+
+# transpose: rows become columns, shape (3, 2)
+print(A.T)
+# [[1 4]
+#  [2 5]
+#  [3 6]]
+
+print(A[0])                    # row 0:     [1 2 3]
+# column 1:  [2 5]   (the colon means "every row")
+print(A[:, 1])
+print(A[1, 2])                 # row 1, column 2, counting from 0:  6
+
+# Shapes that do not fit raise an error. try / except catches it so we can
+# print the message.
 try:
-    A @ A                           # (2, 3) @ (2, 3): inner 3 and 2 do not match
-except ValueError as e:
-    print(e)                        # matmul: Input operand 1 has a mismatch in its core dimension 0 ...`;
+    # (2, 3) @ (2, 3): the inner sizes 3 and 2 do not match
+    A @ A
+except ValueError as err:
+    print(err)
+# matmul: Input operand 1 has a mismatch in its core dimension 0, ... (size
+# 2 is different from 3)`;
 
 const batchCode = `import numpy as np
 
@@ -85,77 +107,119 @@ const batchCode = `import numpy as np
 X = np.array([[1, 0, 0],
               [1, 1, 0],
               [0, 0, 1],
-              [1, 0, 1]], dtype=float)           # (4, 3)
-W = np.array([[3, -2, -4],                         # score 1: "should I walk?"
-              [1, -1,  0]], dtype=float)          # score 2: "is the weather good?"  -> (2, 3) = (outputs, inputs)
-b = np.array([-1, 0], dtype=float)                 # one bias per score -> (2,)
+              [1, 0, 1]], dtype=float)     # shape (4, 3)
 
-Z = X @ W.T + b                                    # (4,3) @ (3,2) -> (4,2); b broadcasts across rows
+# Two scores, one row of weights each: shape (2, 3) = (outputs, inputs).
+W = np.array([[3, -2, -4],                 # score 1: "should I walk?"
+              [1, -1,  0]], dtype=float)   # score 2: "is the weather good?"
+b = np.array([-1, 0], dtype=float)         # one bias per score: shape (2,)
+
+# (4, 3) @ (3, 2) -> (4, 2); b is added to every row
+Z = X @ W.T + b
 print(Z)
 # [[ 2.  1.]
 #  [ 0.  0.]
 #  [-5.  0.]
 #  [-2.  1.]]
-print(Z.shape)                                     # (4, 2): one row per day, one column per score
+# : one row per day, one column per score
+print(Z.shape)
+# prints (4, 2)
 
-# The house data the same way: three houses, two features (size, rooms), one weight per feature.
-houses = np.array([[1.0, 2], [1.5, 3], [2.0, 3]])  # (3, 2)
-w = np.array([150.0, 15.0]); b0 = 10.0
-print(houses @ w + b0)                             # (3,2) @ (2,) -> (3,): all three predictions at once`;
+# The house data the same way: three houses, two features (size, rooms).
+houses = np.array([[1.0, 2],
+                   [1.5, 3],
+                   [2.0, 3]])              # shape (3, 2)
+w = np.array([150.0, 15.0])                # one weight per feature
+b0 = 10.0                                  # one bias
+# @ (2,) -> (3,): all three predictions at once
+print(houses @ w + b0)
+# prints (3, 2)
+# [190. 280. 355.]`;
 
 const mlpShapesCode = `import numpy as np
 
+# a random-number generator; the 0 makes the numbers repeat every run
 rng = np.random.default_rng(0)
-batch, d_in, d_hidden, d_out = 32, 3, 4, 2
-X = rng.normal(size=(batch, d_in))                # (32, 3): 32 examples, 3 features
-W1, b1 = rng.normal(size=(d_hidden, d_in)), np.zeros(d_hidden)    # (4, 3) and (4,): weights stored as (outputs, inputs)
-W2, b2 = rng.normal(size=(d_out, d_hidden)), np.zeros(d_out)      # (2, 4) and (2,)
 
-H = X @ W1.T + b1;      print(H.shape)            # (32, 4)   only the last axis changed
-H = np.maximum(H, 0);   print(H.shape)            # (32, 4)   element-wise: shape unchanged
-Y = H @ W2.T + b2;      print(Y.shape)            # (32, 2)
+# a batch: 32 examples, 3 features each (random stand-in data)
+X = rng.normal(size=(32, 3))
+# step 1 weights: 3 inputs -> 4 outputs, stored as (outputs, inputs)
+W1 = rng.normal(size=(4, 3))
+b1 = np.zeros(4)                   # one bias per output, starting at 0
+W2 = rng.normal(size=(2, 4))       # step 2 weights: 4 inputs -> 2 outputs
+b2 = np.zeros(2)
 
+H = X @ W1.T + b1                  # step 1
+print(H.shape)                     # (32, 4)   only the last axis changed
+# the bend: every negative number becomes 0
+H = np.maximum(H, 0)
+# element by element, so the shape is unchanged
+print(H.shape)
+# prints (32, 4)
+Y = H @ W2.T + b2                  # step 2
+print(Y.shape)                     # (32, 2)
+
+# .size = how many numbers an array holds
 n_params = W1.size + b1.size + W2.size + b2.size
-print(n_params)                                   # 26 = (3*4 + 4) + (4*2 + 2)
+print(n_params)                    # 26 = (4*3 + 4) + (2*4 + 2)
 
-# Add a leading axis (say, 8 groups of 128 examples) and nothing changes but that axis:
+# Give the input an extra leading axis (8 groups of 128 examples): only the
+# last axis changes.
 X3 = rng.normal(size=(8, 128, 3))
-print((X3 @ W1.T + b1).shape)                     # (8, 128, 4): still only the last axis`;
+print((X3 @ W1.T + b1).shape)      # (8, 128, 4)`;
 
 const pairwiseCode = `import numpy as np
 
 rng = np.random.default_rng(0)
-n, d = 4, 8
-A = rng.normal(size=(n, d))                       # 4 vectors of length 8, one per row
-B = rng.normal(size=(n, d))                       # another 4
+A = rng.normal(size=(4, 8))        # 4 vectors of length 8, one per row
+B = rng.normal(size=(4, 8))        # another 4
 
-S = A @ B.T                                       # (4, 8) @ (8, 4) -> (4, 4)
-print(S.shape)
+S = A @ B.T                        # (4, 8) @ (8, 4) -> (4, 4)
+print(S.shape)                     # (4, 4)
 
-# Entry (i, j) is the dot product of row i of A with row j of B. Check one by hand:
-i, j = 1, 2
-print(np.isclose(S[i, j], A[i] @ B[j]))           # True
+# Entry (i, j) is the dot product of row i of A with row j of B. Check one
+# of them:
+by_hand = A[1] @ B[2]              # row 1 of A dotted with row 2 of B
+# (isclose allows for tiny rounding differences)
+print(np.isclose(S[1, 2], by_hand))
+# prints True
 
 # One stack against itself: every pair of vectors compared in one line.
-G = A @ A.T                                       # (4, 4), symmetric, diagonal = squared lengths
-print(np.allclose(np.diag(G), (A ** 2).sum(axis=1)))   # True`;
+G = A @ A.T                        # (4, 4)
+print(np.allclose(G, G.T))         # True: symmetric, because a·b = b·a
+# square every number, then add along each row
+self_dots = (A ** 2).sum(axis=1)
+print(np.allclose(np.diag(G), self_dots))
+# prints True: the diagonal holds each vector dotted with itself`;
 
 const broadcastCode = `import numpy as np
 
-Z = np.zeros((4, 2))
+Z = np.zeros((4, 2))               # 4 rows, 2 columns of zeros
 b = np.array([-1.0, 0.0])          # shape (2,)
-print((Z + b).shape)               # (4, 2): b is stretched across the 4 rows
+# : b is stretched across the 4 rows
+print((Z + b).shape)
+# prints (4, 2)
 
 col = np.array([[10.0], [20.0], [30.0], [40.0]])    # shape (4, 1)
-print((Z + col).shape)             # (4, 2): the column is stretched across the 2 columns
+# : the column is stretched across the 2 columns
+print((Z + col).shape)
+# prints (4, 2)
 
-row_means = Z.mean(axis=1)         # (4,)   one number per row
-print((Z - row_means[:, None]).shape)   # (4, 2): add an axis so (4,1) broadcasts against (4,2)
+row_means = Z.mean(axis=1)         # one number per row
+print(row_means.shape)             # (4,)
+# : [:, None] adds an axis of size 1
+print(row_means[:, None].shape)
+# prints (4, 1)
+# : now it lines up row by row
+print((Z - row_means[:, None]).shape)
+# prints (4, 2)
 
 try:
-    Z + np.array([1.0, 2.0, 3.0])  # (4,2) vs (3,): last dimensions 2 and 3 do not match
-except ValueError as e:
-    print(e)                       # operands could not be broadcast together with shapes (4,2) (3,)`;
+    # (4, 2) and (3,): the last sizes 2 and 3 do not match
+    Z + np.array([1.0, 2.0, 3.0])
+except ValueError as err:
+    # operands could not be broadcast together with shapes (4,2) (3,)
+    print(err)`;
 ---
 
 <Note
@@ -802,14 +866,42 @@ except ValueError as e:
   <h2 id="code">Code</h2>
   <p>Type these out. Before running each line that prints a shape, write down the shape you expect.</p>
   <h3>Shapes, indexing, transpose and the error you will see</h3>
+  <NewInCode items={[
+    ['A.shape', 'The size of an array in each direction, as (rows, columns).', 'numpy/shape'],
+    ['A @ B', 'Matrix multiplication, the operation this note is about.', 'numpy/matmul'],
+    ['A.T', 'The transpose: the same numbers with rows turned into columns.', 'numpy/T'],
+    ['A[0]   A[:, 1]   A[1, 2]', 'Row 0; column 1 (the colon means “every row”); the single number at row 1, column 2. Counting starts at 0.', 'numpy/slicing'],
+    ['try: … except ValueError as err:', 'Run some code and, if it fails with that kind of error, run the except part instead of stopping. Here it lets us print the error message.', 'python/try-except'],
+  ]} />
   <CodeBlock code={shapesCode} />
   <h3>A batch through a weight matrix: the walk days and the houses</h3>
+  <NewInCode items={[
+    ['np.array(..., dtype=float)', 'Store the numbers as decimals, so later arithmetic never rounds to whole numbers.', 'numpy/array'],
+    ['X @ W.T + b', 'b has one number per column; NumPy adds it to every row. This stretching is broadcasting, explained at the end of this note.', 'numpy/arith'],
+  ]} />
   <CodeBlock code={batchCode} />
   <h3>The shape table of two steps with a bend between</h3>
+  <NewInCode items={[
+    ['rng = np.random.default_rng(0)', 'Makes a random-number generator. The 0 is a seed: the same seed gives the same numbers every run.', 'numpy/default-rng'],
+    ['rng.normal(size=(32, 3))', 'An array of that shape filled with random numbers, mostly between −2 and 2. Here they stand in for real data and weights.', 'numpy/rng-normal'],
+    ['np.zeros(4)', 'An array of four zeros.', 'numpy/zeros'],
+    ['np.maximum(H, 0)', 'Compares every number with 0 and keeps the larger, so negatives become 0. This is the “bend” in the table.', 'numpy/maximum'],
+    ['W1.size', 'How many numbers an array holds in total (rows × columns).', 'numpy/shape'],
+  ]} />
   <CodeBlock code={mlpShapesCode} />
   <h3>All pairwise dot products in one multiplication</h3>
+  <NewInCode items={[
+    ['np.isclose(a, b)   np.allclose(A, B)', 'Equal up to tiny rounding errors: for one pair of numbers, or for every pair in two arrays. Decimal arithmetic is rarely exact, so == is the wrong test.', 'numpy/isclose'],
+    ['A ** 2', 'Squares every number in the array separately.', 'numpy/arith'],
+    ['.sum(axis=1)', 'Adds along each row, giving one total per row.', 'numpy/sum'],
+    ['np.diag(G)', 'The numbers on the diagonal of a square matrix: G[0, 0], G[1, 1], …', 'numpy/diag'],
+  ]} />
   <CodeBlock code={pairwiseCode} />
   <h3>Broadcasting, including the case that fails</h3>
+  <NewInCode items={[
+    ['Z.mean(axis=1)', 'The average along each row, one number per row.', 'numpy/mean'],
+    ['v[:, None]', 'Adds an axis of size 1, turning shape (4,) into (4, 1) so it lines up with the rows of a (4, 2) array.', 'numpy/newaxis'],
+  ]} />
   <CodeBlock code={broadcastCode} />
   <Source
     kind="read"
@@ -1009,84 +1101,149 @@ except ValueError as e:
   </QA>
   <h3>Code</h3>
   <QA q="13. Implement matmul with three nested loops. Check it against @ on random shapes, and make it raise a clear error when the inner dimensions differ.">
+    <NewInCode items={[
+      ['m, n = A.shape', 'A.shape is a pair of numbers; this names both at once: rows m, columns n.', 'python/tuple-unpacking'],
+      ['raise ValueError("…")', 'Stops the function with an error and your own message. Whoever called it can catch it with try / except.', 'python/try-except'],
+      ['for m, n, p in [(2, 3, 2), …]:', 'Each item of the list is three numbers; the loop names all three on every pass.', 'python/tuple-unpacking'],
+      ['assert condition', 'Stops the program if the condition is false. A built-in self-check.', 'python/assert'],
+    ]} />
     <CodeBlock
       code={`import numpy as np
 
 def matmul(A, B):
-    m, n = A.shape
-    n2, p = B.shape
+    m, n = A.shape                  # rows and columns of A
+    n2, p = B.shape                 # rows and columns of B
     if n != n2:
         raise ValueError(f"inner dimensions differ: A is {m}x{n}, B is {n2}x{p}")
-    C = np.zeros((m, p))
+    C = np.zeros((m, p))            # the answer, filled in below
     for i in range(m):              # each row of A
         for j in range(p):          # each column of B
-            for k in range(n):      # the dot product
+            # the dot product of that row and that column
+            for k in range(n):
                 C[i, j] += A[i, k] * B[k, j]
     return C
 
 rng = np.random.default_rng(0)
 for m, n, p in [(2, 3, 2), (5, 1, 4), (3, 7, 3), (1, 6, 1)]:
-    A, B = rng.normal(size=(m, n)), rng.normal(size=(n, p))
+    A = rng.normal(size=(m, n))
+    B = rng.normal(size=(n, p))
+    # same answer as NumPy, up to rounding
     assert np.allclose(matmul(A, B), A @ B)
+print("all shapes agree with @")              # all shapes agree with @
+
 try:
     matmul(np.zeros((2, 3)), np.zeros((2, 3)))
-except ValueError as e:
-    print(e)                        # inner dimensions differ: A is 2x3, B is 2x3
-print("ok")`}
+except ValueError as err:
+    # inner dimensions differ: A is 2x3, B is 2x3
+    print(err)`}
     />
   </QA>
   <QA q="14. Time your loop matmul against NumPy’s @ for 200 × 200 matrices. Then time @ for 1000 × 1000. Compute the FLOPs per second NumPy achieves.">
+    <NewInCode items={[
+      ['time.perf_counter()', 'The current time in seconds from a precise clock. Read it before and after some work and subtract to get how long the work took.', 'python/perf-counter'],
+      ['f"{x:.2f}"   f"{x:,.0f}"', 'Print a number with 2 decimals; or with no decimals and commas between thousands.', 'python/fstring-format'],
+    ]} />
     <CodeBlock
-      code={`import numpy as np, time
+      code={`import time
+import numpy as np
 
 rng = np.random.default_rng(0)
-A, B = rng.normal(size=(200, 200)), rng.normal(size=(200, 200))
+A = rng.normal(size=(200, 200))
+B = rng.normal(size=(200, 200))
 
-t = time.perf_counter(); C1 = matmul(A, B); loop_s = time.perf_counter() - t      # uses matmul from problem 13
-t = time.perf_counter(); C2 = A @ B;       numpy_s = time.perf_counter() - t
-assert np.allclose(C1, C2)
-print(f"loops {loop_s:.2f}s   numpy {numpy_s*1000:.2f}ms   speed-up {loop_s/numpy_s:,.0f}x")
+start = time.perf_counter()
+C_loops = matmul(A, B)                       # the function from problem 13
+loop_seconds = time.perf_counter() - start
+
+start = time.perf_counter()
+C_numpy = A @ B
+numpy_seconds = time.perf_counter() - start
+
+# same answer, very different speed
+assert np.allclose(C_loops, C_numpy)
+numpy_ms = numpy_seconds * 1000
+speedup = loop_seconds / numpy_seconds
+print(f"loops: {loop_seconds:.2f} s   numpy: {numpy_ms:.2f} ms   speed-up: {speedup:,.0f}x")
 
 n = 1000
-A, B = rng.normal(size=(n, n)), rng.normal(size=(n, n))
-t = time.perf_counter(); A @ B; s = time.perf_counter() - t
+A = rng.normal(size=(n, n))
+B = rng.normal(size=(n, n))
+start = time.perf_counter()
+C = A @ B
+seconds = time.perf_counter() - start
+# n*n answers, each needing n multiplies and n adds
 flops = 2 * n * n * n
-print(f"{flops/s/1e9:.1f} GFLOP/s on this CPU")   # tens to hundreds; a GPU does tens of thousands`}
+# billions of operations per second
+gflops_per_second = flops / seconds / 1e9
+print(f"{gflops_per_second:.1f} GFLOP/s on this CPU")
+
+# Your numbers will differ. One laptop printed:
+#   loops: 5.74 s   numpy: 9.75 ms   speed-up: 588x
+#   25.4 GFLOP/s on this CPU
+# The ratio is the point: NumPy is hundreds to thousands of times faster
+# than Python loops,
+# and a GPU does tens of thousands of GFLOP/s.`}
     />
   </QA>
-  <QA q="15. Write a two-layer network forward pass in NumPy for a batch, asserting the shape after every step. Then make it accept an input with an extra leading axis without changing any code.">
+  <QA q="15. Write the shape table’s step → bend → step as a function for a batch, asserting the shape after every step. Then make it accept an input with an extra leading axis without changing any code.">
+    <NewInCode items={[
+      ['X.shape[:-1]', 'X.shape is a tuple of sizes; [:-1] drops the last one. For (8, 128, 3) it gives (8, 128).', 'python/slicing-steps'],
+      ['leading + (4,)', 'Adding two tuples joins them: (8, 128) + (4,) is (8, 128, 4). The comma makes (4,) a one-item tuple.', 'python/tuple-unpacking'],
+    ]} />
     <CodeBlock
       code={`import numpy as np
 
 rng = np.random.default_rng(0)
-W1, b1 = rng.normal(size=(4, 3)) * 0.5, np.zeros(4)      # (out, in)
-W2, b2 = rng.normal(size=(2, 4)) * 0.5, np.zeros(2)
+# step 1: 3 inputs -> 4 outputs, stored as (outputs, inputs)
+W1 = rng.normal(size=(4, 3)) * 0.5
+b1 = np.zeros(4)
+W2 = rng.normal(size=(2, 4)) * 0.5      # step 2: 4 inputs -> 2 outputs
+b2 = np.zeros(2)
 
 def forward(X):
-    H = X @ W1.T + b1;      assert H.shape == X.shape[:-1] + (4,)
-    H = np.maximum(H, 0);   assert H.shape == X.shape[:-1] + (4,)
-    Y = H @ W2.T + b2;      assert Y.shape == X.shape[:-1] + (2,)
+    # every axis except the last, e.g. (32,) or (8, 128)
+    leading = X.shape[:-1]
+    H = X @ W1.T + b1                   # step 1
+    assert H.shape == leading + (4,)
+    H = np.maximum(H, 0)                # the bend: negatives become 0
+    assert H.shape == leading + (4,)
+    Y = H @ W2.T + b2                   # step 2
+    assert Y.shape == leading + (2,)
     return Y
 
-print(forward(rng.normal(size=(32, 3))).shape)        # (32, 2)
-print(forward(rng.normal(size=(8, 128, 3))).shape)    # (8, 128, 2)  same code, extra leading axis`}
+print(forward(rng.normal(size=(32, 3))).shape)       # (32, 2)
+# : same code, extra leading axis
+print(forward(rng.normal(size=(8, 128, 3))).shape)
+# prints (8, 128, 2)`}
     />
   </QA>
-  <QA q="16. Compute all pairwise cosine similarities between 1,000 random 64-dimensional embeddings in one matrix expression. Verify one entry by hand with the dot product formula, and confirm the diagonal is all ones.">
+  <QA q="16. Compute all pairwise dot products between 1,000 random vectors of length 64 in one matrix expression. Check one entry with a plain loop, and confirm the result is symmetric and its diagonal holds each vector dotted with itself.">
     <CodeBlock
       code={`import numpy as np
 
 rng = np.random.default_rng(0)
+# 1,000 vectors of length 64, one per row
 E = rng.normal(size=(1000, 64))
-E_unit = E / np.linalg.norm(E, axis=1, keepdims=True)    # (1000, 64) / (1000, 1): broadcasting
-S = E_unit @ E_unit.T                                    # (1000, 1000): every pair at once
+# (1000, 64) @ (64, 1000) -> (1000, 1000): every pair at once
+S = E @ E.T
+print(S.shape)                      # (1000, 1000)
+print(S.size)                       # 1000000 dot products from one line
 
 i, j = 3, 17
-by_hand = (E[i] @ E[j]) / (np.linalg.norm(E[i]) * np.linalg.norm(E[j]))
+by_hand = 0.0
+# the dot product of rows 3 and 17, written out
+for k in range(64):
+    by_hand += E[i, k] * E[j, k]
 assert np.isclose(S[i, j], by_hand)
-assert np.allclose(np.diag(S), 1.0)                      # every vector is perfectly similar to itself
-assert np.allclose(S, S.T)                               # similarity is symmetric
-print(S.shape, S[i, j])`}
+print(round(by_hand, 3))            # 5.803
+
+# symmetric: row i with row j = row j with row i
+assert np.allclose(S, S.T)
+self_dots = (E ** 2).sum(axis=1)    # each vector dotted with itself
+assert np.allclose(np.diag(S), self_dots)
+
+# In the next note you divide each row by its length first;
+# then this same line gives the cosine similarity of every pair.`}
     />
   </QA>
 

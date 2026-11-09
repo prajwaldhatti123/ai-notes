@@ -7,6 +7,7 @@ import Figure from '../../../../components/Figure.astro';
 import Math from '../../../../components/Math.astro';
 import Source from '../../../../components/Source.astro';
 import Term from '../../../../components/Term.astro';
+import NewInCode from '../../../../components/NewInCode.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -89,62 +90,102 @@ const zoo = [
 
 const rulesCode = `import numpy as np
 
-a, b, n = 6.0, 1.5, 3.0
+a = 6.0
+b = 1.5
+n = 3.0
 
-# np.log is the NATURAL log (base e). np.log2 and np.log10 are the others.
-assert np.isclose(np.log(a * b), np.log(a) + np.log(b))        # product -> sum
-assert np.isclose(np.log(a / b), np.log(a) - np.log(b))        # quotient -> difference
-assert np.isclose(np.log(a ** n), n * np.log(a))               # power -> multiple
-assert np.isclose(np.log(np.exp(2.5)), 2.5)                    # log undoes exp
-assert np.isclose(np.exp(np.log(a)), a)                        # exp undoes log
-assert np.isclose(np.log2(a), np.log(a) / np.log(2))           # change of base
-print(np.log(1), np.log(np.e), np.log(0.5), np.log(0.01))     # 0.0 1.0 -0.693 -4.605`;
+# np.log is the NATURAL log (base e). np.log2 is base 2, np.log10 is base
+# 10.
+# product -> sum:        2.1972... 2.1972...
+print(np.log(a * b), np.log(a) + np.log(b))
+# quotient -> difference: 1.3863... 1.3863...
+print(np.log(a / b), np.log(a) - np.log(b))
+# power -> multiple:     5.3753... 5.3753...
+print(np.log(a ** n), n * np.log(a))
+print(np.log(np.exp(2.5)))                     # log undoes exp:        2.5
+print(np.exp(np.log(a)))                       # exp undoes log:        6.0
+# change of base:        2.5850... 2.5850...
+print(np.log2(a), np.log(a) / np.log(2))
+
+# The same check written as a test: assert stops the program if the
+# condition is false.
+# np.isclose allows for the tiny rounding differences that decimals always
+# have.
+assert np.isclose(np.log(a * b), np.log(a) + np.log(b))
+
+print(np.log(1), np.log(np.e), np.log(0.5), np.log(0.01))
+# 0.0 1.0 -0.6931471805599453 -4.605170185988091`;
 
 const underflowCode = `import numpy as np
 
 # One thousand examples, each given probability 0.001 by a model.
-p = np.full(1000, 0.001)
+p = np.full(1000, 0.001)       # an array of 1000 copies of 0.001
 
-print(np.prod(p))              # 0.0  -> underflow: the true value 1e-3000 is below float64's smallest number
-print(np.sum(np.log(p)))       # -6907.755...  -> the same quantity in log space, perfectly fine
+product = np.prod(p)           # multiply all 1000 together
+log_sum = np.sum(np.log(p))    # add up their logs instead
+# underflow: the true value 10^-3000 is below the smallest float
+print(product)
+# prints 0.0
+# the same quantity in log space: an ordinary number
+print(log_sum)
+# prints -6907.755278982137
 
-# Comparing two models by the probability they give the data is impossible in raw space, trivial in log space:
+# A second model gives each example 0.002, so it is clearly better. Can we
+# tell?
 q = np.full(1000, 0.002)
-print(np.prod(q) > np.prod(p))                  # False (both are 0.0!)
-print(np.sum(np.log(q)) > np.sum(np.log(p)))    # True`;
+# both products are 0.0
+print(np.prod(q) > np.prod(p))
+# prints False
+# log space sees the difference
+print(np.sum(np.log(q)) > np.sum(np.log(p)))
+# prints True`;
 
 const softmaxCode = `import numpy as np
 
 def scores_to_percentages_naive(z):
-    e = np.exp(z)              # step 1: make every score positive, keep the order
-    return e / e.sum()         # step 2: divide by the total so they add up to 1
+    # step 1: make every score positive, keep the order
+    e = np.exp(z)
+    # step 2: divide by the total so they add up to 1
+    return e / np.sum(e)
 
 def scores_to_percentages(z):
-    z = z - np.max(z)          # shift every score down by the biggest one: the answer is identical, the numbers are safe
+    # shift every score down by the biggest one (same answer, safe numbers)
+    z = z - np.max(z)
     e = np.exp(z)
-    return e / e.sum()
+    return e / np.sum(e)
 
-print(scores_to_percentages(np.array([2.0, 1.0, 0.0])))              # [0.665 0.245 0.090]
-print(scores_to_percentages_naive(np.array([1000.0, 1001.0, 1002.0])))   # [nan nan nan]  -> exp(1000) overflows
-print(scores_to_percentages(np.array([1000.0, 1001.0, 1002.0])))         # [0.090 0.245 0.665]
-# This recipe is called softmax. Week 5 builds on it; here it is just e^x doing its job.`;
+small = np.array([2.0, 1.0, 0.0])
+big = np.array([1000.0, 1001.0, 1002.0])
+
+print(scores_to_percentages(small).round(3))    # [0.665 0.245 0.09 ]
+# exp(1000) overflows to inf; inf / inf is nan
+print(scores_to_percentages_naive(big))
+# prints [nan nan nan]
+print(scores_to_percentages(big).round(3))      # [0.09  0.245 0.665]
+# NumPy also prints "RuntimeWarning: overflow encountered in exp" for the
+# naive line.
+# This recipe is called softmax; the week 5 note builds on it.`;
 
 const lossCode = `import numpy as np
 
 def log_loss(p_correct):
-    """The log loss for one example: minus the log of the probability the model gave to the right answer."""
+    # minus the log of the probability the model gave to the right answer
     return -np.log(p_correct)
 
 for p in [0.99, 0.9, 0.5, 0.1, 0.01]:
-    print(f"p = {p:<5}  loss = {log_loss(p):.3f}")
+    loss = log_loss(p)
+    # :<5 pads p to 5 characters, :.3f prints 3 decimals
+    print(f"p = {p:<5}  loss = {loss:.3f}")
 # p = 0.99   loss = 0.010
 # p = 0.9    loss = 0.105
 # p = 0.5    loss = 0.693
 # p = 0.1    loss = 2.303
 # p = 0.01   loss = 4.605
 
-# Compare with the obvious alternative, 1 - p: at p = 0.01 it is 0.99 and has stopped caring.
-print(1 - 0.01, log_loss(0.01))`;
+# Compare with the obvious alternative, 1 - p. At p = 0.01 it is only 0.99:
+# it has stopped caring.
+print(1 - 0.01)          # 0.99
+print(log_loss(0.01))    # 4.605170185988091`;
 ---
 
 <Note
@@ -808,18 +849,40 @@ print(1 - 0.01, log_loss(0.01))`;
   <h2 id="code">Code</h2>
   <p>Type these out; do not paste. Each one demonstrates a sentence from above.</p>
   <h3>The rules, checked numerically</h3>
+  <NewInCode items={[
+    ["np.log(x)", "The natural logarithm (base e) of a number, or of every number in an array.", "numpy/log"],
+    ["np.log2(x), np.log10(x)", "Logarithms in base 2 and base 10.", "numpy/log"],
+    ["np.exp(x)", "e raised to the power x.", "numpy/exp"],
+    ["np.e", "The number e = 2.718…, ready to use.", "numpy/constants"],
+    ["assert condition", "Checks that something is true and stops the program with an error if it is not. Used here as a self-test.", "python/assert"],
+    ["np.isclose(a, b)", "True if two numbers are equal apart from tiny rounding differences. Use it instead of == for decimals.", "numpy/isclose"],
+  ]} />
   <CodeBlock code={rulesCode} />
   <h3>Underflow, and why log space fixes it</h3>
+  <NewInCode items={[
+    ["np.full(1000, 0.001)", "An array holding 1,000 copies of the same number.", "numpy/full"],
+    ["np.prod(p)", "Multiplies all the numbers in an array together.", "numpy/prod"],
+    ["np.sum(p)", "Adds up all the numbers in an array.", "numpy/sum"],
+  ]} />
   <CodeBlock code={underflowCode} />
   <h3>Scores to percentages, naive and safe</h3>
+  <NewInCode items={[
+    ["np.max(z)", "The largest number in an array.", "numpy/max"],
+    [".round(3)", "Rounds every number in the array to 3 decimals, to keep the printout short.", "numpy/round"],
+    ["inf and nan", "What a decimal becomes when it is too big to store (inf, infinity), or when a calculation has no answer, such as inf / inf (nan, “not a number”).", "numpy/constants"],
+  ]} />
   <CodeBlock code={softmaxCode} />
   <h3>The log loss</h3>
+  <NewInCode items={[
+    ["f\"{p:<5}\", f\"{loss:.3f}\"", "A colon inside the braces says how to print the value: <5 pads it to 5 characters, aligned left; .3f prints 3 decimal places.", "python/fstring-format"],
+  ]} />
   <CodeBlock code={lossCode} />
   <Callout kind="note" label="Reading the code">
     <p>
-      Every <code>np.</code> function in these blocks is a link. Click <code>np.log</code> or <code>np.exp</code> to
-      open its entry on the <a href="/ai/numpy/">NumPy reference page</a>, which explains it in plain words with its own
-      example and output.
+      Every function name in these blocks is a link. Click <code>np.log</code> or <code>np.exp</code> to open its entry
+      on the <a href="/ai/numpy/">NumPy reference page</a>, which explains it in plain words with its own example and
+      output. The yellow “New in this code” box above each block introduces everything the block uses for the first
+      time.
     </p>
   </Callout>
 
@@ -1061,81 +1124,117 @@ print(1 - 0.01, log_loss(0.01))`;
   </QA>
   <h3>Code</h3>
   <QA q="13. Write a function that checks all seven log rules from the table numerically for random positive a, b and random n, using np.isclose. Run it a thousand times.">
+    <NewInCode items={[
+      ["np.random.default_rng(0)", "Makes a random-number generator. The 0 is a seed: the same seed gives the same “random” numbers on every run, so results can be checked.", "numpy/default-rng"],
+      ["rng.uniform(low, high)", "One random decimal number between low and high, every value equally likely.", "numpy/rng-uniform"],
+    ]} />
     <CodeBlock
       code={`import numpy as np
 
-def check_log_rules(trials=1000, seed=0):
-    rng = np.random.default_rng(seed)
-    for _ in range(trials):
-        a, b = rng.uniform(0.01, 100, size=2)
+def check_log_rules(trials):
+    # random-number generator; seed 0 repeats the same numbers
+    rng = np.random.default_rng(0)
+    for trial in range(trials):
+        # a random number between 0.01 and 100
+        a = rng.uniform(0.01, 100)
+        b = rng.uniform(0.01, 100)
         n = rng.uniform(-3, 3)
         assert np.isclose(np.log(a * b), np.log(a) + np.log(b))
         assert np.isclose(np.log(a / b), np.log(a) - np.log(b))
         assert np.isclose(np.log(a ** n), n * np.log(a))
         assert np.isclose(np.log(1.0), 0.0)
         assert np.isclose(np.log(np.e), 1.0)
-        assert np.isclose(np.log(np.exp(n)), n) and np.isclose(np.exp(np.log(a)), a)
+        assert np.isclose(np.log(np.exp(n)), n)
+        assert np.isclose(np.exp(np.log(a)), a)
         assert np.isclose(np.log2(a), np.log(a) / np.log(2))
-    print("all rules hold")
+    print("all rules hold in", trials, "random trials")
 
-check_log_rules()`}
+check_log_rules(1000)     # all rules hold in 1000 random trials`}
     />
   </QA>
   <QA q="14. Show underflow: multiply 400 probabilities of 0.1 directly and in log space. At what count does the direct product first become exactly 0.0?">
+    
     <CodeBlock
       code={`import numpy as np
 
 p = 0.1
-direct, logspace = 1.0, 0.0
+direct = 1.0          # the running product
+logspace = 0.0        # the running sum of logs
+# the first count at which the product hits exactly 0.0
 first_zero = None
 for k in range(1, 401):
-    direct *= p
-    logspace += np.log(p)
+    direct = direct * p
+    logspace = logspace + np.log(p)
     if first_zero is None and direct == 0.0:
         first_zero = k
-print(first_zero)          # 324: 0.1**324 is below the smallest positive float64 (about 4.9e-324)
-print(logspace)            # -921.03...: still a perfectly ordinary number
+print(first_zero)
+# prints 324: 0.1 to the 324 is below the smallest positive float (about 4.9e-324)
+print(logspace)
+# prints -921.0340371976151: still a perfectly ordinary number
 print(np.exp(logspace))    # 0.0 again, as soon as you leave log space`}
     />
   </QA>
-  <QA q="15. Write scores_to_percentages(z) with the subtract-the-max trick so that it works on a whole matrix of scores at once, one row per example. Check on random scores in [−1000, 1000] that every row is positive, adds to 1, and agrees with the naive version where the naive version does not overflow.">
+  <QA q="15. Write scores_to_percentages(z) with the subtract-the-max trick. On 1,000 random lists of 50 scores between −1000 and 1000, check that no share is negative and that the shares add to 1. On small scores (between −5 and 5), check it agrees with the naive version.">
+    <NewInCode items={[
+      ["rng.uniform(low, high, size=50)", "Fifty random numbers between low and high at once, as an array.", "numpy/rng-uniform"],
+      ["np.min(p)", "The smallest number in an array.", "numpy/max"],
+      ["np.allclose(a, b)", "np.isclose for whole arrays: True if every pair of numbers is close.", "numpy/isclose"],
+    ]} />
     <CodeBlock
       code={`import numpy as np
 
 def scores_to_percentages(z):
-    z = z - z.max(axis=1, keepdims=True)     # per row: subtract that row's biggest score
+    z = z - np.max(z)          # subtract the biggest score
     e = np.exp(z)
-    return e / e.sum(axis=1, keepdims=True)  # per row: divide by that row's total
+    return e / np.sum(e)
 
 def naive(z):
     e = np.exp(z)
-    return e / e.sum(axis=1, keepdims=True)
+    return e / np.sum(e)
 
 rng = np.random.default_rng(0)
-big = rng.uniform(-1000, 1000, size=(8, 50))
-p = scores_to_percentages(big)
-assert np.all(p > 0) and np.allclose(p.sum(axis=1), 1.0)
-assert np.isnan(naive(big)).any()                      # the naive version breaks on these
+for trial in range(1000):
+    # 50 random scores, some huge
+    big = rng.uniform(-1000, 1000, size=50)
+    p = scores_to_percentages(big)
+    # nothing negative (very small shares round to 0.0)
+    assert np.min(p) >= 0
+    assert np.isclose(np.sum(p), 1.0)              # shares add up to 1
 
-small = rng.uniform(-5, 5, size=(8, 50))
-assert np.allclose(scores_to_percentages(small), naive(small))   # and agrees where it works
-print("stable, rows sum to 1, matches the naive version on small scores")`}
+    # scores the naive version can handle
+    small = rng.uniform(-5, 5, size=50)
+    # every share agrees
+    assert np.allclose(scores_to_percentages(small), naive(small))
+
+print("safe version: never breaks, always adds to 1, matches the naive one on small scores")
+print(np.sum(naive(big)))
+# prints nan: the naive version on the last big scores does not even add to 1`}
     />
   </QA>
   <QA q="16. Plot −log p for p from 0.001 to 1, and on the same axes plot 1 − p. Mark p = 0.01 on both. Write one sentence about what you see.">
+    <NewInCode items={[
+      ["import matplotlib.pyplot as plt", "Loads the plotting library under its usual short name, plt.", "python/import-as"],
+      ["np.linspace(0.001, 1, 500)", "500 evenly spaced numbers from 0.001 to 1: the x values for a smooth curve.", "numpy/linspace"],
+      ["plt.plot(x, y, label=…)", "Draws a line through the points; label names it for the legend.", "python/plt-plot"],
+      ["plt.scatter(xs, ys, color=\"red\")", "Draws dots at the given points without joining them.", "python/plt-scatter"],
+      ["plt.xlabel, plt.ylabel, plt.legend, plt.show", "Name the axes, show the box naming each line, and display the chart.", "python/plt-plot"],
+    ]} />
     <CodeBlock
       code={`import numpy as np
 import matplotlib.pyplot as plt
 
+# 500 evenly spaced values from 0.001 to 1
 p = np.linspace(0.001, 1, 500)
 plt.plot(p, -np.log(p), label="-log p")
 plt.plot(p, 1 - p, label="1 - p")
+# the two losses at p = 0.01
 plt.scatter([0.01, 0.01], [-np.log(0.01), 0.99], color="red")
 plt.xlabel("probability given to the correct answer")
 plt.ylabel("loss")
 plt.legend()
 plt.show()
-# At p = 0.01 the two losses are 4.6 and 0.99: the log loss keeps punishing confident mistakes
+# At p = 0.01 the two losses are 4.6 and 0.99: the log loss keeps punishing
+# confident mistakes
 # while 1 - p has already stopped caring.`}
     />
   </QA>

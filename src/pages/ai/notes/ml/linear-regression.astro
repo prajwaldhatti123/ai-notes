@@ -7,6 +7,7 @@ import Figure from '../../../../components/Figure.astro';
 import Math from '../../../../components/Math.astro';
 import Source from '../../../../components/Source.astro';
 import Term from '../../../../components/Term.astro';
+import NewInCode from '../../../../components/NewInCode.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -65,67 +66,119 @@ const polyPts = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5].map((x, i) => ({ x
 
 const closedFormCode = `import numpy as np
 
-x = np.array([1.0, 1.5, 2.0]); y = np.array([200.0, 300.0, 380.0])
+x = np.array([1.0, 1.5, 2.0])          # sizes (thousand sq ft)
+y = np.array([200.0, 300.0, 380.0])    # prices (thousands)
 
-# Simple linear regression: two formulas.
+# Simple linear regression: the two formulas from the closed-form section.
 w = np.sum((x - x.mean()) * (y - y.mean())) / np.sum((x - x.mean()) ** 2)
 b = y.mean() - w * x.mean()
-print(w, b)                                   # 180.0 23.333
+print(w, b)                            # 180.0 23.333
 
-# The same thing as the normal equation, which also works for many features.
-X = np.column_stack([np.ones_like(x), x])     # add the column of ones: shape (3, 2)
-theta = np.linalg.inv(X.T @ X) @ X.T @ y      # (2,2)^-1 @ (2,3) @ (3,) -> (2,)
-print(theta)                                  # [23.333 180.]   (b first, because the ones column is first)
+# The same answer from the normal equation, which also works for many
+# features.
+ones = np.ones_like(x)                 # [1. 1. 1.]
+# the data table with a ones column: shape (3, 2)
+X = np.column_stack([ones, x])
+theta = np.linalg.inv(X.T @ X) @ X.T @ y
+# b first, because the ones column is first
+print(theta)
+# prints [ 23.333 180. ]
 
-# In practice never invert explicitly; lstsq is more stable and handles singular X.
-theta2, *_ = np.linalg.lstsq(X, y, rcond=None)
-print(theta2)                                 # [23.333 180.]
+# In practice never invert by hand; lstsq is more stable and copes with
+# redundant columns.
+theta2, residuals, rank, singular_values = np.linalg.lstsq(X, y, rcond=None)
+print(theta2)                          # [ 23.333 180. ]  the same answer
 
-pred = X @ theta
-print(np.mean((pred - y) ** 2))               # 22.222  the smallest MSE any line can reach on these points`;
+predictions = X @ theta                # every prediction at once
+mse = np.mean((predictions - y) ** 2)
+# the smallest MSE any line can reach on these points
+print(mse)
+# prints 22.222`;
 
 const gdCode = `import numpy as np
 
-x = np.array([1.0, 1.5, 2.0]); y = np.array([200.0, 300.0, 380.0])
-w, b, lr = 200.0, 0.0, 0.1
+x = np.array([1.0, 1.5, 2.0])
+y = np.array([200.0, 300.0, 380.0])
+w = 200.0      # starting slope
+b = 0.0        # starting intercept
+lr = 0.1       # learning rate: how big each step is
 
 for step in range(2000):
-    pred = w * x + b
-    err = pred - y                                # (3,)
-    grad_w = (2 / len(x)) * np.sum(err * x)       # dL/dw
-    grad_b = (2 / len(x)) * np.sum(err)           # dL/db
-    w -= lr * grad_w
-    b -= lr * grad_b
+    predictions = w * x + b
+    errors = predictions - y
+    # slope of the loss in the w direction
+    grad_w = (2 / len(x)) * np.sum(errors * x)
+    # slope of the loss in the b direction
+    grad_b = (2 / len(x)) * np.sum(errors)
+    w = w - lr * grad_w                            # step downhill
+    b = b - lr * grad_b
     if step in (0, 1, 10, 100, 1999):
-        print(f"step {step:>4}: w={w:8.3f}  b={b:8.3f}  loss={np.mean((w * x + b - y) ** 2):8.3f}")
-# step    0: w= 197.333  b=  -1.333  loss=  74.074
-# step    1: ...
-# step 1999: w= 180.0xx  b=  23.3xx  loss=  22.222    <- the same answer as the closed form`;
+        loss = np.mean((w * x + b - y) ** 2)
+        print(f"step {step:>4}: w = {w:8.3f}   b = {b:8.3f}   loss = {loss:8.3f}")
+
+# step    0: w =  197.333   b =   -1.333   loss =   74.074
+# step    1: w =  196.356   b =   -1.600   loss =   66.966
+# step   10: w =  194.592   b =    0.306   loss =   59.009
+# step  100: w =  185.960   b =   13.928   loss =   28.359
+# step 1999: w =  180.000   b =   23.333   loss =   22.222   <- the same answer as the closed form`;
 
 const sklearnCode = `import numpy as np
 from sklearn.datasets import fetch_california_housing
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
 
 data = fetch_california_housing()
-X, y = data.data, data.target                     # 20,640 districts, 8 features, target = median house value ($100k)
-Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=0)
+X = data.data            # 20,640 districts, 8 features each
+y = data.target          # median house value, in units of $100,000
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=0)
 
-model = LinearRegression().fit(Xtr, ytr)
-pred = model.predict(Xte)
-print("test RMSE ($100k):", np.sqrt(mean_squared_error(yte, pred)))   # about 0.73
-print("test R^2:", r2_score(yte, pred))                                # about 0.59
+model = LinearRegression()
+model.fit(X_train, y_train)
+predictions = model.predict(X_test)
 
-# Raw coefficients are in mixed units (rooms, years, degrees of latitude...), so they cannot be compared.
-# Standardize the features and refit: now each coefficient is "effect of one standard deviation".
-scaler = StandardScaler().fit(Xtr)
-model_s = LinearRegression().fit(scaler.transform(Xtr), ytr)
-for name, coef in sorted(zip(data.feature_names, model_s.coef_), key=lambda t: -abs(t[1])):
+# typical miss, in $100k
+rmse = np.sqrt(mean_squared_error(y_test, predictions))
+r2 = r2_score(y_test, predictions)
+# test RMSE: 0.727   test R²: 0.594
+print(f"test RMSE: {rmse:.3f}   test R²: {r2:.3f}")
+# A typical miss of about 3,000, and the line removes about 59% of the
+# "guess the average" error.`;
+
+const coefCode = `import numpy as np
+from sklearn.datasets import fetch_california_housing
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression
+
+data = fetch_california_housing()
+X_train, X_test, y_train, y_test = train_test_split(
+    data.data, data.target, test_size=0.2, random_state=0)
+
+# Rescale every feature to mean 0 and spread 1, using the training data
+# only.
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+model = LinearRegression().fit(X_train_scaled, y_train)
+
+# Pair each feature name with its coefficient, then sort by size, ignoring
+# the sign.
+pairs = list(zip(data.feature_names, model.coef_))
+pairs = sorted(pairs, key=lambda pair: abs(pair[1]), reverse=True)
+for name, coef in pairs:
     print(f"{name:>12}: {coef:+.3f}")
-# MedInc is the largest positive effect; Latitude and Longitude are large and negative together,
-# which is geography (and a hint of the multicollinearity discussed in the assumptions section).`;
+
+#     Latitude: -0.900
+#    Longitude: -0.871
+#       MedInc: +0.826     median income: the biggest effect that is not geography
+#    AveBedrms: +0.290
+#     AveRooms: -0.249     opposite sign to AveBedrms: the two move together (multicollinearity)
+#     HouseAge: +0.117
+#     AveOccup: -0.031
+#   Population: -0.009
+# Latitude and Longitude are large and opposite together: they describe
+# location (the coast) between them.`;
 
 const residualCode = `import numpy as np
 import matplotlib.pyplot as plt
@@ -133,16 +186,35 @@ from sklearn.linear_model import LinearRegression
 
 rng = np.random.default_rng(0)
 x = np.linspace(0, 10, 60)
-y_curved = 0.3 * x ** 2 + rng.normal(0, 1, 60)         # the true relationship is curved
+# the true relationship is curved
+y = 0.3 * x ** 2 + rng.normal(0, 1, 60)
 
-model = LinearRegression().fit(x[:, None], y_curved)   # but we fit a straight line
-residuals = y_curved - model.predict(x[:, None])
+# scikit-learn wants a table: shape (60, 1)
+X = x[:, None]
+model = LinearRegression().fit(X, y)         # but we fit a straight line
+line = model.predict(X)
+# what the line missed, point by point
+residuals = y - line
 
-fig, ax = plt.subplots(1, 2, figsize=(10, 4))
-ax[0].scatter(x, y_curved, s=12); ax[0].plot(x, model.predict(x[:, None]), color="red"); ax[0].set_title("fit")
-ax[1].scatter(x, residuals, s=12); ax[1].axhline(0, color="gray"); ax[1].set_title("residuals: a U shape = missing curvature")
+fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+axes[0].scatter(x, y, s=12)
+axes[0].plot(x, line, color="red")
+axes[0].set_title("the straight-line fit")
+axes[1].scatter(x, residuals, s=12)
+axes[1].axhline(0, color="gray")
+axes[1].set_title("residuals: a U shape means missing curvature")
 plt.show()
-# Fix: add x**2 as a feature (next section) and the U disappears.`;
+# left end: the line is too low
+print(residuals[:3].round(2))
+# prints [5.24 4.47 4.75]
+# middle: the line is too high
+print(residuals[28:31].round(2))
+# prints [-3.09 -2.44 -3.67]
+# right end: too low again
+print(residuals[-3:].round(2))
+# prints [4.3  2.89 3.9 ]
+# Positive, negative, positive: the U shape. Fix: add x**2 as a feature (the
+# curves section).`;
 ---
 
 <Note
@@ -533,7 +605,7 @@ plt.show()
     <li>
       <strong>Units.</strong> Measure size in square feet instead of thousands and the coefficient becomes 0.18. Same
       model, same predictions, coefficient a thousand times smaller. To compare the importance of features, fit on
-      <span class="term">standardized</span> features (each scaled to mean 0, standard deviation 1); then each
+      <Term id="feature-scaling">standardized</Term> features (each scaled to mean 0, standard deviation 1); then each
       coefficient is the effect of one standard deviation, in the target’s units, and they are comparable.
     </li>
     <li>
@@ -711,14 +783,58 @@ plt.show()
   </Callout>
 
   <h2 id="code">Code</h2>
-  <p>Type these out. The first two reproduce the hand calculations exactly; the third is the real-data version.</p>
+  <p>
+    Type these out. The first two reproduce the hand calculations exactly; the next two use real data; the last one
+    draws the residual plot. Every name that is new in a block is explained in the yellow box right above it, and
+    every library name inside the code is a link to its entry on the reference pages.
+  </p>
   <h3>Closed form, three ways</h3>
+  <NewInCode items={[
+    ["x.mean(), np.sum(...), np.mean(...)", "The average of an array, the total of an array, and the average again written as a function.", "numpy/mean"],
+    ["np.ones_like(x)", "An array of ones the same length as x: the column that carries the intercept b.", "numpy/like"],
+    ["np.column_stack([a, b])", "Glues 1-D arrays side by side as the columns of a table.", "numpy/stack"],
+    ["X.T", "The transpose: the table flipped so rows become columns, as in the normal equation.", "numpy/T"],
+    ["A @ B", "Matrix multiplication, the “every row times the vector” operation from the model section.", "numpy/matmul"],
+    ["np.linalg.inv(A)", "The inverse of a square matrix, the −1 in the normal equation.", "numpy/linalg-inv"],
+    ["np.linalg.lstsq(X, y, rcond=None)", "Least squares in one call. It returns four things (weights, leftover error, rank, singular values); we name all four and use the first.", "numpy/linalg-lstsq"],
+  ]} />
   <CodeBlock code={closedFormCode} />
   <h3>Gradient descent reaching the same answer</h3>
+  <NewInCode items={[
+    ['f"{w:8.3f}", f"{step:>4}"', "Print formats inside an f-string: 8.3f means 3 decimals padded to 8 characters, >4 means right-aligned in 4. They line the columns up.", "python/fstring-format"],
+  ]} />
   <CodeBlock code={gdCode} />
-  <h3>Many features, standardized coefficients, R² and RMSE</h3>
+  <h3>Many features: R² and RMSE on real data</h3>
+  <NewInCode items={[
+    ["fetch_california_housing()", "Downloads (once) a real dataset: 20,640 California districts, 8 features, target = median house value in 00,000s.", "sklearn/california"],
+    ["train_test_split(X, y, test_size=0.2, random_state=0)", "Shuffles the rows and keeps 20% back as a test set. Returns X_train, X_test, y_train, y_test in that order.", "sklearn/train-test-split"],
+    ["LinearRegression().fit(...) / .predict(...)", "The model from this note: fit finds the weights by least squares, predict applies them.", "sklearn/fit-predict"],
+    ["mean_squared_error, np.sqrt", "The MSE of the predictions, and its square root, the RMSE, which is back in the target’s units.", "sklearn/mse"],
+    ["r2_score(y_true, y_pred)", "R² from the section above: 1 is perfect, 0 is no better than guessing the average.", "sklearn/r2"],
+  ]} />
   <CodeBlock code={sklearnCode} />
+  <h3>Comparing coefficients fairly</h3>
+  <p>
+    The raw coefficients are in mixed units (rooms, years, degrees of latitude), so they cannot be compared. The fix
+    from the coefficients section is to <Term id="feature-scaling">standardize</Term> the features first, so that each
+    coefficient means “the effect of one standard deviation”.
+  </p>
+  <NewInCode items={[
+    ["StandardScaler().fit_transform(X_train)", "Rescales every column to average 0 and spread 1, learning the averages and spreads from the training data. Taught properly in the feature scaling note at the end of this week; here it is just “put every feature in the same units”.", "sklearn/standard-scaler"],
+    ["model.coef_", "The learned weights, one per feature, in the same order as the columns.", "sklearn/learned-attributes"],
+    ["zip(names, coefs)", "Walks the two lists side by side, giving (name, coefficient) pairs.", "python/zip-enumerate"],
+    ["sorted(pairs, key=lambda pair: abs(pair[1]), reverse=True)", "Sorts the pairs by the size of the coefficient, biggest first. lambda writes the small “what to sort by” rule in one line.", "python/sorted-key"],
+    ['f"{coef:+.3f}"', "Three decimals, always with a sign, so positives and negatives line up.", "python/fstring-format"],
+  ]} />
+  <CodeBlock code={coefCode} />
   <h3>The residual plot catching a curved relationship</h3>
+  <NewInCode items={[
+    ["np.random.default_rng(0), rng.normal(0, 1, 60)", "A random generator with a fixed seed, and 60 bell-curve noise values with spread 1.", "numpy/rng-normal"],
+    ["np.linspace(0, 10, 60)", "60 evenly spaced numbers from 0 to 10.", "numpy/linspace"],
+    ["x[:, None]", "Turns the 1-D array x into a one-column table, shape (60, 1), because scikit-learn wants X as a table.", "numpy/newaxis"],
+    ["fig, axes = plt.subplots(1, 2)", "A figure with two charts side by side; axes[0] and axes[1] are the two charts.", "python/plt-subplots"],
+    ["scatter, plot, set_title, axhline", "Dots for data, a line for the fit, a title, and a horizontal line at zero.", "python/plt-scatter"],
+  ]} />
   <CodeBlock code={residualCode} />
   <Source
     kind="read"
@@ -734,9 +850,9 @@ plt.show()
   />
   <Callout kind="note" label="Reading the code">
     <p>
-      Every <code>np.</code> call is a link to the <a href="/ai/numpy/">NumPy reference</a>. The two that matter most here
-      are <code>np.linalg.lstsq</code> and <code>np.column_stack</code>; scikit-learn’s <code>fit</code> and
-      <code>predict</code> were introduced in the first ML note.
+      Every library name in a code block is a link: <code>np.</code> calls go to the
+      <a href="/ai/numpy/">NumPy reference</a>, scikit-learn names to the <a href="/ai/sklearn/">scikit-learn
+      reference</a>, and plotting and Python helpers to the <a href="/ai/python/">Python tools reference</a>.
     </p>
   </Callout>
 
@@ -920,92 +1036,187 @@ plt.show()
   </QA>
   <h3>Code</h3>
   <QA q="13. Implement simple linear regression (two formulas), the normal equation, and gradient descent as three functions. Check all three agree on random data to 4 decimals.">
+    <NewInCode items={[
+      ["np.linalg.solve(A, b)", "Solves the equations A·θ = b for θ directly. Faster and more accurate than computing an inverse and multiplying.", "numpy/linalg-solve"],
+      ["rng.uniform(0, 5, 100)", "100 random numbers spread evenly between 0 and 5. rng is a random generator made once with a seed so the numbers repeat each run.", "numpy/rng-uniform"],
+      ["rng.normal(0, 0.5, 100)", "100 random numbers from a bell curve centred on 0 with spread 0.5: the noise added to the true line.", "numpy/rng-normal"],
+      ['[("simple", simple_fit), ...]', "Functions are values in Python: the list holds pairs of a name and a function, and the loop calls each one.", ""],
+    ]} />
+    
     <CodeBlock
       code={`import numpy as np
 
 def simple_fit(x, y):
     w = np.sum((x - x.mean()) * (y - y.mean())) / np.sum((x - x.mean()) ** 2)
-    return w, y.mean() - w * x.mean()
+    b = y.mean() - w * x.mean()
+    return w, b
 
 def normal_eq_fit(x, y):
     X = np.column_stack([np.ones_like(x), x])
-    b, w = np.linalg.solve(X.T @ X, X.T @ y)       # solve, never inv
+    # solve the 2 x 2 system; never inv
+    b, w = np.linalg.solve(X.T @ X, X.T @ y)
     return w, b
 
 def gd_fit(x, y, lr=0.05, steps=20000):
-    w = b = 0.0
-    for _ in range(steps):
-        err = w * x + b - y
-        w -= lr * 2 * np.mean(err * x)
-        b -= lr * 2 * np.mean(err)
+    w = 0.0
+    b = 0.0
+    for step in range(steps):
+        errors = w * x + b - y
+        w = w - lr * 2 * np.mean(errors * x)
+        b = b - lr * 2 * np.mean(errors)
     return w, b
 
 rng = np.random.default_rng(0)
-x = rng.uniform(0, 5, 100); y = 3 * x - 2 + rng.normal(0, 0.5, 100)
-for f in (simple_fit, normal_eq_fit, gd_fit):
-    print(f.__name__, np.round(f(x, y), 4))         # all ~ [3.0, -2.0]`}
+# 100 random x values between 0 and 5
+x = rng.uniform(0, 5, 100)
+# true line w = 3, b = -2, plus noise
+y = 3 * x - 2 + rng.normal(0, 0.5, 100)
+
+for name, fit in [("simple", simple_fit), ("normal equation", normal_eq_fit), ("gradient descent", gd_fit)]:
+    w, b = fit(x, y)
+    print(f"{name:>16}: w = {w:.4f}   b = {b:.4f}")
+
+#           simple: w = 2.9869   b = -2.0037
+#  normal equation: w = 2.9869   b = -2.0037
+# gradient descent: w = 2.9869   b = -2.0037    all three agree, close to the true 3 and -2`}
     />
   </QA>
   <QA q="14. Fit polynomials of degree 1 to 10 to 20 noisy points from a cubic. Plot train and test R² against degree, and mark the degree where test R² is best.">
+    <NewInCode items={[
+      ["np.polyfit(x, y, degree)", "Fits a polynomial curve (x, x², …, up to x to the degree) by least squares and returns its coefficients. This is linear regression on polynomial features in one call.", "numpy/polyfit"],
+      ["np.polyval(coeffs, x)", "Computes that curve at the given x values: the predictions.", "numpy/polyfit"],
+      ["x[:20], x[20:]", "Slices: the first 20 elements, and everything from position 20 to the end.", "python/slicing-steps"],
+      ["np.argmax(test_r2)", "The position of the largest value, here the degree with the best test R².", "numpy/argmax"],
+      ["plt.axvline, plt.legend, plt.xlabel", "Draw a vertical marker line, name the lines, and label the x-axis.", "python/plt-lines"],
+    ]} />
+    
     <CodeBlock
-      code={`import numpy as np, matplotlib.pyplot as plt
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.linear_model import LinearRegression
-from sklearn.pipeline import make_pipeline
+      code={`import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.metrics import r2_score
 
 rng = np.random.default_rng(1)
-x = rng.uniform(-2, 2, 40); y = x ** 3 - x + rng.normal(0, 0.5, 40)
-xtr, ytr, xte, yte = x[:20], y[:20], x[20:], y[20:]
+x = rng.uniform(-2, 2, 40)
+# the truth is a cubic, plus noise
+y = x ** 3 - x + rng.normal(0, 0.5, 40)
+# first 20 points for training
+x_train = x[:20]
+y_train = y[:20]
+x_test = x[20:]                                  # last 20 for testing
+y_test = y[20:]
 
-degrees = range(1, 11); tr, te = [], []
-for d in degrees:
-    m = make_pipeline(PolynomialFeatures(d), LinearRegression()).fit(xtr[:, None], ytr)
-    tr.append(r2_score(ytr, m.predict(xtr[:, None]))); te.append(r2_score(yte, m.predict(xte[:, None])))
-plt.plot(degrees, tr, label="train R^2"); plt.plot(degrees, te, label="test R^2")
-plt.axvline(degrees[int(np.argmax(te))], color="gray", linestyle="--"); plt.legend(); plt.xlabel("degree"); plt.show()
-# Train R^2 only goes up. Test R^2 peaks near degree 3 (the truth) and then falls, eventually below zero.`}
+degrees = list(range(1, 11))
+train_r2 = []
+test_r2 = []
+for degree in degrees:
+    # least squares on x, x², ..., x^degree
+    coeffs = np.polyfit(x_train, y_train, degree)
+    train_r2.append(r2_score(y_train, np.polyval(coeffs, x_train)))
+    test_r2.append(r2_score(y_test, np.polyval(coeffs, x_test)))
+
+best = degrees[np.argmax(test_r2)]
+print("best degree on test:", best)
+for degree, tr, te in zip(degrees, train_r2, test_r2):
+    print(f"degree {degree:>2}: train R² {tr:.3f}   test R² {te:.3f}")
+# best degree on test: 6
+# degree  1: train R² 0.721   test R² 0.693
+# degree  3: train R² 0.978   test R² 0.960    the truth is a cubic: the big jump happens here
+# degree  6: train R² 0.980   test R² 0.960    no real gain over degree 3
+# degree  8: train R² 0.988   test R² 0.286
+# degree 10: train R² 0.992   test R² -1.836   worse than guessing the average
+# Train R² only goes up. Test R² jumps at degree 3, stays flat, then
+# collapses: overfitting.
+
+plt.plot(degrees, train_r2, label="train R²")
+plt.plot(degrees, test_r2, label="test R²")
+plt.axvline(best, color="gray", linestyle="--")
+plt.xlabel("degree")
+plt.legend()
+plt.show()`}
     />
   </QA>
   <QA q="15. On California housing, fit linear regression on raw features and on standardized features. Show the predictions are identical but the coefficients differ, and rank features by standardized coefficient.">
+    <NewInCode items={[
+      ["np.allclose(a, b)", "True when two arrays are equal up to tiny rounding differences. The right way to compare decimal results.", "numpy/isclose"],
+      ["scaler.scale_", "The spread (standard deviation) of each feature that the scaler learned in fit.", "sklearn/standard-scaler"],
+    ]} />
+    
     <CodeBlock
       code={`import numpy as np
 from sklearn.datasets import fetch_california_housing
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
 
-data = fetch_california_housing(); X, y = data.data, data.target
-raw = LinearRegression().fit(X, y)
-sc = StandardScaler().fit(X); std = LinearRegression().fit(sc.transform(X), y)
+data = fetch_california_housing()
+X = data.data
+y = data.target
 
-assert np.allclose(raw.predict(X), std.predict(sc.transform(X)))     # same model, same predictions
-for name, c_raw, c_std in zip(data.feature_names, raw.coef_, std.coef_):
+# features in their own units
+raw = LinearRegression().fit(X, y)
+
+# learns each feature's mean and spread
+scaler = StandardScaler().fit(X)
+X_scaled = scaler.transform(X)
+standardized = LinearRegression().fit(X_scaled, y)
+
+same = np.allclose(raw.predict(X), standardized.predict(X_scaled))
+print("same predictions:", same)
+# prints True: same model, only the units differ
+
+for name, c_raw, c_std in zip(data.feature_names, raw.coef_, standardized.coef_):
     print(f"{name:>12}  raw {c_raw:+9.4f}   standardized {c_std:+.3f}")
-# Raw coefficients: AveBedrms looks huge and HouseAge tiny, purely because of units.
-# Standardized: MedInc dominates; Latitude/Longitude are large, opposite in sign and correlated.
-print("standardized coefficient = raw coefficient * feature std:", np.allclose(std.coef_, raw.coef_ * sc.scale_))`}
+#       MedInc  raw   +0.4367   standardized +0.830
+#     HouseAge  raw   +0.0094   standardized +0.119
+#    AveBedrms  raw   +0.6451   standardized +0.306    looks biggest raw, only because of units
+#   Population  raw   -0.0000   standardized -0.005
+#     Latitude  raw   -0.4213   standardized -0.900    biggest once units are removed
+#   (AveRooms, AveOccup and Longitude omitted here)
+
+# scaler.scale_ holds each feature's spread (standard deviation).
+print(np.allclose(standardized.coef_, raw.coef_ * scaler.scale_))
+# prints True: standardized = raw x spread`}
     />
   </QA>
   <QA q="16. Create two perfectly collinear features (Celsius and Fahrenheit) plus noise in y. Show that np.linalg.inv(X.T @ X) fails or gives garbage, that lstsq returns a sensible answer, and that predictions are still fine.">
+    <NewInCode items={[
+      ["np.linalg.matrix_rank(X)", "How many columns of X carry independent information. Fewer than the number of columns means one column is a copy or mix of others.", "numpy/linalg-rank"],
+      ["try: … except np.linalg.LinAlgError", "Run the inverse; if NumPy raises its “impossible matrix” error, print it instead of crashing.", "python/try-except"],
+      ["np.ones(200)", "An array of 200 ones: the column that carries the intercept b.", "numpy/ones"],
+    ]} />
+    
     <CodeBlock
       code={`import numpy as np
 
 rng = np.random.default_rng(0)
-c = rng.uniform(-10, 35, 200); f = 1.8 * c + 32
+c = rng.uniform(-10, 35, 200)                    # temperature in Celsius
+# the same temperature in Fahrenheit
+f = 1.8 * c + 32
 y = 0.5 * c + 3 + rng.normal(0, 0.3, 200)
-X = np.column_stack([np.ones(200), c, f])
+X = np.column_stack([np.ones(200), c, f])        # ones, Celsius, Fahrenheit
 
-print(np.linalg.matrix_rank(X))                 # 2, not 3: one column is redundant
+# independent columns: 2, not 3
+print(np.linalg.matrix_rank(X))
+
 try:
     theta = np.linalg.inv(X.T @ X) @ X.T @ y
-    print("inv gave:", theta)                    # if it runs at all, enormous unstable numbers
-except np.linalg.LinAlgError as e:
-    print("inv failed:", e)
+    # runs, but the numbers are garbage
+    print("inv gave:", theta.round(1))
+    # prints [-2.5 -0.2  0.2]
+except np.linalg.LinAlgError as err:
+    print("inv failed:", err)
 
-theta, res, rank, sv = np.linalg.lstsq(X, y, rcond=None)
-print("lstsq:", np.round(theta, 3), "rank", rank)   # a minimum-norm split of the effect between c and f
-print("prediction RMSE:", np.sqrt(np.mean((X @ theta - y) ** 2)))   # ~0.3: predictions are fine
-# Lesson: collinearity ruins interpretation, not prediction. Drop f, or use ridge.`}
+theta, residuals, rank, singular_values = np.linalg.lstsq(X, y, rcond=None)
+# rank 2
+print("lstsq:", theta.round(3), "rank", rank)
+# prints [-0.016  0.329  0.094]
+
+rmse = np.sqrt(np.mean((X @ theta - y) ** 2))
+print("prediction RMSE:", round(rmse, 3))
+# prints 0.306: predictions are fine (the noise was 0.3)
+# lstsq splits the effect between c and f: 0.329 + 1.8 * 0.094 = 0.498, the
+# true 0.5 per degree C.
+# Lesson: collinearity ruins interpretation, not prediction. Drop f, or add
+# a penalty (week 3).`}
     />
   </QA>
 

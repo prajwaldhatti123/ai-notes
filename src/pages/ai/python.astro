@@ -1,0 +1,32 @@
+---
+import Base from '../../layouts/Base.astro';
+import Callout from '../../components/Callout.astro';
+import RefEntries from '../../components/RefEntries.astro';
+import { pyGroups, pyEntries } from '../../data/pytools';
+---
+
+<Base title="Python tools reference" description="The Python features, matplotlib plots and pandas tables the notes' code uses, each in plain words with a runnable example.">
+  <div class="note-layout">
+    <article class="prose">
+      <p class="eyebrow">Reference · {pyEntries.length} entries</p>
+      <h1>Python, plotting and pandas</h1>
+      <p class="lede">
+        The pieces of Python the notes’ code uses that go beyond the basics, plus the few plotting and table functions
+        that appear. Click any of them inside a code block to land here.
+      </p>
+      <Callout kind="note" label="What the notes assume">
+        <p>
+          You can write basic Python: variables, <code>if</code>, <code>for</code>, functions, lists, dictionaries and
+          simple f-strings such as <code>f"{'{'}x{'}'}"</code>. Everything else used in the code is explained on this page,
+          on the <a href="/ai/numpy/">NumPy page</a> or the <a href="/ai/sklearn/">scikit-learn page</a>, and in a
+          “New in this code” box right above the first code block that uses it.
+        </p>
+      </Callout>
+      <RefEntries groups={pyGroups} entries={pyEntries} />
+    </article>
+    <aside class="note-toc" aria-label="On this page">
+      <strong>On this page</strong>
+      {pyGroups.map((g) => <a href={`#g-${g.id}`}>{g.title}</a>)}
+    </aside>
+  </div>
+</Base>

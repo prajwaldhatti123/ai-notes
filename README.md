@@ -23,8 +23,9 @@ npm run build    # static site in dist/
 | `src/data/practice.ts` | The weekly practice plan: hand problems, coding drills, project milestone and problem-set links per week. |
 | `src/data/glossary.ts` | One plain sentence per technical word, with the note that teaches it. Rendered at `/ai/glossary/`; the `Term` component links to it. |
 | `src/data/numpy.ts` | The NumPy reference (`/ai/numpy/`): every function the notes use, with a runnable example and its real output. **Generated** by `scripts/gen_numpy.py`; edit the script, not the file. `CodeBlock` turns every `np.*` call in a code block into a link here. |
+| `src/data/sklearn.ts`, `src/data/pytools.ts` | The scikit-learn (`/ai/sklearn/`) and Python-tools (`/ai/python/`) references: every library name and less common Python feature the code uses, with real output (and pictures for plots). **Generated** by `scripts/gen_reference.py`. |
 | `src/pages/ai/notes/<track>/<slug>.astro` | One file per note. Set `ready: true` for it in `roadmap.ts` to link it. Notes within a week carry an `order`, and the roadmap, the sidebar pager and the week table follow it. |
-| `src/components/` | Building blocks: `Callout`, `QA`, `Figure`, `Math`, `CodeBlock`, `Source`, `Term`, `TrackNotes`, `Timeline`, plus the `Sidebar`. |
+| `src/components/` | Building blocks: `Callout`, `QA`, `Figure`, `Math`, `CodeBlock`, `NewInCode`, `Source`, `Term`, `TrackNotes`, `Timeline`, `RefEntries`, plus the `Sidebar`. |
 | `src/styles/global.css` | The design system. All colours, fonts and spacing are tokens at the top, with a dark set under `[data-theme='dark']`. |
 
 ## Writing rules
@@ -34,10 +35,24 @@ later word is unavoidable, wrap it: `<Term id="softmax">softmax</Term>` (ids liv
 section opens in plain words with small numbers before any symbol. Each note ends with a labelled, optional
 “Where you will meet this again” preview rather than mixing later material into the body.
 
-Regenerate the NumPy reference after editing the generator:
+Code follows the same rule. It assumes plain Python only. Anything else (a NumPy or scikit-learn function, a
+plot, `zip`, `lambda`, a format spec) is introduced in a `NewInCode` box right above the first block that uses it:
+
+```astro
+<NewInCode items={[
+  ['np.polyfit(x, y, degree)', 'Fits the best curve of the given degree to the points.', 'numpy/polyfit'],
+]} />
+```
+
+The third element is `page/id` on the NumPy, scikit-learn, Python-tools or glossary page; a wrong id fails the
+build. Write one step per line, no semicolons, no renamed imports, no function calls inside f-string braces, and
+put the real output in comments.
+
+Regenerate the references after editing a generator:
 
 ```bash
 python3 scripts/gen_numpy.py src/data/numpy.ts
+python scripts/gen_reference.py      # needs scikit-learn, pandas and matplotlib installed
 ```
 
 ## Adding a notebook

@@ -23,9 +23,10 @@ const ready = tracks.flatMap((t) => t.notes).filter((n) => n.ready).length;
     <p>
       Start with the <a href="/ai/roadmap/">roadmap</a> to see what to study each week, use the
       <a href="/ai/practice/">practice page</a> for the drills, and check the <a href="/ai/projects/">projects</a> you will
-      build alongside. {ready} of {totalNotes} <a href="/ai/notes/">notes</a> are written so far. Two reference pages sit
-      beside the notes: the <a href="/ai/glossary/">glossary</a>, one plain sentence per technical word, and the
-      <a href="/ai/numpy/">NumPy reference</a>, one entry per function the code uses.
+      build alongside. {ready} of {totalNotes} <a href="/ai/notes/">notes</a> are written so far. Reference pages sit
+      beside the notes: the <a href="/ai/glossary/">glossary</a>, one plain sentence per technical word, and three
+      code references, for <a href="/ai/numpy/">NumPy</a>, <a href="/ai/sklearn/">scikit-learn</a> and
+      <a href="/ai/python/">Python tools</a>, one entry per function the code uses.
     </p>
 
     <h2>How these notes are written</h2>
@@ -56,6 +57,14 @@ const ready = tracks.flatMap((t) => t.notes).filter((n) => n.ready).length;
       <li>
         <strong>Worked examples, then your own.</strong> Every note works its numbers in full before asking you to,
         then gives about a dozen questions and sixteen problems, hand and code, with hidden solutions.
+      </li>
+      <li>
+        <strong>Code uses only what has been explained.</strong> The code assumes plain Python and nothing else.
+        Every library function and every less common bit of Python is introduced in a “New in this code” box right
+        above the first block that uses it, in one plain sentence. Every name inside a code block is also a link to
+        its entry on the <a href="/ai/numpy/">NumPy</a>, <a href="/ai/sklearn/">scikit-learn</a> or
+        <a href="/ai/python/">Python tools</a> reference page. Code is written one step per line, and every output
+        shown is real.
       </li>
       <li>
         <strong>Only what an AI interview needs.</strong> Each topic earns its place by one of two tests: interviews

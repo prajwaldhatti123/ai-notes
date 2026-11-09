@@ -1,0 +1,68 @@
+---
+// Renders the groups and entries of a generated reference page (scikit-learn, Python tools).
+import CodeBlock from './CodeBlock.astro';
+import Callout from './Callout.astro';
+import { tracks } from '../data/roadmap';
+import type { RefGroup, RefEntry } from '../data/reference';
+
+interface Props {
+  groups: RefGroup[];
+  entries: RefEntry[];
+}
+const { groups, entries } = Astro.props;
+const entriesOf = (g: string) => entries.filter((e) => e.group === g);
+
+const noteOf = (path: string) => {
+  if (!path) return undefined;
+  const [trackId, slug] = path.split('/');
+  const track = tracks.find((t) => t.id === trackId);
+  const note = track?.notes.find((n) => n.slug === slug);
+  return track && note ? { note, href: `/ai/notes/${track.id}/${note.slug}/` } : undefined;
+};
+---
+
+<div class="ref-toc">
+  {groups.map((g) => (
+    <section>
+      <strong><a href={`#g-${g.id}`}>{g.title}</a></strong>
+      <p>{entriesOf(g.id).map((e, i, all) => <><a href={`#${e.id}`}><code>{e.name}</code></a>{i < all.length - 1 ? ' · ' : ''}</>)}</p>
+    </section>
+  ))}
+</div>
+
+{groups.map((g) => (
+  <section class="ref-group" id={`g-${g.id}`}>
+    <h2>{g.title}</h2>
+    <p>{g.intro}</p>
+    {entriesOf(g.id).map((e) => {
+      const taught = noteOf(e.taught);
+      return (
+        <article class="ref-entry" id={e.id}>
+          <h3><a href={`#${e.id}`} class="ref-anchor" aria-label="Link to this entry">§</a> <code>{e.name}</code></h3>
+          <p class="ref-plain">{e.plain}</p>
+          {taught && (
+            <p class="ref-taught">
+              {taught.note.ready ? (
+                <>The idea behind it is taught in <a href={taught.href}>{taught.note.title}</a> (week {taught.note.week}).</>
+              ) : (
+                <>The idea behind it is taught properly in week {taught.note.week}, in “{taught.note.title}”.</>
+              )}
+            </p>
+          )}
+          <p class="ref-sig"><span>Call it as</span> <code>{e.sig}</code></p>
+          <CodeBlock code={e.code} />
+          {e.output && <pre class="ref-output"><span class="ref-output-label">output</span>{e.output}</pre>}
+          {e.image && <img class="ref-image" src={e.image} alt={`The chart this example draws: ${e.name}`} loading="lazy" />}
+          {e.pitfalls.length > 0 && (
+            <div class="ref-pitfalls">
+              <strong>Watch out</strong>
+              <ul>{e.pitfalls.map((p) => <li>{p}</li>)}</ul>
+            </div>
+          )}
+          <Callout kind="say"><p>{e.interview}</p></Callout>
+          <p class="ref-doc"><a href={e.doc} target="_blank" rel="noopener noreferrer">Official documentation ↗</a></p>
+        </article>
+      );
+    })}
+  </section>
+))}

@@ -7,6 +7,7 @@ import Figure from '../../../../components/Figure.astro';
 import Math from '../../../../components/Math.astro';
 import Source from '../../../../components/Source.astro';
 import Term from '../../../../components/Term.astro';
+import NewInCode from '../../../../components/NewInCode.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -62,65 +63,141 @@ const barsR: Panel = { x: 400, y: 30, w: 300, h: 200, xr: [0, 12], yr: [0, 40] }
 
 const byHandCode = `import numpy as np
 
-age = np.array([20., 30., 40., 50., 60.])
-income = np.array([20_000., 25_000., 30_000., 35_000., 1_000_000.])   # one outlier
+age = np.array([20.0, 30.0, 40.0, 50.0, 60.0])
+# one outlier
+income = np.array([20_000.0, 25_000.0, 30_000.0, 35_000.0, 1_000_000.0])
 
-def standardize(x):  return (x - x.mean()) / x.std()
-def minmax(x):       return (x - x.min()) / (x.max() - x.min())
+def standardize(x):
+    # subtract the average, divide by the spread
+    return (x - x.mean()) / x.std()
+
+def minmax(x):
+    # smallest value -> 0, largest -> 1
+    return (x - x.min()) / (x.max() - x.min())
+
 def robust(x):
-    q1, q3 = np.percentile(x, [25, 75])
+    # a quarter of the values are below q1
+    q1 = np.percentile(x, 25)
+    # three quarters are below q3
+    q3 = np.percentile(x, 75)
+    # centre on the middle value, divide by the middle half's width
     return (x - np.median(x)) / (q3 - q1)
 
+# print 2 decimals, never 1e+05 style
 np.set_printoptions(precision=2, suppress=True)
-print(standardize(age))      # [-1.41 -0.71  0.    0.71  1.41]
-print(minmax(age))           # [0.   0.25 0.5  0.75 1.  ]
-print(robust(age))           # [-1.  -0.5  0.   0.5  1. ]
 
-print(standardize(income))   # [-0.52 -0.51 -0.49 -0.48  2.  ]   four values squashed together by the outlier
-print(minmax(income))        # [0.    0.01 0.01 0.02 1.  ]       worse
-print(robust(income))        # [-1.  -0.5  0.   0.5  97. ]       the normal values keep their spread
-print(np.log10(income))      # [4.3  4.4  4.48 4.54 6.  ]        the outlier is pulled in`;
+print(standardize(age))
+print(minmax(age))
+print(robust(age))
+
+# the four normal incomes are squashed together by the outlier
+print(standardize(income))
+print(minmax(income))        # even worse
+print(robust(income))        # the normal incomes keep their spread
+# the log pulls the outlier in: 1,000,000 becomes 6
+print(np.log10(income))
+
+# Output:
+# [-1.41 -0.71  0.    0.71  1.41]
+# [0.   0.25 0.5  0.75 1.  ]
+# [-1.  -0.5  0.   0.5  1. ]
+# [-0.52 -0.51 -0.49 -0.48  2.  ]
+# [0.   0.01 0.01 0.02 1.  ]
+# [-1.  -0.5  0.   0.5 97. ]
+# [4.3  4.4  4.48 4.54 6.  ]`;
 
 const gdCode = `import numpy as np
 
-# Two features on wildly different scales: x1 in [0, 1], x2 in [0, 1000].
+# random numbers that come out the same every run
 rng = np.random.default_rng(0)
 n = 200
-X = np.column_stack([rng.uniform(0, 1, n), rng.uniform(0, 1000, n)])
-y = 3 * X[:, 0] + 0.002 * X[:, 1] + rng.normal(0, 0.1, n)
+# feature 1: values between 0 and 1
+x1 = rng.uniform(0, 1, n)
+# feature 2: values between 0 and 1000
+x2 = rng.uniform(0, 1000, n)
+# a table with 200 rows and 2 columns
+X = np.column_stack([x1, x2])
+noise = rng.normal(0, 0.1, n)             # small random wobble
+# the true rule the model has to find
+y = 3 * x1 + 0.002 * x2 + noise
 
-def gradient_descent(X, y, lr, steps=5000):
-    w = np.zeros(X.shape[1]); b = 0.0
-    for _ in range(steps):
-        err = X @ w + b - y
-        w -= lr * 2 * X.T @ err / n
-        b -= lr * 2 * err.mean()
-    return np.mean((X @ w + b - y) ** 2)
+def train_and_score(X, y, learning_rate, steps=5000):
+    # one weight per feature, starting at 0
+    w = np.zeros(X.shape[1])
+    b = 0.0
+    for step in range(steps):
+        # prediction minus truth, for every row
+        error = X @ w + b - y
+        # move each weight a little downhill
+        w = w - learning_rate * 2 * X.T @ error / n
+        # move the bias a little downhill
+        b = b - learning_rate * 2 * error.mean()
+    final_error = X @ w + b - y
+    # the mean squared error after training
+    return np.mean(final_error ** 2)
 
-Xs = (X - X.mean(axis=0)) / X.std(axis=0)         # standardize each column
-for lr in [1e-6, 1e-4, 1e-2, 1e-1]:
-    raw = gradient_descent(X, y, lr)
-    scaled = gradient_descent(Xs, y, lr)
-    print(f"lr={lr:<6}  raw MSE={raw:>12.4g}   scaled MSE={scaled:>10.4g}")
-# Raw features: only a tiny learning rate avoids divergence, and then it crawls (MSE still large after 5000 steps).
-# Scaled features: lr=0.1 converges to the noise floor (~0.01) in a few hundred steps.`;
+# standardize each column separately
+X_scaled = (X - X.mean(axis=0)) / X.std(axis=0)
 
-const knnCode = `import numpy as np
-from sklearn.datasets import load_wine
+# hide the overflow warnings when a run blows up
+with np.errstate(all="ignore"):
+    for learning_rate in [0.000001, 0.0001, 0.01, 0.1]:
+        raw = train_and_score(X, y, learning_rate)
+        scaled = train_and_score(X_scaled, y, learning_rate)
+        print(f"step size {learning_rate:<9}  raw MSE {raw:>10.4f}   scaled MSE {scaled:>8.4f}")
+
+# Output:
+# step size 1e-06      raw MSE     1.4845   scaled MSE   8.0557
+# step size 0.0001     raw MSE        nan   scaled MSE   1.1347
+# step size 0.01       raw MSE        nan   scaled MSE   0.0098
+# step size 0.1        raw MSE        nan   scaled MSE   0.0098
+# Raw features: only the tiniest step size avoids blowing up (nan), and then
+# training crawls.
+# Scaled features: step size 0.01 or 0.1 reaches the noise level (about
+# 0.01).`;
+
+const knnCode = `from sklearn.datasets import load_wine
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 
-X, y = load_wine(return_X_y=True)             # 13 features: alcohol (~13), magnesium (~100), proline (~750)...
-Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.3, random_state=0, stratify=y)
+# 178 wines, 13 measurements each, y = which of 3 growers
+X, y = load_wine(return_X_y=True)
+# column 0: around 10 to 15
+print("largest alcohol value:", X[:, 0].max())
+# column 12: in the hundreds and thousands
+print("largest proline value:", X[:, 12].max())
 
-raw = KNeighborsClassifier(5).fit(Xtr, ytr).score(Xte, yte)
-scaled = make_pipeline(StandardScaler(), KNeighborsClassifier(5)).fit(Xtr, ytr).score(Xte, yte)
-print(f"kNN accuracy  raw: {raw:.2f}   scaled: {scaled:.2f}")   # about 0.72 vs 0.96
-# Unscaled, the distance is dominated by proline (values in the hundreds); the other 12 features barely count.`;
+X_train, X_test, y_train, y_test = train_test_split(
+    # stratify: keep the same mix of growers in both parts
+    X, y, test_size=0.3, random_state=0, stratify=y)
 
-const pipelineCode = `import numpy as np, pandas as pd
+# vote among the 5 closest training wines
+raw_model = KNeighborsClassifier(n_neighbors=5)
+raw_model.fit(X_train, y_train)
+# fraction of test wines it gets right
+raw_accuracy = raw_model.score(X_test, y_test)
+
+scaled_model = make_pipeline(StandardScaler(), KNeighborsClassifier(n_neighbors=5))
+# learns the scaling from X_train, then stores the scaled wines
+scaled_model.fit(X_train, y_train)
+# scales X_test the same way, then votes
+scaled_accuracy = scaled_model.score(X_test, y_test)
+
+print("accuracy without scaling:", round(raw_accuracy, 2))
+print("accuracy with scaling:   ", round(scaled_accuracy, 2))
+
+# Output:
+# largest alcohol value: 14.83
+# largest proline value: 1680.0
+# accuracy without scaling: 0.72
+# accuracy with scaling:    0.96
+# Unscaled, distances are decided almost entirely by proline; the other 12
+# measurements barely count.`;
+
+const pipelineCode = `import numpy as np
+import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
@@ -128,41 +205,81 @@ from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 
-df = pd.DataFrame({
+# A small table of houses. np.nan marks a size that is missing.
+houses = pd.DataFrame({
     "size":  [1.0, 1.5, 2.0, 1.2, np.nan, 2.4, 0.9, 1.8],
     "age":   [10, 5, 1, 30, 12, 2, 40, 8],
     "city":  ["London", "Paris", "Tokyo", "Paris", "London", "Tokyo", "London", "Paris"],
     "price": [200, 300, 380, 230, 260, 450, 150, 340],
 })
-X, y = df.drop(columns="price"), df["price"]
-Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.25, random_state=0)
+X = houses[["size", "age", "city"]]      # the three feature columns
+y = houses["price"]                      # the answer column
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.25, random_state=0)
 
-numeric = Pipeline([("impute", SimpleImputer(strategy="median")), ("scale", StandardScaler())])
-categorical = OneHotEncoder(handle_unknown="ignore")                   # unseen city -> all zeros, no crash
-prep = ColumnTransformer([("num", numeric, ["size", "age"]), ("cat", categorical, ["city"])])
-model = Pipeline([("prep", prep), ("reg", LinearRegression())])
+# Number columns: fill gaps with the training median, then standardize.
+number_steps = Pipeline([
+    ("fill_gaps", SimpleImputer(strategy="median")),
+    ("scale", StandardScaler()),
+])
+# The city column: one 0/1 column per city. A city never seen in training
+# becomes all zeros.
+city_step = OneHotEncoder(handle_unknown="ignore")
 
-model.fit(Xtr, ytr)                        # every mean, std, median and category list is learned from Xtr ONLY
-print(model.predict(Xte))                  # the same learned transforms are applied to Xte automatically
-print(model.named_steps["prep"].get_feature_names_out())
-# ['num__size' 'num__age' 'cat__city_London' 'cat__city_Paris' 'cat__city_Tokyo']`;
+# Send each group of columns to its own steps, then put the results side by
+# side.
+prepare = ColumnTransformer([
+    ("num", number_steps, ["size", "age"]),
+    ("cat", city_step, ["city"]),
+])
+model = Pipeline([
+    ("prepare", prepare),
+    ("line", LinearRegression()),
+])
+
+# every median, mean, spread and city list is learned from X_train only
+model.fit(X_train, y_train)
+# the same learned numbers are applied to X_test, then the line predicts
+predictions = model.predict(X_test)
+print(predictions.round(1))
+# the columns the line actually sees
+print(model.named_steps["prepare"].get_feature_names_out())
+
+# Output:
+# [146.2 398.8]
+# ['num__size' 'num__age' 'cat__city_London' 'cat__city_Paris'
+#  'cat__city_Tokyo']`;
 
 const leakCode = `import numpy as np
 from sklearn.preprocessing import StandardScaler
 
 rng = np.random.default_rng(0)
+# 100 rows, 1 column, centred on 50
 train = rng.normal(50, 10, size=(100, 1))
-test = rng.normal(80, 10, size=(20, 1))      # the test data comes from a shifted world
+# the test data comes from a shifted world: centred on 80
+test = rng.normal(80, 10, size=(20, 1))
+# train and test stacked into one table
+everything = np.vstack([train, test])
 
-# WRONG: fit the scaler on everything, then split.
-scaler_all = StandardScaler().fit(np.vstack([train, test]))
-# RIGHT: fit on train only.
-scaler_train = StandardScaler().fit(train)
+wrong_scaler = StandardScaler()
+# WRONG: learns its mean and spread from the test rows too
+wrong_scaler.fit(everything)
+right_scaler = StandardScaler()
+# RIGHT: learns from the training rows only
+right_scaler.fit(train)
 
-print("test mean, wrong way:", scaler_all.transform(test).mean().round(2))     # ~1.0: the shift is hidden
-print("test mean, right way:", scaler_train.transform(test).mean().round(2))   # ~3.0: the shift is visible
-# The wrong way lets test statistics leak into preprocessing and overstates how well you will do in production,
-# where the scaler is frozen and new data is whatever it is.`;
+wrong_mean = wrong_scaler.transform(test).mean()
+right_mean = right_scaler.transform(test).mean()
+print("average scaled test value, wrong way:", round(wrong_mean, 2))
+print("average scaled test value, right way:", round(right_mean, 2))
+
+# Output:
+# average scaled test value, wrong way: 1.7
+# average scaled test value, right way: 3.12
+# The wrong way hides most of the shift (1.7 instead of about 3), so the
+# test data looks more
+# familiar than it is. In production the scaler is frozen, and the shift
+# hits you in full.`;
 ---
 
 <Note
@@ -480,7 +597,8 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
   <p>
     The tool that makes the rule automatic is a <code>Pipeline</code>: chain the preprocessing steps and the model
     into one object, call <code>fit</code> on the training data once, and every step fits on train and transforms
-    downstream correctly, including inside cross-validation, where the fit happens separately on each fold. A
+    downstream correctly. That stays true later when you train many times on different splits of the same data
+    (cross-validation, week 3): the pipeline refits every step on each training part. A
     <code>ColumnTransformer</code> routes numeric columns to a scaler and categorical columns to an encoder. The
     <a href="#code">code section</a> has the complete pattern; use it for everything in Project 0.
   </p>
@@ -500,7 +618,7 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
     <p>
       “Every preprocessing step that learns statistics is fitted on the training split only and applied unchanged to
       validation, test and production data; fitting on the full dataset before splitting leaks test information. I
-      put scalers and encoders in a Pipeline with the model so that cross-validation and deployment handle this
+      put scalers and encoders in a Pipeline with the model so that every split, and deployment, handles this
       automatically.”
     </p>
   </Callout>
@@ -553,7 +671,7 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
       constant column. For a linear model with an intercept that is perfect collinearity: <Math tex="X^\top X" /> is
       singular and the coefficients are not unique (the <a href="/ai/notes/ml/linear-regression/#closed-form">normal
       equation</a> fails). Drop one column; the dropped category becomes the <em>reference</em>, and each remaining
-      coefficient reads as “difference from the reference”. Regularized models and trees do not need the drop.
+      coefficient reads as “difference from the reference”. Models with the week 3 weight penalty, and the decision trees of week 4, do not need the drop.
     </li>
     <li>
       <strong>Unseen categories.</strong> Production will send a city that was not in training. The encoder must be
@@ -697,14 +815,35 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
   <h2 id="code">Code</h2>
   <p>Type these out. The pipeline example is the template to copy into Project 0.</p>
   <h3>The four scalers by hand, on a clean column and an outlier column</h3>
+  <p>Each scaler is one line of arithmetic. Run them on a tidy column (ages) and on a column with one huge value (incomes).</p>
+  <NewInCode items={[["x.mean(), x.std(), x.min(), x.max()", "The average, the spread (standard deviation), the smallest and the largest value of an array.", "numpy/mean"], ["np.percentile(x, 25)", "The value below which 25% of the numbers fall. The 50th percentile is the median.", "numpy/median"], ["np.median(x)", "The middle value once the numbers are sorted.", "numpy/median"], ["np.log10(x)", "The power of 10 that gives x: log10 of 1,000,000 is 6.", "numpy/log"], ["np.set_printoptions(precision=2, suppress=True)", "Changes only how arrays are printed: 2 decimals and no scientific notation such as 1e+05.", "numpy/set-printoptions"], ["20_000.0", "Underscores inside a number are only there to help you read it. Python ignores them: 20_000 is 20000.", 'python/number-literals']]} />
   <CodeBlock code={byHandCode} />
-  <h3>Gradient descent with and without scaling</h3>
+  <h3>Training steps with and without scaling</h3>
+  <p>
+    The second reason to scale, in numbers. Two features, one between 0 and 1 and one between 0 and 1,000, and a
+    simple training loop that adjusts the weights step by step (<Term id="gradient-descent">gradient descent</Term>,
+    week 2). Watch which step sizes work on the raw features and which on the scaled ones.
+  </p>
+  <NewInCode items={[["np.random.default_rng(0)", "Makes a random-number generator. The 0 (the seed) makes it give the same numbers on every run.", "numpy/default-rng"], ["rng.uniform(0, 1000, n)", "n random numbers spread evenly between 0 and 1000.", "numpy/rng-uniform"], ["rng.normal(0, 0.1, n)", "n random numbers from a bell curve centred on 0 with spread 0.1: a small random wobble.", "numpy/rng-normal"], ["np.column_stack([x1, x2])", "Puts 1-D arrays side by side as the columns of a table.", "numpy/stack"], ["np.zeros(2)", "An array of zeros, here the starting weights.", "numpy/zeros"], ["X @ w and X.T", "@ multiplies every row of X by the weights, giving one prediction per row. X.T flips rows and columns. Both come from the matrices note.", "numpy/matmul"], ["X.mean(axis=0)", "axis=0 means “down the rows”: one average per column instead of one for the whole table.", "numpy/mean"], ["the for step in range(steps) loop", "This is gradient descent: start the weights at 0, then many times over nudge each weight a little in the direction that lowers the error. learning_rate is the size of each nudge. It is taught properly in week 2; here only the final error matters.", "glossary/gradient-descent"], ["with np.errstate(all=\"ignore\"):", "Inside this block NumPy stays quiet when numbers overflow. A step that is too large makes the raw run blow up to nan (“not a number”), and we only want to see that it happened, not a page of warnings.", 'numpy/errstate'], ["f\"{raw:>10.4f}\"", "A format inside an f-string: right-aligned in 10 characters with 4 decimals, so the printed columns line up.", "python/fstring-format"]]} />
   <CodeBlock code={gdCode} />
-  <h3>k-nearest neighbours with and without scaling</h3>
+  <h3>Nearest neighbours with and without scaling</h3>
+  <p>
+    The first reason, distances, on a real dataset. A <Term id="knn">nearest-neighbour</Term> model labels a new
+    example by looking at the closest training examples, so whichever column has the biggest numbers decides what
+    “closest” means.
+  </p>
+  <NewInCode items={[["load_wine(return_X_y=True)", "A small real dataset that ships with scikit-learn: 178 wines, 13 chemical measurements each, and which of 3 growers made each wine.", "sklearn/toy-datasets"], ["X[:, 12]", "Every row, column 12: one whole column of the table.", "numpy/slicing"], ["train_test_split(..., stratify=y)", "Splits the rows into training and test parts. stratify=y keeps the same mix of growers in both.", "sklearn/train-test-split"], ["KNeighborsClassifier(n_neighbors=5)", "A nearest-neighbour model. To label a new wine it finds the 5 training wines closest to it, using the distance from the norms note, and takes a vote. Taught properly in week 4.", "sklearn/kneighbors"], [".fit(X, y) and .score(X, y)", "fit trains the model (a nearest-neighbour model just stores the training wines). score predicts for X and returns the fraction it got right.", "sklearn/score"], ["StandardScaler()", "Standardizes each column: subtract the column’s training average, divide by its training spread.", "sklearn/standard-scaler"], ["make_pipeline(StandardScaler(), KNeighborsClassifier(...))", "Glues a scaler and a model into one object. On fit, the scaler learns each column’s average and spread from the training rows and scales them, then the model trains on the scaled rows. On predict or score, new rows are scaled with those same saved numbers, then the model predicts. You cannot forget the scaling, and the test rows never influence it.", "sklearn/pipeline"]]} />
   <CodeBlock code={knnCode} />
   <h3>The complete pattern: ColumnTransformer and Pipeline</h3>
+  <p>
+    A table with numbers, a missing value and a category column, prepared and modelled in one object. This is the
+    template to copy into Project 0.
+  </p>
+  <NewInCode items={[["pd.DataFrame({...})", "A table with named columns, built from a dictionary of column name to values. Unlike a NumPy array, one column can hold numbers and another words.", "python/dataframe"], ["houses[[\"size\", \"age\", \"city\"]] and houses[\"price\"]", "Double brackets pick several columns as a smaller table; single brackets pick one column.", "python/dataframe"], ["np.nan", "“Not a number”: the usual marker for a missing value.", "numpy/constants"], ["SimpleImputer(strategy=\"median\")", "Fills each missing value with that column’s median, learned from the training rows.", "sklearn/simple-imputer"], ["OneHotEncoder(handle_unknown=\"ignore\")", "Turns the city column into one 0/1 column per city. A city never seen in training becomes all zeros instead of an error.", "sklearn/one-hot"], ["Pipeline([(\"name\", step), ...])", "Like make_pipeline, but you name each step yourself. fit runs each step on the training rows in order; predict runs the same fitted steps on new rows.", "sklearn/pipeline"], ["ColumnTransformer([(name, step, columns), ...])", "Sends different columns to different steps (the numbers to the imputer and scaler, the city to the encoder) and puts the results side by side.", "sklearn/column-transformer"], ["LinearRegression()", "The best straight-line model from the linear regression note.", "sklearn/linear-regression"], ["model.named_steps[\"prepare\"].get_feature_names_out()", "Reaches into the fitted pipeline by step name and lists the columns that step produced.", "sklearn/column-transformer"]]} />
   <CodeBlock code={pipelineCode} />
   <h3>Leakage from fitting the scaler on all the data</h3>
+  <p>What goes wrong when the scaler is allowed to see the test rows, on test data that has drifted.</p>
+  <NewInCode items={[["rng.normal(50, 10, size=(100, 1))", "A table of 100 rows and 1 column of bell-curve numbers centred on 50 with spread 10.", "numpy/rng-normal"], ["np.vstack([train, test])", "Stacks tables on top of each other: the test rows go under the training rows.", "numpy/stack"], ["scaler.fit(...) then scaler.transform(...)", "fit learns the average and spread; transform applies those saved numbers to whatever rows you give it.", "sklearn/transform"]]} />
   <CodeBlock code={leakCode} />
   <Source
     kind="read"
@@ -720,9 +859,10 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
   />
   <Callout kind="note" label="Reading the code">
     <p>
-      Every <code>np.</code> call is a link to the <a href="/ai/numpy/">NumPy reference</a>; the scikit-learn objects
-      (<code>StandardScaler</code>, <code>OneHotEncoder</code>, <code>Pipeline</code>) are linked to their own
-      documentation in the sources above.
+      Every library name in a code block is a link. NumPy calls go to the <a href="/ai/numpy/">NumPy reference</a>,
+      scikit-learn names such as <code>StandardScaler</code> and <code>Pipeline</code> to the
+      <a href="/ai/sklearn/">scikit-learn reference</a>, and pandas and Python features to the
+      <a href="/ai/python/">Python tools reference</a>.
     </p>
   </Callout>
 
@@ -782,7 +922,7 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
     </p>
     <p>
       All of these transformations learn statistics, so they are fitted on the training split only and applied
-      unchanged to validation, test and production data; I wrap them with the model in a Pipeline so cross-validation
+      unchanged to validation, test and production data; I wrap them with the model in a Pipeline so every split
       and deployment get this right automatically. Fitting the scaler on the full dataset before splitting is a
       leakage bug.”
     </p>
@@ -828,7 +968,7 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
   <QA q="What is an embedding, and how is it related to one-hot encoding?">
     <p>A learned dense vector per category stored in a lookup table. Mathematically it is a one-hot vector multiplied by the table, that is, one-hot encoding followed by a weight matrix, trained end to end.</p>
   </QA>
-  <QA q="Does standardizing features change the predictions of ordinary least squares? Of ridge regression?">
+  <QA q="Does standardizing features change the predictions of plain linear regression (ordinary least squares)? Of linear regression with the week 3 penalty on big weights (called ridge regression)?">
     <p>OLS by the normal equation: no, predictions are identical and coefficients rescale. Ridge: yes, because the L2 penalty depends on the weights’ scale, so different features are shrunk differently depending on their units.</p>
   </QA>
   <QA q="How would you encode hour of day?">
@@ -890,56 +1030,100 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
   </QA>
   <h3>Code</h3>
   <QA q="11. Implement StandardScaler and MinMaxScaler yourself as classes with fit, transform and inverse_transform. Test against scikit-learn, including that inverse_transform(transform(X)) recovers X.">
+    <NewInCode items={[["class MyStandardScaler: and def fit(self, X):", "A class bundles data and functions together. Each function inside it receives the object itself as self, so fit can store what it learned (self.mean_) and transform can use it later. This is exactly how scikit-learn’s scalers are built.", 'python/classes'], ["MinMaxScaler()", "Rescales each column so its smallest training value is 0 and its largest is 1.", "sklearn/minmax-scaler"], ["np.allclose(a, b)", "True if every pair of numbers is equal up to tiny rounding differences.", "numpy/isclose"], ["assert condition", "Stops with an error if the condition is false: a built-in self-check.", "python/assert"]]} />
     <CodeBlock
       code={`import numpy as np
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 class MyStandardScaler:
     def fit(self, X):
-        self.mean_, self.scale_ = X.mean(axis=0), X.std(axis=0)
+        # one average per column, learned from X
+        self.mean_ = X.mean(axis=0)
+        self.scale_ = X.std(axis=0)      # one spread per column
+        # returning the object itself is the scikit-learn habit
         return self
-    def transform(self, X):          return (X - self.mean_) / self.scale_
-    def inverse_transform(self, Z):  return Z * self.scale_ + self.mean_
+
+    def transform(self, X):
+        return (X - self.mean_) / self.scale_
+
+    def inverse_transform(self, Z):
+        # undo: multiply back, add back
+        return Z * self.scale_ + self.mean_
 
 class MyMinMaxScaler:
     def fit(self, X):
-        self.min_, self.range_ = X.min(axis=0), X.max(axis=0) - X.min(axis=0)
+        self.min_ = X.min(axis=0)
+        self.range_ = X.max(axis=0) - X.min(axis=0)
         return self
-    def transform(self, X):          return (X - self.min_) / self.range_
-    def inverse_transform(self, Z):  return Z * self.range_ + self.min_
+
+    def transform(self, X):
+        return (X - self.min_) / self.range_
+
+    def inverse_transform(self, Z):
+        return Z * self.range_ + self.min_
 
 rng = np.random.default_rng(0)
-Xtr, Xte = rng.normal(50, 10, (100, 3)), rng.normal(55, 12, (20, 3))
-for mine, theirs in [(MyStandardScaler(), StandardScaler()), (MyMinMaxScaler(), MinMaxScaler())]:
-    mine.fit(Xtr); theirs.fit(Xtr)
-    assert np.allclose(mine.transform(Xte), theirs.transform(Xte))      # fitted on train, applied to test
-    assert np.allclose(mine.inverse_transform(mine.transform(Xte)), Xte)
-print("both scalers match scikit-learn")`}
+X_train = rng.normal(50, 10, size=(100, 3))
+X_test = rng.normal(55, 12, size=(20, 3))
+
+pairs = [(MyStandardScaler(), StandardScaler()), (MyMinMaxScaler(), MinMaxScaler())]
+for mine, theirs in pairs:
+    # both learn from the training rows only
+    mine.fit(X_train)
+    theirs.fit(X_train)
+    assert np.allclose(mine.transform(X_test), theirs.transform(X_test))
+    round_trip = mine.inverse_transform(mine.transform(X_test))
+    # scaling then unscaling gives back the original
+    assert np.allclose(round_trip, X_test)
+print("both scalers match scikit-learn")
+
+# Output:
+# both scalers match scikit-learn`}
     />
   </QA>
-  <QA q="12. Show the dummy variable trap numerically: build a design matrix with an intercept and a full one-hot, print the rank of XᵀX and the result of np.linalg.inv; then drop one column and repeat.">
+  <QA q="12. Show the dummy variable trap numerically: build a design matrix with an intercept and a full one-hot, print the rank of XᵀX and say whether it can be inverted; then drop one column and repeat.">
+    <NewInCode items={[["OneHotEncoder(sparse_output=False, drop=\"first\")", "sparse_output=False returns a normal array you can print. drop=\"first\" leaves out the first category’s column.", "sklearn/one-hot"], ["np.ones(len(H))", "A column of ones: the intercept column.", "numpy/ones"], ["np.linalg.matrix_rank(G)", "How many truly independent columns a matrix has. Fewer than its number of columns means it cannot be inverted.", "numpy/linalg-rank"]]} />
     <CodeBlock
       code={`import numpy as np
 from sklearn.preprocessing import OneHotEncoder
 
+# one column
 cities = np.array([["London"], ["Paris"], ["Tokyo"], ["Paris"], ["London"], ["Tokyo"]])
-full = OneHotEncoder(sparse_output=False).fit_transform(cities)                 # 3 columns
-dropped = OneHotEncoder(sparse_output=False, drop="first").fit_transform(cities)  # 2 columns
+
+# all three city columns
+full_encoder = OneHotEncoder(sparse_output=False)
+full = full_encoder.fit_transform(cities)
+# drops the first city (London)
+dropped_encoder = OneHotEncoder(sparse_output=False, drop="first")
+dropped = dropped_encoder.fit_transform(cities)
 
 for name, H in [("full one-hot", full), ("drop first", dropped)]:
-    X = np.column_stack([np.ones(len(H)), H])                   # add the intercept column
+    # put the intercept column of ones in front
+    X = np.column_stack([np.ones(len(H)), H])
     G = X.T @ X
-    print(name, "columns:", X.shape[1], "rank of X^T X:", np.linalg.matrix_rank(G))
-    try:
-        np.linalg.inv(G); print("   invertible")
-    except np.linalg.LinAlgError:
-        print("   singular: the dummy variable trap")
-# full one-hot: 4 columns, rank 3, singular.   drop first: 3 columns, rank 3, invertible.`}
+    # how many truly independent columns there are
+    rank = np.linalg.matrix_rank(G)
+    print(name, "| columns:", X.shape[1], "| rank of X^T X:", rank)
+    if rank < X.shape[1]:
+        print("   singular: one column is a sum of the others, the dummy variable trap")
+    else:
+        print("   invertible: the normal equation has one answer")
+# Why not just call np.linalg.inv and see if it fails? Rounding errors often
+# let inv return
+# a matrix of huge, meaningless numbers instead of raising an error. The
+# rank is the honest test.
+
+# Output:
+# full one-hot | columns: 4 | rank of X^T X: 3
+#    singular: one column is a sum of the others, the dummy variable trap
+# drop first | columns: 3 | rank of X^T X: 3
+#    invertible: the normal equation has one answer`}
     />
   </QA>
   <QA q="13. Demonstrate target-encoding leakage: create a nominal feature with 500 random categories and a target that is pure noise. Compare the validation R² of a linear model using naive in-sample target encoding against scikit-learn’s TargetEncoder.">
+    <NewInCode items={[["rng.integers(0, 500, n)", "n random whole numbers from 0 to 499, used here as category codes.", "numpy/rng-integers"], ["zip(cat_train, y_train)", "Walks through two arrays side by side, one pair at a time.", "python/zip-enumerate"], ["totals.get(c, 0.0)", "Looks up c in the dictionary, or gives 0.0 if c is not in it yet.", 'python/dict-get'], [".reshape(-1, 1)", "Turns a flat array into a single column. -1 means “as many rows as needed”.", "numpy/reshape"], ["LinearRegression().fit(X, y)", "Makes and trains a model in one line; fit hands back the trained model.", "sklearn/fit-predict"], ["TargetEncoder(target_type=\"continuous\")", "Replaces each category by a smoothed average of the answer for that category, computed so that a row never sees its own answer.", "sklearn/target-encoder"], ["r2_score(y_true, y_pred)", "How much of the error of always guessing the average the predictions remove: 1 is perfect, 0 is no better, below 0 is worse.", "sklearn/r2"]]} />
     <CodeBlock
-      code={`import numpy as np, pandas as pd
+      code={`import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import TargetEncoder
@@ -947,48 +1131,129 @@ from sklearn.metrics import r2_score
 
 rng = np.random.default_rng(0)
 n = 2000
-cat = rng.integers(0, 500, n).astype(str)         # 500 categories, ~4 rows each
-y = rng.normal(size=n)                            # the target has NOTHING to do with the category
-Xtr_c, Xte_c, ytr, yte = train_test_split(cat, y, test_size=0.3, random_state=0)
+category = rng.integers(0, 500, n)       # 500 categories, about 4 rows each
+# pure noise: the target has NOTHING to do with the category
+y = rng.normal(size=n)
+cat_train, cat_test, y_train, y_test = train_test_split(
+    category, y, test_size=0.3, random_state=0)
 
-# Naive: each training row gets the mean target of its category, computed INCLUDING its own label.
-means = pd.Series(ytr).groupby(Xtr_c).mean()
-naive_tr = means.loc[Xtr_c].values[:, None]
-naive_te = pd.Series(Xte_c).map(means).fillna(ytr.mean()).values[:, None]
-m = LinearRegression().fit(naive_tr, ytr)
-print("naive   train R^2:", round(r2_score(ytr, m.predict(naive_tr)), 2), "  test R^2:", round(r2_score(yte, m.predict(naive_te)), 2))
+# Naive encoding: each category's average target over the training rows,
+# computed INCLUDING each row's own answer.
+totals = {}
+counts = {}
+for c, target in zip(cat_train, y_train):
+    # .get(c, 0.0): the total so far, or 0 if c is new
+    totals[c] = totals.get(c, 0.0) + target
+    counts[c] = counts.get(c, 0) + 1
+overall_mean = y_train.mean()
 
-# Proper: out-of-fold encoding with smoothing.
-enc = TargetEncoder(random_state=0)
-proper_tr = enc.fit_transform(Xtr_c[:, None], ytr)
-proper_te = enc.transform(Xte_c[:, None])
-m2 = LinearRegression().fit(proper_tr, ytr)
-print("proper  train R^2:", round(r2_score(ytr, m2.predict(proper_tr)), 2), "  test R^2:", round(r2_score(yte, m2.predict(proper_te)), 2))
-# naive: train R^2 clearly positive (it "learned" noise), test R^2 about 0 or negative.
-# proper: both about 0, which is the truth: the feature carries no information.`}
+def naive_encode(cats):
+    values = []
+    for c in cats:
+        if c in counts:
+            values.append(totals[c] / counts[c])
+        else:
+            # a category never seen in training
+            values.append(overall_mean)
+    # one column, as scikit-learn expects
+    return np.array(values).reshape(-1, 1)
+
+naive_train = naive_encode(cat_train)
+naive_test = naive_encode(cat_test)
+naive_model = LinearRegression().fit(naive_train, y_train)
+naive_train_r2 = r2_score(y_train, naive_model.predict(naive_train))
+naive_test_r2 = r2_score(y_test, naive_model.predict(naive_test))
+print("naive   train R^2:", round(naive_train_r2, 2), "  test R^2:", round(naive_test_r2, 2))
+
+# Proper: TargetEncoder encodes each training row without using that row's
+# own answer, and smooths rare categories.
+encoder = TargetEncoder(target_type="continuous", random_state=0)
+proper_train = encoder.fit_transform(cat_train.reshape(-1, 1), y_train)
+proper_test = encoder.transform(cat_test.reshape(-1, 1))
+proper_model = LinearRegression().fit(proper_train, y_train)
+proper_train_r2 = r2_score(y_train, proper_model.predict(proper_train))
+proper_test_r2 = r2_score(y_test, proper_model.predict(proper_test))
+print("proper  train R^2:", round(proper_train_r2, 2), "  test R^2:", round(proper_test_r2, 2))
+
+# Output:
+# naive   train R^2: 0.33   test R^2: -0.33
+# proper  train R^2: 0.0   test R^2: -0.0
+# naive: train R^2 clearly above 0 (it 'learned' noise from its own
+# answers), test R^2 below 0.
+# proper: both about 0, which is the truth: the category carries no
+# information.`}
     />
   </QA>
-  <QA q="14. Write a function that scores a model on a dataset two ways: (a) fit the scaler on all data then cross-validate the model, (b) put the scaler inside a Pipeline and cross-validate. Use a small dataset with a strong distribution shift between folds to show (a) is optimistic.">
+  <QA q="14. Data where one feature drifts between the training period and the test period. Show that fitting the scaler on all the rows changes nothing for plain linear regression, but makes a nearest-neighbour classifier look better than it really is.">
+    <NewInCode items={[["np.concatenate([a, b])", "Joins arrays end to end into one longer array.", "numpy/stack"], ["(stable > 0).astype(int)", "stable > 0 gives True or False for every row; astype(int) turns them into 1 and 0, the class labels.", "numpy/astype"], ["X[:n_train] and X[n_train:]", "The first n_train rows, and all the rows after them.", "numpy/slicing"]]} />
     <CodeBlock
       code={`import numpy as np
-from sklearn.model_selection import cross_val_score, KFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import LinearRegression
+from sklearn.neighbors import KNeighborsClassifier
 
 rng = np.random.default_rng(0)
-# Five blocks of data with very different feature scales (a drifting sensor); folds follow the blocks.
-X = np.concatenate([rng.normal(loc=10 * k, scale=1 + k, size=(40, 1)) for k in range(5)])
-y = 0.5 * X[:, 0] + rng.normal(0, 1, 200)
-cv = KFold(5, shuffle=False)
+n_train = 160
+n_test = 40
+# Feature 1 is a sensor that drifts upward after the training period;
+# feature 2 is stable.
+drift = np.concatenate([rng.normal(10, 1, n_train), rng.normal(14, 1, n_test)])
+stable = rng.normal(0, 1, n_train + n_test)
+X = np.column_stack([drift, stable])
+# the class depends only on the stable feature
+label = (stable > 0).astype(int)
+# a number to predict, for the linear model
+price = 2 * drift + stable + rng.normal(0, 1, n_train + n_test)
 
-leaky = cross_val_score(Ridge(alpha=10), StandardScaler().fit_transform(X), y, cv=cv, scoring="r2")
-clean = cross_val_score(make_pipeline(StandardScaler(), Ridge(alpha=10)), X, y, cv=cv, scoring="r2")
-print("scaler fit on all data:", leaky.round(2), leaky.mean().round(3))
-print("scaler inside pipeline:", clean.round(2), clean.mean().round(3))
-# The leaky version has seen every block's scale before training; the clean version meets each
-# held-out block cold, as production would. The clean (lower) number is the honest one.`}
+# the first 160 rows: the past
+X_train = X[:n_train]
+# the last 40 rows: the future
+X_test = X[n_train:]
+
+# (a) Leaky: the scaler learns from ALL rows, including the future test rows.
+leaky_scaler = StandardScaler()
+leaky_scaler.fit(X)
+leaky_train = leaky_scaler.transform(X_train)
+leaky_test = leaky_scaler.transform(X_test)
+
+# (b) Clean: the scaler sits inside a pipeline and learns from the training rows only.
+clean_knn = make_pipeline(StandardScaler(), KNeighborsClassifier(n_neighbors=5))
+clean_line = make_pipeline(StandardScaler(), LinearRegression())
+
+# Plain linear regression: scaling only rescales the weights, so the leak
+# changes nothing.
+leaky_line = LinearRegression()
+leaky_line.fit(leaky_train, price[:n_train])
+leaky_predictions = leaky_line.predict(leaky_test)
+clean_line.fit(X_train, price[:n_train])
+clean_predictions = clean_line.predict(X_test)
+print("linear regression predictions identical:", np.allclose(leaky_predictions, clean_predictions))
+
+# Nearest neighbours compare distances, so the scaler's numbers matter.
+leaky_knn = KNeighborsClassifier(n_neighbors=5)
+leaky_knn.fit(leaky_train, label[:n_train])
+leaky_accuracy = leaky_knn.score(leaky_test, label[n_train:])
+clean_knn.fit(X_train, label[:n_train])
+clean_accuracy = clean_knn.score(X_test, label[n_train:])
+print("nearest neighbours, scaler fit on all rows:", leaky_accuracy)
+print("nearest neighbours, scaler inside pipeline:", clean_accuracy)
+
+# Output:
+# linear regression predictions identical: True
+# nearest neighbours, scaler fit on all rows: 0.975
+# nearest neighbours, scaler inside pipeline: 0.825
+# The leaky scaler already knew where the drifted test rows sit, so the
+# nearest-neighbour score looks
+# better than it will be in production. The clean, lower number is the
+# honest one.`}
     />
+    <p>
+      Linear regression only rescales its weights to undo any scaling, so its predictions are identical either way.
+      A nearest-neighbour model compares distances, and the leaky scaler has already seen where the drifted test
+      rows sit, which shrinks the drift. Its score (0.975) is better than the honest one (0.825) that production
+      will give. With a penalty on the weights (week 3) the leak would affect linear models too.
+    </p>
   </QA>
 
   <h2 id="mistakes">Common mistakes</h2>

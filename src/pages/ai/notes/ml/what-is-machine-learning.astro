@@ -7,6 +7,7 @@ import Figure from '../../../../components/Figure.astro';
 import Math from '../../../../components/Math.astro';
 import Source from '../../../../components/Source.astro';
 import Term from '../../../../components/Term.astro';
+import NewInCode from '../../../../components/NewInCode.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -58,38 +59,63 @@ const newPoint = { x: 5.5, y: 5.6 };
 const bruteForceCode = `import numpy as np
 
 # Three houses: size in thousands of square feet, price in thousands.
-sizes  = np.array([1.0, 1.5, 2.0])
+sizes = np.array([1.0, 1.5, 2.0])
 prices = np.array([200.0, 300.0, 380.0])
 
-def predict(w, b, x):            # the MODEL: a line with two knobs
+def predict(w, b, x):              # the MODEL: a line with two knobs
     return w * x + b
 
-def loss(w, b):                  # the LOSS: mean squared error over the data
+# the LOSS: mean squared error over the data
+def loss(w, b):
     errors = predict(w, b, sizes) - prices
     return np.mean(errors ** 2)
 
-print(loss(180, 0), loss(200, 0), loss(190, 10))     # 566.7 133.3 41.7  (matches the table)
+print(loss(180, 0), loss(200, 0), loss(190, 10))
+# 566.666... 133.333... 41.666...   (matches the table)
 
-# The dumbest OPTIMIZER: try a grid of knob settings and keep the best.
-best = min(((loss(w, b), w, b) for w in range(150, 251, 2) for b in range(-50, 51, 2)))
-print(best)                                           # (22.67, 180, 24)  -> price ~ 180 * size + 24 on this coarse grid
+# The dumbest OPTIMIZER: try every knob setting on a grid and keep the best
+# one.
+best_loss = None
+for w in range(150, 251, 2):       # slopes 150, 152, ..., 250
+    for b in range(-50, 51, 2):    # intercepts -50, -48, ..., 50
+        current = loss(w, b)
+        if best_loss is None or current < best_loss:
+            best_loss = current
+            best_w = w
+            best_b = b
+# -> price ~ 180 * size + 24 on this coarse grid
+print(best_w, best_b, round(best_loss, 2))
+# prints 180 24 22.67
 
-# That is machine learning in miniature: data, a model with knobs, a loss, and a search over the knobs.
-# Gradient descent (week 2) replaces the grid with a smarter search; everything else stays the same.`;
+# That is machine learning in miniature: data, a model with knobs, a loss,
+# and a search over the knobs.
+# Gradient descent (week 2) replaces the grid with a smarter search;
+# everything else stays the same.`;
 
 const sklearnCode = `import numpy as np
 from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
 
-sizes  = np.array([[1.0], [1.5], [2.0]])     # scikit-learn wants a 2-D array: (examples, features)
+# scikit-learn wants 2-D: one row per house, one column per feature
+sizes = np.array([[1.0], [1.5], [2.0]])
 prices = np.array([200.0, 300.0, 380.0])
 
-model = LinearRegression()        # the model: y = w x + b, knobs not yet set
-model.fit(sizes, prices)          # the optimizer: finds the best w and b for the data
-print(model.coef_, model.intercept_)          # [180.] 23.33  the exact best line; the grid got close
-print(model.predict([[1.8]]))                 # [347.33]      inference on a house we have not seen
+# the model: y = w x + b, knobs not yet set
+model = LinearRegression()
+# the optimizer: finds the best w and b for the data
+model.fit(sizes, prices)
+print(model.coef_)                # [180.]   the slope w the model learned
+print(round(model.intercept_, 2))  # 23.33    the intercept b: the exact best line; the grid got close
 
-from sklearn.metrics import mean_squared_error
-print(mean_squared_error(prices, model.predict(sizes)))     # 22.22  the loss at the best knobs`;
+new_house = np.array([[1.8]])     # a house of 1,800 sq ft we have not seen
+# inference: the predicted price
+print(model.predict(new_house).round(2))
+# prints [347.33]
+
+predictions = model.predict(sizes)
+# the loss at the best knobs
+print(round(mean_squared_error(prices, predictions), 2))
+# prints 22.22`;
 
 const splitCode = `import numpy as np
 from sklearn.datasets import load_diabetes
@@ -97,20 +123,31 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 
-X, y = load_diabetes(return_X_y=True)        # 442 patients, 10 features, target = disease progression
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
-print(X_train.shape, X_test.shape)           # (353, 10) (89, 10)
+# 442 patients, 10 features, target = disease progression
+X, y = load_diabetes(return_X_y=True)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=0)
+# (89, 10)   rows, columns of each part
+print(X_train.shape, X_test.shape)
+# prints (353, 10)
 
-# Baseline first: always predict the training mean. Any real model must beat this (see Baselines above).
+# Baseline first: always predict the training mean. Any real model must beat
+# this (see Baselines above).
 baseline = np.full_like(y_test, y_train.mean())
-print("baseline test MSE:", mean_squared_error(y_test, baseline))      # about 5135
+baseline_mse = mean_squared_error(y_test, baseline)
+print("baseline test MSE:", round(baseline_mse))     # 5135
 
+# make the model and train it in one line
 model = LinearRegression().fit(X_train, y_train)
-print("train MSE:", mean_squared_error(y_train, model.predict(X_train)))   # about 2735
-print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # about 3400
+train_mse = mean_squared_error(y_train, model.predict(X_train))
+test_mse = mean_squared_error(y_test, model.predict(X_test))
+print("train MSE:", round(train_mse))                # 2735
+print("test  MSE:", round(test_mse))                 # 3424
 
-# The test number is the one that matters: it estimates performance on patients we have never seen.
-# It is a little worse than train, which is normal. If it were much worse, we would suspect overfitting.`;
+# The test number is the one that matters: it estimates performance on
+# patients we have never seen.
+# It is a little worse than train, which is normal. If it were much worse,
+# we would suspect overfitting.`;
 
 // Fig. 6: the baseline (a flat line at the mean price) next to the best line.
 const bl1: Panel = { x: 60, y: 30, w: 260, h: 220, xr: [0.5, 2.5], yr: [0, 500] };
@@ -119,7 +156,8 @@ const meanPrice = (200 + 300 + 380) / 3;
 
 const baselineHandCode = `import numpy as np
 
-prices = np.array([200.0, 300.0, 380.0])       # the three houses from earlier
+# the three houses from earlier
+prices = np.array([200.0, 300.0, 380.0])
 
 # The baseline ignores the sizes and guesses the same price for every house.
 guess = prices.mean()                            # 293.33
@@ -176,9 +214,14 @@ print(f"linear regression                MSE {model_mse:6.0f}   MAE {model_mae:5
 # Step 3: report the model against the strongest honest baseline.
 baseline = np.full_like(y_test, y_train.mean())
 baseline_mse = mean_squared_error(y_test, baseline)
-print(f"skill over the mean baseline: {1 - model_mse / baseline_mse:.0%}")
-print(f"typical miss: baseline {np.sqrt(baseline_mse):.0f} points, "
-      f"model {np.sqrt(model_mse):.0f} points")
+skill = 1 - model_mse / baseline_mse
+print(f"skill over the mean baseline: {skill:.0%}")
+
+# The square root of an MSE is back in the score's own units: a typical
+# miss, in points.
+baseline_miss = np.sqrt(baseline_mse)
+model_miss = np.sqrt(model_mse)
+print(f"typical miss: baseline {baseline_miss:.0f} points, model {model_miss:.0f} points")
 
 # Output:
 #   mean baseline   guess  151.6   MSE   5135   MAE  59.2
@@ -200,7 +243,9 @@ X_train, X_test, y_train, y_test = train_test_split(
 # A baseline packaged as a model: same fit / predict as every other model.
 # strategy can be "mean", "median" or "constant".
 dummy = DummyRegressor(strategy="mean").fit(X_train, y_train)
-print(mean_squared_error(y_test, dummy.predict(X_test)))   # 5134.78...  same as by hand
+# same as by hand
+print(mean_squared_error(y_test, dummy.predict(X_test)))
+# prints 5134.78...
 
 # For categories: DummyClassifier(strategy="most_frequent")
 # always predicts the majority class.`;
@@ -209,18 +254,164 @@ const baselineSpamCode = `import numpy as np
 
 # 1,000 emails, about 5% of them spam (1 = spam, 0 = not spam).
 rng = np.random.default_rng(0)
-is_spam = (rng.random(1000) < 0.05).astype(int)
+# 1,000 random numbers between 0 and 1
+draws = rng.random(1000)
+# True for about 5% of them, then True/False -> 1/0
+is_spam = (draws < 0.05).astype(int)
 print(is_spam.sum(), "spam emails")                       # 45 spam emails
 
 # The majority-class baseline: always say "not spam".
 baseline = np.zeros_like(is_spam)
-print(f"accuracy {np.mean(baseline == is_spam):.1%}")    # 95.5%   sounds great
+# True where the guess matches the truth
+right = baseline == is_spam
+# True counts as 1, False as 0
+accuracy = np.mean(right)
+# sounds great
+print(f"accuracy {accuracy:.1%}")
+# prints 95.5%
+# & means "both true", email by email
 caught = np.sum((baseline == 1) & (is_spam == 1))
-print("spam caught:", caught)                            # 0       catches nothing
+# catches nothing
+print("spam caught:", caught)
+# prints 0
 
 # So a spam filter with 95% accuracy may have learned nothing at all.
 # On lopsided data, compare against this baseline, and use a metric
 # that looks at the rare class.`;
+
+const practice11Code = `import numpy as np
+import matplotlib.pyplot as plt
+
+sizes = np.array([1.0, 1.5, 2.0])
+prices = np.array([200.0, 300.0, 380.0])
+
+def loss(w, b):
+    return np.mean((w * sizes + b - prices) ** 2)
+
+# A finer grid: steps of 0.5 instead of 2.
+ws = np.arange(150, 251, 0.5)      # 150.0, 150.5, ..., 250.0
+bs = np.arange(-50, 51, 0.5)       # -50.0, -49.5, ..., 50.0
+best_loss = None
+for w in ws:
+    for b in bs:
+        current = loss(w, b)
+        if best_loss is None or current < best_loss:
+            best_loss = current
+            best_w = w
+            best_b = b
+# (exact optimum: b = 23.33, MSE 22.22)
+print(best_w, best_b, round(best_loss, 2))
+# prints 180.0 23.5 22.25
+
+# The loss as a function of w alone, with b held at its best value.
+losses = []
+for w in ws:
+    losses.append(loss(w, 23.33))
+plt.plot(ws, losses)
+plt.xlabel("w (with b = 23.33)")
+plt.ylabel("MSE")
+plt.title("a bowl: one minimum, no traps")
+plt.show()
+# The loss of a linear model under MSE is a parabola in each parameter (a
+# bowl in both).
+# That is why gradient descent works so cleanly for it: roll downhill and
+# you reach the bottom.`;
+
+const practice12Code = `import numpy as np
+from sklearn.datasets import load_diabetes
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
+
+X, y = load_diabetes(return_X_y=True)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=0)
+
+guesses = {"mean": y_train.mean(), "median": np.median(y_train), "zero": 0.0}
+for name, value in guesses.items():
+    # the same guess for every test patient
+    baseline = np.full_like(y_test, value)
+    error = mean_squared_error(y_test, baseline)
+    print(f"{name:>6} baseline MSE: {error:8.0f}")
+
+model = LinearRegression().fit(X_train, y_train)
+model_mse = mean_squared_error(y_test, model.predict(X_test))
+print(f"linear regression MSE: {model_mse:8.0f}")
+
+mean_baseline = np.full_like(y_test, y_train.mean())
+mean_mse = mean_squared_error(y_test, mean_baseline)
+improvement = 1 - model_mse / mean_mse
+print(f"improvement over mean baseline: {improvement:.0%}")
+#   mean baseline MSE:     5135
+# median baseline MSE:     5360
+#   zero baseline MSE:    28913
+# linear regression MSE:     3424
+# improvement over mean baseline: 33%
+# "The gap" is the distance from the baseline's error down to a perfect 0. The model closes a third of it.
+# Always report the improvement over the baseline, not the raw number: raw
+# MSE means nothing on its own.`;
+
+const practice13Code = `import numpy as np
+
+# 30 noisy points around the straight line y = 0.8 x + 1.
+rng = np.random.default_rng(0)
+# 30 random x values between 0 and 10, in order
+x = np.sort(rng.uniform(0, 10, 30))
+# random wobble, typically between -1 and +1
+noise = rng.normal(0, 1, 30)
+y = 0.8 * x + 1 + noise
+
+# Every second point for training, the points in between for testing.
+x_train = x[::2]
+y_train = y[::2]
+x_test = x[1::2]
+y_test = y[1::2]
+print(len(x_train), len(x_test))             # 15 15
+
+for degree in [1, 3, 12]:
+    # fit a curve of this degree to the training points
+    coeffs = np.polyfit(x_train, y_train, degree)
+    train_mse = np.mean((np.polyval(coeffs, x_train) - y_train) ** 2)
+    test_mse = np.mean((np.polyval(coeffs, x_test) - y_test) ** 2)
+    print(f"degree {degree:>2}: train MSE {train_mse:6.2f}   test MSE {test_mse:8.2f}")
+# degree  1: train MSE   0.94   test MSE     0.89    the straight line fits the pattern
+# degree  3: train MSE   0.62   test MSE     0.86    a gentle curve: about the same on test
+# degree 12: train MSE   0.15   test MSE     4.74    hugs the training points, five times worse on test:
+# it memorized the noise (Fig. 3, left panel)`;
+
+const practice14Code = `import numpy as np
+
+def train_val_test_split(X, train=0.7, val=0.15, seed=0):
+    # The test share is whatever is left: 1 - 0.7 - 0.15 = 0.15.
+    n = len(X)
+    rng = np.random.default_rng(seed)
+    # the row numbers 0..n-1 in a random order
+    order = rng.permutation(n)
+    n_train = int(n * train)
+    n_val = int(n * val)
+    # the first 70% of the shuffled order
+    train_rows = order[:n_train]
+    val_rows = order[n_train:n_train + n_val]       # the next 15%
+    test_rows = order[n_train + n_val:]             # the rest
+    return train_rows, val_rows, test_rows
+
+X = np.arange(200).reshape(100, 2)      # 100 rows, 2 features
+train_rows, val_rows, test_rows = train_val_test_split(X)
+X_train = X[train_rows]                 # pick those rows out of X
+print(len(train_rows), len(val_rows), len(test_rows), X_train.shape)
+# prints 70 15 15 (70, 2)
+
+# Self-checks: no row is in two parts, and together the parts cover every
+# row.
+# & on two sets keeps what they share
+assert len(set(train_rows) & set(val_rows)) == 0
+assert len(set(train_rows) & set(test_rows)) == 0
+assert len(set(val_rows) & set(test_rows)) == 0
+all_rows = np.concatenate([train_rows, val_rows, test_rows])
+assert sorted(all_rows) == list(range(100))
+print("all checks passed")              # all checks passed
+# Shuffling before cutting matters: if the rows were sorted by label, an
+# unshuffled split would be useless.`;
 ---
 
 <Note
@@ -831,6 +1022,16 @@ print("spam caught:", caught)                            # 0       catches nothi
   </p>
 
   <h3>Code: the three houses</h3>
+  <NewInCode label="New in this code: NumPy, the library every example uses" items={[
+    ["import numpy as np", "Loads NumPy, the standard library for working with lists of numbers, under the short name np.", "numpy/import"],
+    ["np.array([200.0, 300.0, 380.0])", "Turns a Python list into an array: a list of numbers that supports math on all of them at once.", "numpy/array"],
+    ["baseline - prices, errors ** 2", "Math between arrays happens element by element: the first minus the first, the second minus the second, and so on. No loop needed.", "numpy/arith"],
+    ["prices.mean(), np.mean(x)", "The average of all the numbers. Both spellings do the same thing.", "numpy/mean"],
+    ["np.full_like(prices, guess)", "A new array the same size as prices, with every element set to guess: the same guess for every house.", "numpy/like"],
+    ["np.median(prices)", "The middle value once the numbers are sorted.", "numpy/median"],
+    ["np.abs(x)", "Drops the minus signs: the size of each number.", "numpy/abs"],
+    ['f"{c:6.1f}"  and  f"{skill:.1%}"', "Print formats inside an f-string: :6.1f means one decimal, padded to 6 characters so columns line up; :.1% shows a fraction as a percentage.", "python/fstring-format"],
+  ]} />
   <CodeBlock code={baselineHandCode} />
 
   <h3>Code: a real dataset, three baselines and a model</h3>
@@ -840,6 +1041,16 @@ print("spam caught:", caught)                            # 0       catches nothi
     The code splits off 89 patients as a test set, scores three baselines and a linear model on them, and reports the
     skill.
   </p>
+  <NewInCode label="New in this code: scikit-learn, the standard ML library" items={[
+    ["from sklearn.datasets import load_diabetes", "scikit-learn (imported as sklearn) is the standard Python library for classical machine learning. You import each tool from the module that holds it.", "sklearn/import-sklearn"],
+    ["X, y = load_diabetes(return_X_y=True)", "Loads a small real dataset that ships with the library and gives back two things: X, the table of measurements (one row per patient), and y, the answers.", "sklearn/toy-datasets"],
+    ["train_test_split(X, y, test_size=0.2, random_state=0)", "Shuffles the rows and keeps 20% aside as the test set. Returns four arrays in this order: X_train, X_test, y_train, y_test. random_state=0 makes the shuffle the same every run.", "sklearn/train-test-split"],
+    ["LinearRegression()", "A model that fits the best straight line (with 10 features, the best flat surface) by least squares.", "sklearn/linear-regression"],
+    [".fit(X_train, y_train) and .predict(X)", "fit is training: it sets the model's knobs from the training data. predict is inference: it uses those knobs to guess answers. fit gives back the model itself, so LinearRegression().fit(...) makes and trains it in one line.", "sklearn/fit-predict"],
+    ["mean_squared_error(y_true, y_pred)", "The average squared miss between the true answers and the predictions. True answers come first.", "sklearn/mse"],
+    ["mean_absolute_error(y_true, y_pred)", "The average size of the misses, ignoring sign.", "sklearn/mae"],
+    ["np.sqrt(x)", "The square root.", "numpy/sqrt"],
+  ]} />
   <CodeBlock code={baselineDiabetesCode} />
   <p>How to read the output:</p>
   <ul>
@@ -867,6 +1078,9 @@ print("spam caught:", caught)                            # 0       catches nothi
     </li>
   </ul>
   <p>scikit-learn ships the lazy guess as a model of its own, so it slots into any pipeline:</p>
+  <NewInCode items={[
+    ['DummyRegressor(strategy="mean")', "A model that ignores the features and always predicts the training mean (or median, or a constant). The baseline, in the same fit / predict shape as every other model.", "sklearn/dummy"],
+  ]} />
   <CodeBlock code={baselineDummyCode} />
 
   <h3>Code: when the baseline is already “95% accurate”</h3>
@@ -874,6 +1088,15 @@ print("spam caught:", caught)                            # 0       catches nothi
     For categories the trap is sharper. When one class is rare, always guessing the common one already scores a high
     accuracy while doing nothing useful:
   </p>
+  <NewInCode items={[
+    ["rng = np.random.default_rng(0)", "Makes a random-number generator. The 0 is the seed: the same seed gives the same random numbers every run.", "numpy/default-rng"],
+    ["rng.random(1000)", "1,000 random numbers between 0 and 1.", "numpy/rng-uniform"],
+    ["draws < 0.05, baseline == is_spam", "Comparing an array gives an array of True / False, one per element.", "numpy/mask"],
+    ["(a == 1) & (b == 1)", "& combines two True / False arrays element by element: True only where both are True.", "numpy/mask"],
+    [".astype(int)", "Converts every element to another type; True becomes 1 and False becomes 0.", "numpy/astype"],
+    ["x.sum(), np.sum(x)", "Adds up all the elements. On True / False it counts the Trues.", "numpy/sum"],
+    ["np.zeros_like(is_spam)", "An array of zeros the same size as is_spam: “not spam” for every email.", "numpy/like"],
+  ]} />
   <CodeBlock code={baselineSpamCode} />
   <p>
     So “our spam filter is 95% accurate” means nothing until you know the majority-class baseline is also about 95%.
@@ -977,8 +1200,16 @@ print("spam caught:", caught)                            # 0       catches nothi
   <h3>The four parts, by brute force</h3>
   <CodeBlock code={bruteForceCode} />
   <h3>The same model with scikit-learn</h3>
+  <NewInCode items={[
+    ["np.array([[1.0], [1.5], [2.0]])", "A list of lists makes a 2-D array: here 3 rows (houses) and 1 column (size). scikit-learn always wants the inputs as a table like this, even with a single feature.", "sklearn/fit-predict"],
+    ["model.coef_, model.intercept_", "What the model learned during fit: the weights (one per feature) and the bias. Names ending in _ only exist after fit.", "sklearn/learned-attributes"],
+    [".round(2)", "Rounds every element of an array to 2 decimals.", "numpy/round"],
+  ]} />
   <CodeBlock code={sklearnCode} />
   <h3>A real dataset, a split and a baseline</h3>
+  <NewInCode items={[
+    ["X_train.shape", "The size of an array as (rows, columns).", "numpy/shape"],
+  ]} />
   <CodeBlock code={splitCode} />
   <Source
     kind="read"
@@ -994,9 +1225,11 @@ print("spam caught:", caught)                            # 0       catches nothi
   />
   <Callout kind="note" label="Reading the code">
     <p>
-      Every <code>np.</code> call in a code block on this site is a link. Click it to open that function’s entry on
-      the <a href="/ai/numpy/">NumPy reference page</a>, which explains it in plain words with a small example and its
-      output. You do not need to know NumPy in advance; look things up as they appear.
+      The code assumes only basic Python. Everything else is introduced in a “New in this code” box right above the
+      first block that uses it. Every library name inside a code block is also a link: NumPy calls go to the
+      <a href="/ai/numpy/">NumPy reference</a>, scikit-learn names to the <a href="/ai/sklearn/">scikit-learn
+      reference</a>, and plotting and less common Python to the <a href="/ai/python/">Python tools reference</a>.
+      Each entry explains the name in plain words with a small example and its real output.
     </p>
   </Callout>
 
@@ -1144,92 +1377,39 @@ print("spam caught:", caught)                            # 0       catches nothi
   </QA>
   <h3>Code</h3>
   <QA q="11. Extend the brute-force search to a finer grid (step 0.5 for w and b) and report the best (w, b) and loss. Then plot the loss as a function of w with b fixed at 20. What shape is it?">
-    <CodeBlock
-      code={`import numpy as np
-import matplotlib.pyplot as plt
-
-sizes  = np.array([1.0, 1.5, 2.0]); prices = np.array([200.0, 300.0, 380.0])
-loss = lambda w, b: np.mean((w * sizes + b - prices) ** 2)
-
-ws = np.arange(150, 251, 0.5); bs = np.arange(-50, 51, 0.5)
-grid = np.array([[loss(w, b) for b in bs] for w in ws])
-i, j = np.unravel_index(grid.argmin(), grid.shape)
-print(ws[i], bs[j], grid[i, j])          # 180.0 23.5 22.25  (exact optimum: b = 23.33, MSE 22.22)
-
-plt.plot(ws, [loss(w, 23.33) for w in ws])
-plt.xlabel("w (with b = 23.33)"); plt.ylabel("MSE"); plt.title("a bowl: one minimum, no traps")
-plt.show()
-# The loss of a linear model under MSE is a parabola in each parameter (a bowl in both).
-# That is why gradient descent works so cleanly for it: roll downhill and you reach the bottom.`}
-    />
+    <NewInCode items={[
+      ["np.arange(150, 251, 0.5)", "Numbers from 150 up to (not including) 251 in steps of 0.5: the finer grid of slopes.", "numpy/arange"],
+      ["import matplotlib.pyplot as plt", "Loads matplotlib, the plotting library, under its usual short name plt.", "python/import-as"],
+      ["plt.plot(xs, ys)", "Draws a line through the points; plt.xlabel, plt.ylabel and plt.title label the chart and plt.show() displays it.", "python/plt-plot"],
+    ]} />
+    <CodeBlock code={practice11Code} />
   </QA>
   <QA q="12. On the diabetes dataset, compare three baselines on the test set: predict the mean, predict the median, predict zero. Then fit LinearRegression and report how much of the gap it closes. (Read the Baselines section first; this is a shorter version of its code.)">
-    <CodeBlock
-      code={`import numpy as np
-from sklearn.datasets import load_diabetes
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error as mse
-
-X, y = load_diabetes(return_X_y=True)
-Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=0)
-
-for name, value in [("mean", ytr.mean()), ("median", np.median(ytr)), ("zero", 0.0)]:
-    print(f"{name:>6} baseline MSE: {mse(yte, np.full_like(yte, value)):8.0f}")
-
-model = LinearRegression().fit(Xtr, ytr)
-m = mse(yte, model.predict(Xte))
-print(f"linear regression MSE: {m:8.0f}")
-print(f"improvement over mean baseline: {1 - m / mse(yte, np.full_like(yte, ytr.mean())):.0%}")
-#   mean baseline MSE:     5135
-# median baseline MSE:     5360
-#   zero baseline MSE:    28913
-# linear regression MSE:     3424
-# improvement over mean baseline: 33%
-# "The gap" is the distance from the baseline's error (5135) down to a perfect 0. The model closes a third of it.
-# Always report the improvement over the baseline, not the raw number: raw MSE means nothing on its own.`}
-    />
+    <CodeBlock code={practice12Code} />
   </QA>
   <QA q="13. Show overfitting in one experiment: fit polynomials of degree 1, 3 and 12 to 15 noisy points and print train and test MSE for each.">
-    <CodeBlock
-      code={`import numpy as np
-from sklearn.preprocessing import PolynomialFeatures
-from sklearn.linear_model import LinearRegression
-from sklearn.pipeline import make_pipeline
-from sklearn.metrics import mean_squared_error as mse
-
-rng = np.random.default_rng(0)
-x = np.sort(rng.uniform(0, 10, 30)); y = 0.8 * x + 1 + rng.normal(0, 1, 30)
-x_tr, y_tr, x_te, y_te = x[::2], y[::2], x[1::2], y[1::2]          # 15 train, 15 test
-
-for degree in [1, 3, 12]:
-    model = make_pipeline(PolynomialFeatures(degree), LinearRegression()).fit(x_tr[:, None], y_tr)
-    print(f"degree {degree:>2}: train MSE {mse(y_tr, model.predict(x_tr[:, None])):6.2f}   "
-          f"test MSE {mse(y_te, model.predict(x_te[:, None])):8.2f}")
-# degree  1: train ~1   test ~1      fits the pattern
-# degree  3: train ~0.9 test ~1.2    slightly worse on test
-# degree 12: train ~0.3 test huge    memorized the noise: Fig. 3, left panel`}
-    />
+    <NewInCode items={[
+      ["rng.uniform(0, 10, 30)", "30 random numbers spread evenly between 0 and 10.", "numpy/rng-uniform"],
+      ["rng.normal(0, 1, 30)", "30 random wobbles centred on 0, most of them between −1 and +1: the noise.", "numpy/rng-normal"],
+      ["np.sort(x)", "The same numbers in increasing order.", "numpy/sort"],
+      ["x[::2] and x[1::2]", "Every second element starting at the first, and every second starting at the second: two interleaved halves.", "python/slicing-steps"],
+      ["np.polyfit(x, y, degree)", "Fits a polynomial: a curve built from powers of x up to x to the power degree. Degree 1 is a straight line, degree 3 can bend twice, degree 12 can bend eleven times. Returns the curve's coefficients.", "numpy/polyfit"],
+      ["np.polyval(coeffs, x)", "Uses those coefficients to compute the curve's value at each x: the predictions.", "numpy/polyfit"],
+    ]} />
+    <CodeBlock code={practice13Code} />
   </QA>
-  <QA q="14. Write a function train_val_test_split(X, y, 0.7, 0.15, 0.15, seed) by hand with NumPy. Assert the three parts are disjoint and cover every row.">
-    <CodeBlock
-      code={`import numpy as np
-
-def train_val_test_split(X, y, train=0.7, val=0.15, test=0.15, seed=0):
-    assert abs(train + val + test - 1) < 1e-9
-    n = len(X)
-    idx = np.random.default_rng(seed).permutation(n)        # shuffle once, then cut
-    n_tr, n_val = int(n * train), int(n * val)
-    tr, va, te = idx[:n_tr], idx[n_tr:n_tr + n_val], idx[n_tr + n_val:]
-    return (X[tr], y[tr]), (X[va], y[va]), (X[te], y[te]), (tr, va, te)
-
-X = np.arange(200).reshape(100, 2); y = np.arange(100)
-(_, _), (_, _), (_, _), (tr, va, te) = train_val_test_split(X, y)
-assert len(set(tr) & set(va)) == len(set(tr) & set(te)) == len(set(va) & set(te)) == 0
-assert sorted(np.concatenate([tr, va, te])) == list(range(100))
-print(len(tr), len(va), len(te))     # 70 15 15
-# Shuffling before cutting matters: if the rows were sorted by label, an unshuffled split would be useless.`}
-    />
+  <QA q="14. Write a function train_val_test_split(X, train=0.7, val=0.15, seed=0) by hand with NumPy that returns the row numbers of a 70/15/15 split. Assert the three parts are disjoint and cover every row.">
+    <NewInCode items={[
+      ["rng.permutation(n)", "The numbers 0 to n − 1 in a random order: a shuffled list of row numbers.", "numpy/rng-permutation"],
+      ["order[:n_train]", "A slice: the first n_train elements. order[a:b] is from position a up to (not including) b; order[a:] is from a to the end.", "python/slicing-steps"],
+      ["np.arange(200).reshape(100, 2)", "The numbers 0 to 199 laid out as 100 rows of 2: a small fake table.", "numpy/reshape"],
+      ["X[train_rows]", "Picks out the rows whose numbers are in the list train_rows.", "numpy/fancy"],
+      ["set(a) & set(b)", "Turns each list into a set and keeps only the elements the two have in common; empty means no overlap.", 'python/sets'],
+      ["assert condition", "Stops with an error if the condition is false: a built-in self-check.", "python/assert"],
+      ["np.concatenate([a, b, c])", "Joins several arrays end to end into one.", "numpy/stack"],
+      ["sorted(values)", "A new list with the same values in increasing order.", "python/sorted-key"],
+    ]} />
+    <CodeBlock code={practice14Code} />
   </QA>
 
   <h2 id="mistakes">Common mistakes</h2>

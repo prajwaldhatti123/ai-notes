@@ -519,9 +519,11 @@ pre.astro-code {
   overflow-x: auto;
 }
 
-/* Shiki ships both themes as CSS variables; pick the dark one at night. */
+/* Shiki ships both themes as CSS variables; pick the dark one at night.
+   A reference link that wraps exactly one token carries the colours itself, so links are included. */
 :root[data-theme='dark'] pre.astro-code,
-:root[data-theme='dark'] pre.astro-code span {
+:root[data-theme='dark'] pre.astro-code span,
+:root[data-theme='dark'] pre.astro-code a[style] {
   color: var(--shiki-dark) !important;
 }
 
@@ -1358,4 +1360,57 @@ a.notebook:hover h2 {
   opacity: 0.7;
   border-style: dashed;
   box-shadow: none;
+}
+
+/* ---------- "New in this code" box, placed right above a code block ---------- */
+
+.callout.new-in-code {
+  background: var(--gold-wash);
+  border-color: var(--gold);
+  margin-bottom: var(--space-2);
+}
+.callout.new-in-code .callout-label {
+  color: var(--gold);
+}
+.new-in-code dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: fit-content(42%) minmax(0, 1fr);
+  gap: 0.45rem 1rem;
+  font-size: var(--text-small);
+}
+.new-in-code dt {
+  margin: 0;
+  min-width: 0;
+}
+.new-in-code dt code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.new-in-code dd {
+  margin: 0;
+}
+/* Phones: stack the code above its explanation. */
+@media (max-width: 40rem) {
+  .new-in-code dl {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.15rem;
+  }
+  .new-in-code dd {
+    margin-bottom: 0.5rem;
+  }
+}
+
+.ref-taught {
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+  margin-top: 0;
+}
+.ref-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: calc(-1 * var(--space-3) + 0.6rem) 0 var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
 }

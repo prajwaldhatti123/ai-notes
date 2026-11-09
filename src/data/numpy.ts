@@ -252,7 +252,7 @@ export const numpyEntries: NumpyEntry[] = [
     "name": "v[:, None] and np.newaxis",
     "plain": "Adds a new axis of length 1. v[:, None] turns a 1-D array of length n into an (n, 1) column; v[None, :] into a (1, n) row. Needed to make broadcasting do what you mean.",
     "sig": "v[:, None]  v[None, :]  v[:, np.newaxis]",
-    "code": "import numpy as np\nv = np.array([1, 2, 3])\nprint(v[:, None].shape, v[None, :].shape)\nprint(v[:, None] * v[None, :])   # every product v_i * v_j: an outer product",
+    "code": "import numpy as np\nv = np.array([1, 2, 3])\nprint(v[:, None].shape, v[None, :].shape)\n# every product v_i * v_j: an outer product\nprint(v[:, None] * v[None, :])",
     "pitfalls": [
       "None and np.newaxis are the same thing; None is shorter and what most code uses.",
       "Scikit-learn wants features as (n_samples, n_features), so a single feature must be x[:, None], not x."
@@ -267,7 +267,7 @@ export const numpyEntries: NumpyEntry[] = [
     "name": "np.stack, np.vstack, np.column_stack, np.concatenate",
     "plain": "Ways to glue arrays together. concatenate joins along an existing axis. vstack stacks rows on top of each other. column_stack puts 1-D arrays side by side as columns. stack creates a new axis.",
     "sig": "np.concatenate([a, b], axis=0)  np.vstack([a, b])  np.column_stack([a, b])  np.stack([a, b])",
-    "code": "import numpy as np\na = np.array([1, 2, 3]); b = np.array([4, 5, 6])\nprint(np.concatenate([a, b]))\nprint(np.vstack([a, b]))\nprint(np.column_stack([a, b]))\nprint(np.stack([a, b]).shape, np.stack([a, b], axis=1).shape)",
+    "code": "import numpy as np\na = np.array([1, 2, 3])\nb = np.array([4, 5, 6])\nprint(np.concatenate([a, b]))\nprint(np.vstack([a, b]))\nprint(np.column_stack([a, b]))\nprint(np.stack([a, b]).shape, np.stack([a, b], axis=1).shape)",
     "pitfalls": [
       "concatenate needs the arrays to already have the axis you join on; to turn two 1-D arrays into two rows, use vstack or stack.",
       "All of them take one list of arrays, not several arguments: np.vstack([a, b]), not np.vstack(a, b)."
@@ -326,7 +326,7 @@ export const numpyEntries: NumpyEntry[] = [
     "name": "Boolean masks",
     "plain": "Compare an array to something and you get an array of True/False. Use that as an index to keep only the elements where it is True. Summing a mask counts the Trues.",
     "sig": "a[a > 0]  (a > 0).sum()  (a > 0).mean()",
-    "code": "import numpy as np\ny_true = np.array([1, 0, 1, 1, 0])\ny_pred = np.array([1, 0, 0, 1, 1])\nprint(y_true == y_pred)\nprint((y_true == y_pred).mean())      # accuracy\nx = np.array([-2.0, 0.5, 3.0, -1.0])\nprint(x[x > 0])\nprint(np.maximum(x, 0))               # ReLU: keep positives, zero the rest",
+    "code": "import numpy as np\ny_true = np.array([1, 0, 1, 1, 0])\ny_pred = np.array([1, 0, 0, 1, 1])\nprint(y_true == y_pred)\nprint((y_true == y_pred).mean())      # accuracy\nx = np.array([-2.0, 0.5, 3.0, -1.0])\nprint(x[x > 0])\n# ReLU: keep positives, zero the rest\nprint(np.maximum(x, 0))",
     "pitfalls": [
       "Combine conditions with & and |, each in brackets: (x > 0) & (x < 2). The words and / or raise an error on arrays."
     ],
@@ -383,7 +383,7 @@ export const numpyEntries: NumpyEntry[] = [
     "name": "Element-wise arithmetic and broadcasting",
     "plain": "+, -, *, / and ** work number by number on arrays of the same shape. If the shapes differ, NumPy stretches the smaller one along axes of length 1 (broadcasting). A number against an array is the simplest case.",
     "sig": "a + b  a * b  a ** 2  a - a.mean(axis=0)",
-    "code": "import numpy as np\nx = np.array([1.0, 1.5, 2.0]); y = np.array([200.0, 300.0, 380.0])\nprint(180 * x + 23.33)                # a line, for every house at once\nprint(((180 * x + 23.33 - y) ** 2).mean())   # mean squared error\nX = np.array([[1.0, 100.0], [2.0, 300.0], [3.0, 500.0]])\nprint(X - X.mean(axis=0))              # (3,2) minus (2,): centre each column",
+    "code": "import numpy as np\nx = np.array([1.0, 1.5, 2.0])\ny = np.array([200.0, 300.0, 380.0])\nprint(180 * x + 23.33)                # a line, for every house at once\nprint(((180 * x + 23.33 - y) ** 2).mean())   # mean squared error\nX = np.array([[1.0, 100.0], [2.0, 300.0], [3.0, 500.0]])\n# (3,2) minus (2,): centre each column\nprint(X - X.mean(axis=0))",
     "pitfalls": [
       "* is element-wise, not matrix multiplication. Use @ for matrices.",
       "Shapes (3,) and (3, 1) broadcast to (3, 3), which is almost never what you wanted; check shapes when a result is suddenly square."
@@ -413,7 +413,7 @@ export const numpyEntries: NumpyEntry[] = [
     "name": "np.log",
     "plain": "The natural logarithm (base e) of each element. np.log(np.exp(x)) is x. It turns products into sums and squashes huge ranges, which is why losses are written with it.",
     "sig": "np.log(x)  np.log2(x)  np.log10(x)  np.log1p(x)",
-    "code": "import numpy as np\nprint(np.log(1), np.log(np.e))\np = np.array([0.9, 0.8, 0.95])\nprint(np.log(p).sum(), np.log(p.prod()))   # sum of logs == log of product\nprint(-np.log(np.array([0.99, 0.5, 0.01])))  # log loss: cheap when sure and right\nprint(np.log(0))                            # -inf, with a warning\nprint(np.log2(1024), np.log10(1000))",
+    "code": "import numpy as np\nprint(np.log(1), np.log(np.e))\np = np.array([0.9, 0.8, 0.95])\nprint(np.log(p).sum(), np.log(p.prod()))   # sum of logs == log of product\n# log loss: cheap when sure and right\nprint(-np.log(np.array([0.99, 0.5, 0.01])))\nprint(np.log(0))                            # -inf, with a warning\nprint(np.log2(1024), np.log10(1000))",
     "pitfalls": [
       "np.log is the natural log, not base 10. Use np.log10 or np.log2 explicitly when you mean them.",
       "np.log(0) is -inf and np.log of a negative is nan. Clip probabilities to [1e-12, 1] before taking logs in a loss."
@@ -454,7 +454,7 @@ export const numpyEntries: NumpyEntry[] = [
     "name": "np.round",
     "plain": "Rounds each element to a number of decimals. Mostly for printing.",
     "sig": "np.round(x, decimals=0)",
-    "code": "import numpy as np\nx = np.array([0.6652, 0.2447, 0.0900])\nprint(np.round(x, 2))\nprint(np.round(2.5), np.round(3.5))   # rounds halves to the even neighbour",
+    "code": "import numpy as np\nx = np.array([0.6652, 0.2447, 0.0900])\nprint(np.round(x, 2))\n# rounds halves to the even neighbour\nprint(np.round(2.5), np.round(3.5))",
     "pitfalls": [
       "Halves round to the nearest even number (2.5 → 2, 3.5 → 4), the banker's rule, unlike school rounding."
     ],
@@ -642,7 +642,7 @@ export const numpyEntries: NumpyEntry[] = [
     "name": "np.dot",
     "plain": "The dot product of two vectors: multiply matching elements and add. Also written v @ w. For 2-D inputs it does matrix multiplication, but @ is clearer for that.",
     "sig": "np.dot(a, b)  a @ b",
-    "code": "import numpy as np\nw = np.array([180.0, 1.0]); x = np.array([1.5, 23.33])\nprint(np.dot(w, x), w @ x, (w * x).sum())   # three spellings of one thing\nu = np.array([1.0, 0.0]); v = np.array([0.0, 1.0])\nprint(u @ v)        # perpendicular -> 0",
+    "code": "import numpy as np\nw = np.array([180.0, 1.0])\nx = np.array([1.5, 23.33])\nprint(np.dot(w, x), w @ x, (w * x).sum())   # three spellings of one thing\nu = np.array([1.0, 0.0])\nv = np.array([0.0, 1.0])\nprint(u @ v)        # perpendicular -> 0",
     "pitfalls": [
       "np.dot(a, b) with two 1-D arrays is a number. With 2-D arrays it multiplies matrices; prefer @ there so the reader knows what you meant."
     ],
@@ -656,7 +656,7 @@ export const numpyEntries: NumpyEntry[] = [
     "name": "@ and np.matmul",
     "plain": "Matrix multiplication. The inner dimensions must match: (m, n) @ (n, p) gives (m, p). Each output entry is a dot product of a row of the left matrix with a column of the right one.",
     "sig": "A @ B  np.matmul(A, B)",
-    "code": "import numpy as np\nX = np.array([[1.0, 1.0], [1.0, 1.5], [1.0, 2.0]])   # 3 houses, bias column + size\nw = np.array([23.33, 180.0])\nprint(X @ w)                 # (3,2) @ (2,) -> (3,): all predictions at once\nA = np.array([[1, 2], [3, 4]]); B = np.array([[0, 1], [1, 0]])\nprint(A @ B)\nprint(B @ A)                 # order matters\nprint(A * B)                 # NOT matrix multiplication",
+    "code": "import numpy as np\n# 3 houses, bias column + size\nX = np.array([[1.0, 1.0], [1.0, 1.5], [1.0, 2.0]])\nw = np.array([23.33, 180.0])\n# (3,2) @ (2,) -> (3,): all predictions at once\nprint(X @ w)\nA = np.array([[1, 2], [3, 4]])\nB = np.array([[0, 1], [1, 0]])\nprint(A @ B)\nprint(B @ A)                 # order matters\nprint(A * B)                 # NOT matrix multiplication",
     "pitfalls": [
       "* is element-wise. @ is matrix multiplication. Mixing them up is the most common NumPy bug in ML code.",
       "Shape error 'shapes (3,2) and (3,2) not aligned' means the inner dimensions differ; transpose one side.",
@@ -672,7 +672,7 @@ export const numpyEntries: NumpyEntry[] = [
     "name": "np.linalg.norm",
     "plain": "The length of a vector. By default the ordinary Euclidean length (square root of the sum of squares, the L2 norm). ord=1 gives the L1 norm (sum of absolute values). With axis it gives the length of every row or column.",
     "sig": "np.linalg.norm(v)  np.linalg.norm(v, ord=1)  np.linalg.norm(M, axis=1)",
-    "code": "import numpy as np\nv = np.array([3.0, 4.0])\nprint(np.linalg.norm(v))\nprint(np.linalg.norm(v, ord=1), np.linalg.norm(v, ord=np.inf))\na = np.array([1.0, 2.0]); b = np.array([4.0, 6.0])\nprint(np.linalg.norm(a - b))              # distance between two points\nprint(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))   # cosine similarity\nE = np.array([[3.0, 4.0], [1.0, 0.0]])\nprint(np.linalg.norm(E, axis=1))          # length of each row\nprint(E / np.linalg.norm(E, axis=1, keepdims=True))   # unit rows",
+    "code": "import numpy as np\nv = np.array([3.0, 4.0])\nprint(np.linalg.norm(v))\nprint(np.linalg.norm(v, ord=1), np.linalg.norm(v, ord=np.inf))\na = np.array([1.0, 2.0])\nb = np.array([4.0, 6.0])\nprint(np.linalg.norm(a - b))              # distance between two points\n# cosine similarity\nprint(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))\nE = np.array([[3.0, 4.0], [1.0, 0.0]])\nprint(np.linalg.norm(E, axis=1))          # length of each row\nprint(E / np.linalg.norm(E, axis=1, keepdims=True))   # unit rows",
     "pitfalls": [
       "On a matrix with no axis it returns the Frobenius norm (all entries squared, summed, rooted), not a per-row result.",
       "Distance is the norm of the difference; cosine similarity is the dot product divided by both norms."
@@ -687,7 +687,7 @@ export const numpyEntries: NumpyEntry[] = [
     "name": "np.linalg.inv",
     "plain": "The inverse of a square matrix: the matrix that undoes it, so that A @ inv(A) is the identity. Appears in the closed-form least-squares formula. In real code you rarely call it; solve or lstsq are more accurate.",
     "sig": "np.linalg.inv(A)",
-    "code": "import numpy as np\nA = np.array([[2.0, 1.0], [1.0, 3.0]])\nAi = np.linalg.inv(A)\nprint(Ai)\nprint(np.allclose(A @ Ai, np.eye(2)))\ntry:\n    np.linalg.inv(np.array([[1.0, 2.0], [2.0, 4.0]]))   # rows are multiples: no inverse\nexcept np.linalg.LinAlgError as err:\n    print('LinAlgError:', err)",
+    "code": "import numpy as np\nA = np.array([[2.0, 1.0], [1.0, 3.0]])\nAi = np.linalg.inv(A)\nprint(Ai)\nprint(np.allclose(A @ Ai, np.eye(2)))\ntry:\n    # rows are multiples: no inverse\n    np.linalg.inv(np.array([[1.0, 2.0], [2.0, 4.0]]))\nexcept np.linalg.LinAlgError as err:\n    print('LinAlgError:', err)",
     "pitfalls": [
       "A matrix whose rows (or columns) are multiples of each other has no inverse; inv raises LinAlgError. In regression this means two features carry the same information.",
       "inv(XᵀX) @ Xᵀ @ y works on paper; np.linalg.lstsq is the numerically safe way to get the same answer."
@@ -702,7 +702,7 @@ export const numpyEntries: NumpyEntry[] = [
     "name": "np.linalg.solve",
     "plain": "Solves A x = b for x without computing an inverse. Faster and more accurate than inv(A) @ b.",
     "sig": "np.linalg.solve(A, b)",
-    "code": "import numpy as np\nA = np.array([[2.0, 1.0], [1.0, 3.0]]); b = np.array([3.0, 5.0])\nx = np.linalg.solve(A, b)\nprint(x)\nprint(np.allclose(A @ x, b))",
+    "code": "import numpy as np\nA = np.array([[2.0, 1.0], [1.0, 3.0]])\nb = np.array([3.0, 5.0])\nx = np.linalg.solve(A, b)\nprint(x)\nprint(np.allclose(A @ x, b))",
     "pitfalls": [
       "A must be square and invertible; for tall matrices (more equations than unknowns) use lstsq."
     ],
@@ -716,7 +716,7 @@ export const numpyEntries: NumpyEntry[] = [
     "name": "np.linalg.lstsq",
     "plain": "Least squares: finds the weights that make X @ w as close as possible to y. This is linear regression in one call, and it works even when the exact solution does not exist.",
     "sig": "w, residuals, rank, sv = np.linalg.lstsq(X, y, rcond=None)",
-    "code": "import numpy as np\nx = np.array([1.0, 1.5, 2.0]); y = np.array([200.0, 300.0, 380.0])\nX = np.column_stack([np.ones(3), x])          # bias column, then size\nw, res, rank, sv = np.linalg.lstsq(X, y, rcond=None)\nprint(np.round(w, 2))         # [b, w] = [23.33, 180]\nprint(res / 3)                # sum of squared residuals / n = MSE",
+    "code": "import numpy as np\nx = np.array([1.0, 1.5, 2.0])\ny = np.array([200.0, 300.0, 380.0])\nX = np.column_stack([np.ones(3), x])          # bias column, then size\nw, res, rank, sv = np.linalg.lstsq(X, y, rcond=None)\nprint(np.round(w, 2))         # [b, w] = [23.33, 180]\nprint(res / 3)                # sum of squared residuals / n = MSE",
     "pitfalls": [
       "It returns four things; the weights are the first. Pass rcond=None to silence the deprecation warning.",
       "Remember the column of ones, or you are fitting a line through the origin."
@@ -726,12 +726,42 @@ export const numpyEntries: NumpyEntry[] = [
     "output": "[ 23.33 180.  ]\n[22.22222222]"
   },
   {
+    "group": "compare",
+    "id": "errstate",
+    "name": "np.errstate",
+    "plain": "Temporarily changes what NumPy does about overflow, division by zero and invalid results (like 0/0). By default it prints a RuntimeWarning and carries on with inf or nan; inside with np.errstate(all=\"ignore\"): the warnings are hidden, used when a demo blows up on purpose.",
+    "sig": "with np.errstate(all=\"ignore\"):\n    ...",
+    "code": "import numpy as np\nwith np.errstate(all=\"ignore\"):\n    print(np.array([1.0, 0.0]) / 0.0)      # inf and nan, no warning\n    print(np.exp(np.array([1000.0])))      # overflow to inf",
+    "pitfalls": [
+      "Hiding warnings hides real bugs too; use it only where the inf or nan is expected and explained."
+    ],
+    "interview": "“np.errstate is a context manager for floating-point error handling: ignore, warn or raise.”",
+    "doc": "https://numpy.org/doc/stable/reference/generated/numpy.errstate.html",
+    "output": "[inf nan]\n[inf]"
+  },
+  {
+    "group": "linalg",
+    "id": "polyfit",
+    "name": "np.polyfit and np.polyval",
+    "plain": "Fits a polynomial curve to points. A polynomial of degree d is a curve built from powers of x up to x to the d: degree 1 is a straight line (w·x + b), degree 2 a parabola (one bend), and a higher degree can bend more times. polyfit returns the best coefficients by least squares, highest power first; polyval uses them to compute the curve at new x values.",
+    "sig": "coeffs = np.polyfit(x, y, degree)\ny_hat = np.polyval(coeffs, x_new)",
+    "code": "import numpy as np\nsizes = np.array([1.0, 1.5, 2.0])\nprices = np.array([200.0, 300.0, 380.0])\n\nline = np.polyfit(sizes, prices, 1)     # degree 1: a straight line\n# [slope, intercept] = [180, 23.33]\nprint(line.round(2))\nprint(np.polyval(line, 1.8).round(2))   # price predicted for a new house\n\n# degree 2: three points, three coefficients\ncurve = np.polyfit(sizes, prices, 2)\n# passes through every point exactly\nprint(np.polyval(curve, sizes).round(2))",
+    "pitfalls": [
+      "The coefficients come highest power first: for degree 1 that is [slope, intercept], the opposite of the usual b, w order.",
+      "With as many coefficients as points the curve passes through every point: zero training error and usually a bad model. That is overfitting in one line.",
+      "High degrees on large x values give huge powers and a RankWarning; that is a sign the degree is too high."
+    ],
+    "interview": "“polyfit is least squares on powers of x; raising the degree lowers training error monotonically and eventually overfits.”",
+    "doc": "https://numpy.org/doc/stable/reference/generated/numpy.polyfit.html",
+    "output": "[180.    23.33]\n347.33\n[200. 300. 380.]"
+  },
+  {
     "group": "linalg",
     "id": "linalg-rank",
     "name": "np.linalg.matrix_rank",
     "plain": "How many independent rows (or columns) a matrix has. A feature matrix with rank less than its number of columns has a redundant feature, and XᵀX cannot be inverted.",
     "sig": "np.linalg.matrix_rank(M)",
-    "code": "import numpy as np\nX = np.array([[1.0, 2.0], [2.0, 4.0], [3.0, 6.0]])   # column 2 = 2 x column 1\nprint(np.linalg.matrix_rank(X))\nX2 = np.array([[1.0, 2.0], [2.0, 5.0], [3.0, 6.0]])\nprint(np.linalg.matrix_rank(X2))",
+    "code": "import numpy as np\n# column 2 = 2 x column 1\nX = np.array([[1.0, 2.0], [2.0, 4.0], [3.0, 6.0]])\nprint(np.linalg.matrix_rank(X))\nX2 = np.array([[1.0, 2.0], [2.0, 5.0], [3.0, 6.0]])\nprint(np.linalg.matrix_rank(X2))",
     "pitfalls": [
       "Rank is computed numerically; a column that is almost a multiple of another still counts as independent but makes the fit unstable."
     ],
@@ -830,7 +860,7 @@ export const numpyEntries: NumpyEntry[] = [
     "name": "rng.permutation and rng.shuffle",
     "plain": "permutation returns the numbers 0..n−1 in random order (or a shuffled copy of an array). shuffle reorders an array in place. Either one is the heart of a train/test split.",
     "sig": "rng.permutation(n)  rng.shuffle(a)",
-    "code": "import numpy as np\nrng = np.random.default_rng(0)\nidx = rng.permutation(10)\nprint(idx)\ntrain, test = idx[:8], idx[8:]\nprint(train, test)               # 80/20 split of row positions\na = np.arange(5); rng.shuffle(a); print(a)",
+    "code": "import numpy as np\nrng = np.random.default_rng(0)\nidx = rng.permutation(10)\nprint(idx)\ntrain, test = idx[:8], idx[8:]\nprint(train, test)               # 80/20 split of row positions\na = np.arange(5)\nrng.shuffle(a)\nprint(a)",
     "pitfalls": [
       "Shuffle the index, then apply the same index to X and y; shuffling X and y separately breaks their pairing."
     ],
@@ -844,7 +874,7 @@ export const numpyEntries: NumpyEntry[] = [
     "name": "rng.choice",
     "plain": "Picks elements at random from an array, with or without replacement. Bootstrap samples and random mini-batches both use it.",
     "sig": "rng.choice(a, size=None, replace=True, p=None)",
-    "code": "import numpy as np\nrng = np.random.default_rng(0)\nprint(rng.choice(5, size=3, replace=False))   # 3 distinct positions out of 5\nprint(rng.choice(['a', 'b', 'c'], size=5))     # with replacement\nprint(rng.choice([0, 1], size=10, p=[0.9, 0.1]))   # weighted",
+    "code": "import numpy as np\nrng = np.random.default_rng(0)\n# 3 distinct positions out of 5\nprint(rng.choice(5, size=3, replace=False))\nprint(rng.choice(['a', 'b', 'c'], size=5))     # with replacement\nprint(rng.choice([0, 1], size=10, p=[0.9, 0.1]))   # weighted",
     "pitfalls": [
       "replace=True by default, so repeats are possible unless you say otherwise."
     ],
@@ -858,7 +888,7 @@ export const numpyEntries: NumpyEntry[] = [
     "name": "np.isclose and np.allclose",
     "plain": "Floating-point arithmetic has rounding error, so 0.1 + 0.2 is not 0.3. isclose compares element by element within a small tolerance and returns a boolean array; allclose returns a single True if every element is close.",
     "sig": "np.isclose(a, b)  np.allclose(a, b, rtol=1e-5, atol=1e-8)",
-    "code": "import numpy as np\nprint(0.1 + 0.2 == 0.3)\nprint(np.isclose(0.1 + 0.2, 0.3))\nA = np.array([[2.0, 1.0], [1.0, 3.0]])\nprint(np.allclose(A @ np.linalg.inv(A), np.eye(2)))\nprint(np.isclose(np.log(np.array([0.9, 0.8, 0.95])).sum(), np.log(0.684), atol=1e-3))",
+    "code": "import numpy as np\nprint(0.1 + 0.2 == 0.3)\nprint(np.isclose(0.1 + 0.2, 0.3))\nA = np.array([[2.0, 1.0], [1.0, 3.0]])\nprint(np.allclose(A @ np.linalg.inv(A), np.eye(2)))\ntotal = np.log(np.array([0.9, 0.8, 0.95])).sum()\nprint(np.isclose(total, np.log(0.684), atol=1e-3))",
     "pitfalls": [
       "Never test floats with ==. Every 'check it numerically' line in these notes uses isclose or allclose.",
       "The default tolerance is relative, so comparing against 0 needs an explicit atol."
@@ -887,7 +917,7 @@ export const numpyEntries: NumpyEntry[] = [
     "name": ".fill and in-place updates",
     "plain": "a.fill(value) sets every element to one value without making a new array. a += b, a *= 2 and a[mask] = 0 also change the array in place. Useful in training loops where a gradient array is reused.",
     "sig": "a.fill(0)  a += b  a[mask] = value",
-    "code": "import numpy as np\ng = np.ones(3)\ng.fill(0)\nprint(g)\nw = np.array([1.0, 2.0])\nw -= 0.1 * np.array([10.0, 20.0])      # one gradient-descent step, in place\nprint(w)\nx = np.array([-1.0, 2.0, -3.0]); x[x < 0] = 0; print(x)",
+    "code": "import numpy as np\ng = np.ones(3)\ng.fill(0)\nprint(g)\nw = np.array([1.0, 2.0])\n# one gradient-descent step, in place\nw -= 0.1 * np.array([10.0, 20.0])\nprint(w)\nx = np.array([-1.0, 2.0, -3.0])\nx[x < 0] = 0\nprint(x)",
     "pitfalls": [
       "In-place on an integer array with a float value truncates: np.array([1, 2]) -= 0.5 raises an error in modern NumPy, which is a feature."
     ],
@@ -921,6 +951,7 @@ export const numpyLinks: Record<string, string> = {
   "np.full_like": "like",
   "rng.integers": "rng-integers",
   "np.linspace": "linspace",
+  "np.errstate": "errstate",
   "rng.uniform": "rng-uniform",
   "rng.shuffle": "rng-permutation",
   "np.allclose": "isclose",
@@ -930,6 +961,8 @@ export const numpyLinks: Record<string, string> = {
   "np.degrees": "trig",
   "np.nanmean": "constants",
   "np.argsort": "sort",
+  "np.polyfit": "polyfit",
+  "np.polyval": "polyfit",
   "rng.normal": "rng-normal",
   "rng.random": "rng-uniform",
   "rng.choice": "rng-choice",

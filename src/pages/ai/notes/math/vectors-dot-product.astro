@@ -7,6 +7,7 @@ import Figure from '../../../../components/Figure.astro';
 import Math from '../../../../components/Math.astro';
 import Source from '../../../../components/Source.astro';
 import Term from '../../../../components/Term.astro';
+import NewInCode from '../../../../components/NewInCode.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -74,72 +75,103 @@ const wordVecs = [
 const basicsCode = `import numpy as np
 
 x = np.array([3.0, 2.0])          # a vector: a 1-D array
-print(x.shape)                    # (2,)   <- one number in the shape = one axis = a vector
-print(x.ndim)                     # 1
+print(x.shape)                    # (2,)  one number in the shape: one axis
+print(x.ndim)                     # 1     the number of axes
 
 u = np.array([2.0, 1.0])
 v = np.array([1.0, 3.0])
-print(u + v)                      # [3. 4.]   component by component
-print(2 * v)                      # [2. 6.]   every component doubled
-print(3 * u - v)                  # [5. 0.]   a linear combination
+print(u + v)                      # [3. 4.]  component by component
+print(2 * v)                      # [2. 6.]  every component doubled
+print(3 * u - v)                  # [5. 0.]  a linear combination
 
-w = np.array([3.0, -2.0, -4.0])   # the walk score's weights
-inputs = np.array([1.0, 0.0, 1.0])  # sunny, not cold, tired
-print(w * inputs)                 # [ 3. -0. -4.]  element-wise product: still a vector
-print(np.sum(w * inputs))         # -1.0          add it up: that is the dot product
-print(np.dot(w, inputs), w @ inputs)   # -1.0 -1.0   the two built-in spellings`;
+w = np.array([3.0, -2.0, -4.0])        # the walk score's weights
+inputs = np.array([1.0, 0.0, 1.0])     # sunny, not cold, tired
+# * pairs up components: still a vector
+products = w * inputs
+print(products)                        # [ 3. -0. -4.]
+# add the products up: that is the dot product
+print(np.sum(products))
+# prints -1.0
+print(np.dot(w, inputs))               # -1.0  the built-in function
+# the same thing, written with @
+print(w @ inputs)
+# prints -1.0`;
 
 const dotCode = `import numpy as np
 
 def dot(a, b):
-    """The definition, spelled out."""
-    assert a.shape == b.shape, f"shapes differ: {a.shape} vs {b.shape}"
+    """The definition, spelled out: multiply matching components, add them up."""
     total = 0.0
-    for ai, bi in zip(a, b):
-        total += ai * bi
+    for i in range(len(a)):
+        total += a[i] * b[i]
     return total
 
 a = np.array([3.0, 4.0])
 b = np.array([4.0, 3.0])
-assert dot(a, b) == np.dot(a, b) == a @ b == 24.0
+print(dot(a, b))       # 24.0  by hand
+print(np.dot(a, b))    # 24.0  NumPy's function
+print(a @ b)           # 24.0  NumPy's operator
 
-length_a = np.sqrt(a @ a)                 # 5.0: the length is the square root of the self dot product
-length_b = np.linalg.norm(b)              # 5.0: the library way
+# the length is the square root of the self dot product
+length_a = np.sqrt(a @ a)
+length_b = np.linalg.norm(b)           # the library way to get a length
+print(length_a, length_b)              # 5.0 5.0
+
 cos_theta = (a @ b) / (length_a * length_b)
-print(cos_theta)                          # 0.96
-print(np.degrees(np.arccos(cos_theta)))   # 16.26 degrees
+# the cosine of the angle between a and b
+print(cos_theta)
+# prints 0.96
+angle = np.degrees(np.arccos(cos_theta))
+print(round(angle, 2))                 # 16.26  the angle itself, in degrees
 
-# The shadow (projection) of a onto the direction of b:
-print((a @ b) / length_b)                 # 4.8`;
+# the shadow (projection) of a on the direction of b
+shadow = (a @ b) / length_b
+print(shadow)                          # 4.8`;
 
 const embedCode = `import numpy as np
 
-# Toy "embeddings": one vector per word. Real ones have hundreds of numbers; the arithmetic is identical.
+# Toy "embeddings": one vector per word.
+# Real ones have hundreds of numbers; the arithmetic is identical.
 emb = {
-    "cat":    np.array([0.9, 0.8, 0.1]),
-    "dog":    np.array([0.8, 0.9, 0.2]),
-    "car":    np.array([0.1, 0.2, 0.9]),
+    "cat": np.array([0.9, 0.8, 0.1]),
+    "dog": np.array([0.8, 0.9, 0.2]),
+    "car": np.array([0.1, 0.2, 0.9]),
 }
 
-def similarity(w1, w2):
-    return emb[w1] @ emb[w2]
+def similarity(word1, word2):
+    return emb[word1] @ emb[word2]
 
-print(similarity("cat", "dog"))   # 1.46  high: the lists agree
-print(similarity("cat", "car"))   # 0.34  low: where one is big the other is small
+print(round(similarity("cat", "dog"), 3))   # 1.46  high: the lists agree
+# low: where one is big the other is small
+print(round(similarity("cat", "car"), 3))
+# prints 0.34
 
-# Find the nearest word to a query vector: compute every dot product, take the largest.
+# Find the word nearest to a query vector: score every word, keep the best.
 query = np.array([0.85, 0.85, 0.15])
-scores = {w: v @ query for w, v in emb.items()}
-print(max(scores, key=scores.get))   # dog  (scores: cat 1.46, dog 1.475, car 0.39)`;
+best_word = None
+best_score = None
+for word in emb:
+    score = emb[word] @ query
+    print(word, round(score, 3))      # cat 1.46, dog 1.475, car 0.39
+    if best_score is None or score > best_score:
+        best_word = word
+        best_score = score
+print("nearest:", best_word)          # nearest: dog`;
 
 const matrixPreviewCode = `import numpy as np
 
+# Two rows of weights, one row per score. A list of lists makes a 2-D array
+# (a table).
 W = np.array([[3.0, -2.0, -4.0],     # score 1: "should I walk?"
               [1.0, -1.0,  0.0]])    # score 2: "is the weather good?"
-x = np.array([1.0, 0.0, 1.0])
+x = np.array([1.0, 0.0, 1.0])        # sunny, not cold, tired
 
-print(W @ x)          # [-1.  1.]   two dot products, one per row, in a single operation
-print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
+# each row dotted with x: two scores in one operation
+print(W @ x)
+# prints [-1.  1.]
+print(W.shape)        # (2, 3)   2 rows, 3 columns
+print(x.shape)        # (3,)     3 numbers
+print((W @ x).shape)  # (2,)     2 numbers: one score per row`;
 ---
 
 <Note
@@ -674,13 +706,29 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
     product is: a stack of dot products. If you understand this note, the next one is bookkeeping about which rows
     pair with which columns and what shape comes out.
   </p>
+  <NewInCode items={[
+      ["np.array([[...], [...]])", "A list of lists makes a 2-D array: a table with one inner list per row.", "numpy/array"],
+      ["W @ x", "With a table on the left, @ takes the dot product of every row with x and gives one number per row.", "numpy/matmul"],
+      [".shape", "The size along each axis: (2, 3) means 2 rows and 3 columns; (3,) means a plain list of 3 numbers.", "numpy/shape"],
+    ]} />
   <CodeBlock code={matrixPreviewCode} />
 
   <h2 id="code">Code</h2>
   <p>Type these out. Each one is a sentence from above turned into NumPy.</p>
   <h3>Vectors, shapes, addition, scaling, and the walk score</h3>
+  <NewInCode items={[
+      [".ndim", "How many axes the array has: 1 for a vector, 2 for a table.", "numpy/shape"],
+      ["w * inputs", "* on two arrays of the same length multiplies matching components and gives a new array. It does not add them up.", "numpy/arith"],
+      ["np.sum(a)", "Adds up all the numbers in the array.", "numpy/sum"],
+      ["np.dot(a, b)", "The dot product of two vectors. a @ b is the same thing.", "numpy/dot"],
+    ]} />
   <CodeBlock code={basicsCode} />
   <h3>The dot product three ways, the angle, and the projection</h3>
+  <NewInCode items={[
+      ["np.sqrt(x)", "The square root.", "numpy/sqrt"],
+      ["np.linalg.norm(v)", "The length of a vector: the square root of v · v.", "numpy/linalg-norm"],
+      ["np.arccos(c) and np.degrees(r)", "arccos turns a cosine back into an angle, measured in radians; degrees converts radians to degrees.", "numpy/trig"],
+    ]} />
   <CodeBlock code={dotCode} />
   <h3>Toy embeddings and nearest-neighbour search</h3>
   <CodeBlock code={embedCode} />
@@ -909,93 +957,158 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
   </QA>
   <h3>Code</h3>
   <QA q="13. Implement dot, norm, normalize and cosine_similarity from scratch with plain loops. Test them against NumPy on 1000 random pairs of 50-dimensional vectors.">
+    <NewInCode items={[
+        ["np.random.default_rng(0)", "Makes a random-number generator. The 0 is the seed: it makes the generator give the same numbers on every run.", "numpy/default-rng"],
+        ["rng.normal(size=50)", "50 random numbers, clustered around 0 and mostly between −2 and 2.", "numpy/rng-normal"],
+        ["assert condition", "Stops the program with an error if the condition is false: a built-in self-check.", "python/assert"],
+        ["np.isclose(x, y)", "True when two numbers are equal up to tiny rounding errors. Use it instead of == for decimals.", "numpy/isclose"],
+      ]} />
     <CodeBlock
       code={`import numpy as np
 
+# Plain loops only: no NumPy inside these four functions.
 def dot(a, b):
-    assert len(a) == len(b)
-    return sum(x * y for x, y in zip(a, b))
+    total = 0.0
+    for i in range(len(a)):
+        total += a[i] * b[i]
+    return total
 
 def norm(a):
-    return dot(a, a) ** 0.5
+    return dot(a, a) ** 0.5            # ** 0.5 is the square root
 
 def normalize(a):
     n = norm(a)
-    return [x / n for x in a]
+    result = []
+    for value in a:
+        result.append(value / n)
+    return result
 
 def cosine_similarity(a, b):
     return dot(a, b) / (norm(a) * norm(b))
 
+# Test against NumPy on 1000 random pairs of 50-number vectors.
 rng = np.random.default_rng(0)
-for _ in range(1000):
-    a, b = rng.normal(size=50), rng.normal(size=50)
+for trial in range(1000):
+    a = rng.normal(size=50)
+    b = rng.normal(size=50)
     assert np.isclose(dot(a, b), a @ b)
     assert np.isclose(norm(a), np.linalg.norm(a))
     assert np.isclose(np.linalg.norm(normalize(a)), 1.0)
-    assert np.isclose(cosine_similarity(a, b), (a @ b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+    numpy_cosine = (a @ b) / (np.linalg.norm(a) * np.linalg.norm(b))
+    assert np.isclose(cosine_similarity(a, b), numpy_cosine)
+    # cosine always lies between -1 and 1
     assert -1.0 <= cosine_similarity(a, b) <= 1.0
-print("all good")`}
+print("all good")     # all good`}
     />
   </QA>
-  <QA q="14. Generate 10,000 pairs of random vectors in 2, 10, 100 and 1000 dimensions (standard normal entries). For each dimension, print the mean and spread (standard deviation) of the dot product. What happens as the dimension grows? (Week 8 uses this fact to explain why attention divides its scores by √d.)">
+  <QA q="14. Generate 10,000 pairs of random vectors in 2, 10, 100 and 1000 dimensions (standard normal entries). For each dimension, print the mean and spread (standard deviation) of the dot product. What happens as the dimension grows? (A later week relies on this fact; you do not need that part yet.)">
+    <NewInCode items={[
+        ["rng.normal(size=(10000, d))", "A table of random numbers with 10,000 rows and d columns: one random vector per row.", "numpy/rng-normal"],
+        ["np.sum(a * b, axis=1)", "axis=1 adds across each row instead of adding everything, so you get one total per row.", "numpy/sum"],
+        [".mean() and .std()", "The average of an array, and its standard deviation: how far a typical value sits from that average. Taught properly in week 3.", "numpy/std"],
+      ]} />
     <CodeBlock
       code={`import numpy as np
 
 rng = np.random.default_rng(0)
 for d in [2, 10, 100, 1000]:
-    a = rng.normal(size=(10_000, d))
-    b = rng.normal(size=(10_000, d))
-    dots = np.sum(a * b, axis=1)          # 10,000 dot products at once
-    print(f"d={d:>5}  mean={dots.mean():6.2f}  std={dots.std():6.2f}  std/sqrt(d)={dots.std()/np.sqrt(d):4.2f}")
-# d=    2  mean=  0.00  std=  1.41  std/sqrt(d)=1.00
-# d=   10  mean=  0.00  std=  3.16  std/sqrt(d)=1.00
-# d=  100  mean=  0.00  std= 10.00  std/sqrt(d)=1.00
-# d= 1000  mean=  0.00  std= 31.6   std/sqrt(d)=1.00
-# The spread of a dot product grows like the square root of the dimension.
-# In week 8: dividing attention scores by sqrt(d) puts them back on a fixed scale.`}
+    # 10,000 random vectors of length d, one per row
+    a = rng.normal(size=(10000, d))
+    b = rng.normal(size=(10000, d))
+    # add across each row: one dot product per pair
+    dots = np.sum(a * b, axis=1)
+    mean = dots.mean()                  # the average dot product
+    # how far a typical dot product is from that average
+    spread = dots.std()
+    ratio = spread / np.sqrt(d)
+    print("d =", d, " mean =", round(mean, 2), " spread =", round(spread, 2),
+          " spread / sqrt(d) =", round(ratio, 2))
+# d = 2      mean = 0.01    spread = 1.42    spread / sqrt(d) = 1.01
+# d = 10     mean = 0.03    spread = 3.16    spread / sqrt(d) = 1.0
+# d = 100    mean = -0.03   spread = 9.93    spread / sqrt(d) = 0.99
+# d = 1000   mean = 0.35    spread = 31.86   spread / sqrt(d) = 1.01
+# The average stays near 0, but the spread grows like the square root of the
+# dimension:
+# 100 times more numbers gives about 10 times bigger dot products.`}
     />
   </QA>
   <QA q="15. Build a tiny nearest-neighbour search: 1,000 random 'document' vectors of dimension 64 and one query. Return the top 5 by dot product and by cosine similarity. Make one document vector 10× longer and see which ranking changes.">
+    <NewInCode items={[
+        ["rng.normal(size=(1000, 64))", "A table of random numbers: 1000 rows, 64 columns. Each row is one document's vector.", "numpy/rng-normal"],
+        ["docs @ query", "With a table on the left, @ gives one dot product per row, as in “Many dot products at once” above.", "numpy/matmul"],
+        ["np.linalg.norm(docs, axis=1)", "The length of every row, rather than one length for the whole table.", "numpy/linalg-norm"],
+        ["np.argsort(scores)", "The positions of the scores in increasing order. Sorting -scores instead gives the largest first.", "numpy/sort"],
+        ["order[:5]", "The first five elements. A slice stops just before position 5.", "python/slicing-steps"],
+        ["docs[7]", "Row 7 of the table, which is the eighth row because counting starts at 0.", "numpy/slicing"],
+      ]} />
     <CodeBlock
       code={`import numpy as np
 
 rng = np.random.default_rng(1)
+# 1000 "documents", one 64-number vector per row
 docs = rng.normal(size=(1000, 64))
-query = rng.normal(size=64)
+query = rng.normal(size=64)            # one query vector
 
 def top5(scores):
-    return np.argsort(-scores)[:5]        # indices of the five largest scores
+    # positions, largest score first (the minus flips the order)
+    order = np.argsort(-scores)
+    return order[:5]                   # the first five positions
 
-dot_scores = docs @ query                                   # 1000 dot products in one line
-cos_scores = dot_scores / (np.linalg.norm(docs, axis=1) * np.linalg.norm(query))
-print("dot   ", top5(dot_scores))
-print("cosine", top5(cos_scores))
-
-docs[7] *= 10                             # make one document's vector ten times longer
+# one dot product per row: 1000 scores
 dot_scores = docs @ query
-cos_scores = dot_scores / (np.linalg.norm(docs, axis=1) * np.linalg.norm(query))
-print("dot after   ", top5(dot_scores))   # document 7 very likely jumps into the top 5
-print("cosine after", top5(cos_scores))   # unchanged: cosine ignores length`}
+# the length of every row
+lengths = np.linalg.norm(docs, axis=1)
+cos_scores = dot_scores / (lengths * np.linalg.norm(query))
+print("dot   ", top5(dot_scores))      # [834 471 525 942 916]
+print("cosine", top5(cos_scores))      # [834 471 126 525 236]
+
+# make document 7's vector ten times longer
+docs[7] = docs[7] * 10
+dot_scores = docs @ query
+lengths = np.linalg.norm(docs, axis=1)
+cos_scores = dot_scores / (lengths * np.linalg.norm(query))
+# document 7 jumps to the top
+print("dot after   ", top5(dot_scores))
+# prints [  7 834 471 525 942]
+# unchanged: ignores length
+print("cosine after", top5(cos_scores))
+# prints [834 471 126 525 236]`}
     />
   </QA>
   <QA q="16. Draw Fig. 3 yourself with matplotlib: for a fixed a = (2, 1), sweep b around the circle and plot a·b against the angle. Mark where it is zero.">
+    <NewInCode items={[
+        ["import matplotlib.pyplot as plt", "Loads the plotting library under its usual short name, plt.", "python/import-as"],
+        ["np.linspace(0, 2 * np.pi, 361)", "361 evenly spaced numbers from 0 to 2π, a full circle measured in radians.", "numpy/linspace"],
+        ["np.cos and np.sin", "The cosine and sine of every number in the array at once.", "numpy/trig"],
+        ["np.abs(dots) < 0.02", "Gives an array of True and False, one per element. Putting it inside [ ] keeps only the elements where it is True.", "numpy/mask"],
+        ["plt.plot, plt.scatter, plt.axhline", "Draw a line through points, separate dots, and a horizontal line across the whole chart.", "python/plt-plot"],
+        ["plt.xlabel, plt.ylabel, plt.title, plt.show", "Name the axes and the chart, then display it.", "python/plt-plot"],
+        [".round(1)", "Rounds every number in the array to 1 decimal place.", "numpy/round"],
+      ]} />
     <CodeBlock
       code={`import numpy as np
 import matplotlib.pyplot as plt
 
 a = np.array([2.0, 1.0])
+# 361 angles all the way round the circle
 angles = np.linspace(0, 2 * np.pi, 361)
-b = np.stack([np.cos(angles), np.sin(angles)], axis=1)     # unit vectors around the circle
-dots = b @ a
+# b = (cos angle, sin angle) is a unit vector pointing at that angle, so a .
+# b is:
+dots = a[0] * np.cos(angles) + a[1] * np.sin(angles)
+degrees = np.degrees(angles)
 
-plt.plot(np.degrees(angles), dots)
-plt.axhline(0, color="gray", linewidth=0.8)
-zero_at = np.degrees(angles[np.isclose(dots, 0, atol=0.02)])
-plt.scatter(zero_at, np.zeros_like(zero_at), color="red")
+plt.plot(degrees, dots)
+plt.axhline(0, color="gray")                  # the zero line
+# True where the dot product is (almost) zero
+near_zero = np.abs(dots) < 0.02
+plt.scatter(degrees[near_zero], dots[near_zero], color="red")
 plt.xlabel("angle of b (degrees)")
-plt.ylabel("a · b")
-plt.title("dot product with a unit vector = ‖a‖ cos θ, a cosine wave of height √5")
-plt.show()`}
+plt.ylabel("a . b")
+plt.title("a . b for unit vectors b: a cosine wave of height sqrt(5)")
+plt.show()
+# where b is perpendicular to a
+print(degrees[near_zero].round(1))
+# prints [117. 297.]`}
     />
   </QA>
 
