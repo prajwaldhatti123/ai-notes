@@ -35,6 +35,9 @@ export const glossary: GlossaryEntry[] = [
   { id: 'classification', term: 'classification', plain: 'Guessing a category, such as spam or not spam.', note: 'ml/logistic-regression', week: 3 },
   { id: 'epoch', term: 'epoch', plain: 'One full pass through all the training examples.', note: 'ml/gradient-descent', week: 2 },
   { id: 'batch', term: 'batch', plain: 'A handful of examples processed together in one step, stacked as the rows of a matrix.', note: 'math/matrices-and-shapes', week: 1 },
+  { id: 'mae', term: 'mean absolute error (MAE)', plain: 'The average size of the misses, ignoring whether each miss was too high or too low. Unlike squared error it does not punish big misses extra.', note: 'ml/what-is-machine-learning', week: 1 },
+  { id: 'r-squared', term: 'R² (R-squared)', plain: 'How much of the error of “always guess the average” a model removes: 1 is perfect, 0 is no better than the average, below 0 is worse.', note: 'ml/linear-regression', week: 1 },
+  { id: 'precision-recall', term: 'precision and recall', plain: 'Two scores for a rare class. Precision: of the items the model flagged, how many were right. Recall: of the items that really were in the class, how many the model found.', note: 'ml/classification-metrics', week: 3 },
   { id: 'baseline', term: 'baseline', plain: 'The dumbest guess that could work, such as “always predict the average”. A real model must beat it.', note: 'ml/what-is-machine-learning', week: 1 },
 
   // ---- language models, in plain words ----

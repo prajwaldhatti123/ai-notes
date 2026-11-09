@@ -16,6 +16,7 @@ const sections = [
   { id: 'generalization', label: 'The real goal: new data' },
   { id: 'kinds', label: 'Kinds of learning' },
   { id: 'workflow', label: 'The workflow around the loop' },
+  { id: 'baseline', label: 'Baselines: is the model any good?' },
   { id: 'vocabulary', label: 'The vocabulary, in one table' },
   { id: 'nesting', label: 'AI, ML, deep learning, LLMs' },
   { id: 'code', label: 'Code' },
@@ -100,16 +101,126 @@ X, y = load_diabetes(return_X_y=True)        # 442 patients, 10 features, target
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
 print(X_train.shape, X_test.shape)           # (353, 10) (89, 10)
 
-# Baseline first: always predict the training mean. Any real model must beat this.
+# Baseline first: always predict the training mean. Any real model must beat this (see Baselines above).
 baseline = np.full_like(y_test, y_train.mean())
-print("baseline test MSE:", mean_squared_error(y_test, baseline))      # about 5500
+print("baseline test MSE:", mean_squared_error(y_test, baseline))      # about 5135
 
 model = LinearRegression().fit(X_train, y_train)
-print("train MSE:", mean_squared_error(y_train, model.predict(X_train)))   # about 2900
+print("train MSE:", mean_squared_error(y_train, model.predict(X_train)))   # about 2735
 print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # about 3400
 
 # The test number is the one that matters: it estimates performance on patients we have never seen.
 # It is a little worse than train, which is normal. If it were much worse, we would suspect overfitting.`;
+
+// Fig. 6: the baseline (a flat line at the mean price) next to the best line.
+const bl1: Panel = { x: 60, y: 30, w: 260, h: 220, xr: [0.5, 2.5], yr: [0, 500] };
+const bl2: Panel = { x: 440, y: 30, w: 260, h: 220, xr: [0.5, 2.5], yr: [0, 500] };
+const meanPrice = (200 + 300 + 380) / 3;
+
+const baselineHandCode = `import numpy as np
+
+prices = np.array([200.0, 300.0, 380.0])       # the three houses from earlier
+
+# The baseline ignores the sizes and guesses the same price for every house.
+guess = prices.mean()                            # 293.33
+baseline = np.full_like(prices, guess)           # [293.33 293.33 293.33]
+baseline_mse = np.mean((baseline - prices) ** 2)
+print(round(guess, 2), round(baseline_mse, 1))   # 293.33 5422.2
+
+# The best line from earlier uses the sizes.
+sizes = np.array([1.0, 1.5, 2.0])
+model_mse = np.mean((180 * sizes + 23.33 - prices) ** 2)
+print(round(model_mse, 1))                       # 22.2
+
+# How much of the baseline's error did the sizes remove?
+skill = 1 - model_mse / baseline_mse
+print(f"{skill:.1%}")                            # 99.6%
+
+# Why the mean? Try other constant guesses and score each one two ways.
+for c in [250, prices.mean(), np.median(prices), 350]:
+    mse = np.mean((c - prices) ** 2)             # mean squared error
+    mae = np.mean(np.abs(c - prices))            # mean absolute error
+    print(f"guess {c:6.1f}   MSE {mse:7.1f}   MAE {mae:5.1f}")
+# guess  250.0   MSE  7300.0   MAE  76.7
+# guess  293.3   MSE  5422.2   MAE  62.2    <- the mean wins on squared error
+# guess  300.0   MSE  5466.7   MAE  60.0    <- the median wins on absolute error
+# guess  350.0   MSE  8633.3   MAE  76.7`;
+
+const baselineDiabetesCode = `import numpy as np
+from sklearn.datasets import load_diabetes
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+
+# 442 patients, 10 measurements each; y = disease progression score (25 to 346)
+X, y = load_diabetes(return_X_y=True)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=0)
+
+# Step 1: the baselines. Each is ONE number, computed from the TRAINING
+# answers only, then guessed for every one of the 89 test patients.
+guesses = {"mean": y_train.mean(), "median": np.median(y_train), "zero": 0.0}
+for name, value in guesses.items():
+    pred = np.full_like(y_test, value)
+    mse = mean_squared_error(y_test, pred)
+    mae = mean_absolute_error(y_test, pred)
+    print(f"{name:>6} baseline   guess {value:6.1f}   MSE {mse:6.0f}   MAE {mae:5.1f}")
+
+# Step 2: the real model, which reads the 10 measurements.
+model = LinearRegression().fit(X_train, y_train)
+pred = model.predict(X_test)
+model_mse = mean_squared_error(y_test, pred)
+model_mae = mean_absolute_error(y_test, pred)
+print(f"linear regression                MSE {model_mse:6.0f}   MAE {model_mae:5.1f}")
+
+# Step 3: report the model against the strongest honest baseline.
+baseline = np.full_like(y_test, y_train.mean())
+baseline_mse = mean_squared_error(y_test, baseline)
+print(f"skill over the mean baseline: {1 - model_mse / baseline_mse:.0%}")
+print(f"typical miss: baseline {np.sqrt(baseline_mse):.0f} points, "
+      f"model {np.sqrt(model_mse):.0f} points")
+
+# Output:
+#   mean baseline   guess  151.6   MSE   5135   MAE  59.2
+# median baseline   guess  139.0   MSE   5360   MAE  59.0
+#   zero baseline   guess    0.0   MSE  28913   MAE 154.2
+# linear regression                MSE   3424   MAE  46.2
+# skill over the mean baseline: 33%
+# typical miss: baseline 72 points, model 59 points`;
+
+const baselineDummyCode = `from sklearn.dummy import DummyRegressor
+from sklearn.datasets import load_diabetes
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
+
+X, y = load_diabetes(return_X_y=True)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=0)
+
+# A baseline packaged as a model: same fit / predict as every other model.
+# strategy can be "mean", "median" or "constant".
+dummy = DummyRegressor(strategy="mean").fit(X_train, y_train)
+print(mean_squared_error(y_test, dummy.predict(X_test)))   # 5134.78...  same as by hand
+
+# For categories: DummyClassifier(strategy="most_frequent")
+# always predicts the majority class.`;
+
+const baselineSpamCode = `import numpy as np
+
+# 1,000 emails, about 5% of them spam (1 = spam, 0 = not spam).
+rng = np.random.default_rng(0)
+is_spam = (rng.random(1000) < 0.05).astype(int)
+print(is_spam.sum(), "spam emails")                       # 45 spam emails
+
+# The majority-class baseline: always say "not spam".
+baseline = np.zeros_like(is_spam)
+print(f"accuracy {np.mean(baseline == is_spam):.1%}")    # 95.5%   sounds great
+caught = np.sum((baseline == 1) & (is_spam == 1))
+print("spam caught:", caught)                            # 0       catches nothing
+
+# So a spam filter with 95% accuracy may have learned nothing at all.
+# On lopsided data, compare against this baseline, and use a metric
+# that looks at the rare class.`;
 ---
 
 <Note
@@ -547,7 +658,8 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
     <li>
       <strong>Build a baseline.</strong> The simplest thing that could work: predict the average, predict the most
       common class, or use a rule of thumb. Every real model must beat the baseline on the validation set, and the
-      margin by which it does so is the honest measure of what you have gained.
+      margin by which it does so is the honest measure of what you have gained. The
+      <a href="#baseline">next section</a> works this out in full.
     </li>
     <li><strong>Train.</strong> The loop of Fig. 1.</li>
     <li>
@@ -580,6 +692,206 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
       “Define the task and the evaluation metric, split the data before anything else, establish a baseline, train,
       evaluate on held-out data, iterate one change at a time, then deploy with monitoring. The metric is chosen up
       front; the test set is touched once.”
+    </p>
+  </Callout>
+
+  <h2 id="baseline">Baselines: is the model any good?</h2>
+  <Callout kind="plain">
+    <p>
+      A friend says their model predicts house prices with an error of 5,000. Is that good? You cannot tell. It depends
+      on what you would get <em>without</em> a model. So before trusting any model, you ask: what score does the
+      laziest possible guess get?
+    </p>
+    <p>
+      Imagine a teacher who has to predict every student’s exam mark before reading anything about the students. The
+      safest single guess is the class average: say it for everyone, and you are never wildly wrong. That lazy guess is
+      a <strong>baseline</strong>. A real model reads the inputs (the house size, the student’s past marks), so it
+      should beat the lazy guess. If it does not, the inputs taught it nothing, however impressive its own number
+      looks.
+    </p>
+  </Callout>
+  <p>
+    A <span class="term">baseline</span> is the simplest predictor that could reasonably be used, usually one that
+    ignores the features entirely, against which every real model is compared. It turns a raw number (“MSE 3424”) into
+    a meaningful one (“a third less error than guessing the average”). It also catches bugs: a model that does
+    <em>worse</em> than the baseline is broken, not just weak.
+  </p>
+
+  <h3>The three houses, by hand</h3>
+  <p>
+    Go back to the three houses: sizes 1, 1.5 and 2 (thousand square feet), prices 200, 300 and 380. The baseline
+    ignores the sizes and guesses the average price for every house:
+  </p>
+  <Math block tex="\text{guess} = \frac{200 + 300 + 380}{3} = 293.3" />
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>House</th><th>Price</th><th>Baseline guess</th><th>Error</th><th>Squared</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1,000 sq ft</td><td>200</td><td>293.3</td><td>+93.3</td><td>8,711</td></tr>
+        <tr><td>1,500 sq ft</td><td>300</td><td>293.3</td><td>−6.7</td><td>44</td></tr>
+        <tr><td>2,000 sq ft</td><td>380</td><td>293.3</td><td>−86.7</td><td>7,511</td></tr>
+        <tr><td colspan="4"><strong>Mean squared error</strong></td><td><strong>5,422</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    The best line, which <em>does</em> use the size, had a mean squared error of 22.2. Now the number means
+    something: using the size removed almost all of the error the lazy guess made.
+  </p>
+  <Figure n={6} caption="Left: the baseline is a flat line. It gives every house the same price, so the errors (red) are large. Right: the best line uses the size and the errors almost vanish. The baseline is what the model has to beat.">
+    <svg viewBox="0 0 740 300" role="img" aria-label="Two plots of the three houses. Left: a flat line at 293 with long red error ticks. Right: the best-fit sloped line with tiny error ticks.">
+      <g class="sketch">
+        {[bl1, bl2].map((p) => <path class="stroke-soft" d={`M${p.x} ${sy(p, 0)} H${p.x + p.w} M${sx(p, 0.5)} ${p.y} V${p.y + p.h}`} />)}
+        <path class="stroke" d={line(bl1, 0, meanPrice)} stroke-width="2.5" stroke-dasharray="8 5"></path>
+        {houses.map((h) => <path class="stroke ink-red" d={`M${sx(bl1, h.x)} ${sy(bl1, h.y)} V${sy(bl1, meanPrice)}`} stroke-width="2.5" />)}
+        <path class="stroke" d={line(bl2, 180, 23.33)} stroke-width="2.5"></path>
+        {houses.map((h) => <path class="stroke ink-red" d={`M${sx(bl2, h.x)} ${sy(bl2, h.y)} V${sy(bl2, 180 * h.x + 23.33)}`} stroke-width="2.5" />)}
+        {houses.map((h) => <circle class="stroke fill-paper" cx={sx(bl1, h.x)} cy={sy(bl1, h.y)} r="6" />)}
+        {houses.map((h) => <circle class="stroke fill-paper" cx={sx(bl2, h.x)} cy={sy(bl2, h.y)} r="6" />)}
+      </g>
+      <text class="small" x={sx(bl1, 0.55)} y={sy(bl1, meanPrice) - 10}>guess 293 for all</text>
+      <text x={bl1.x + bl1.w / 2} y="285" text-anchor="middle">baseline: MSE 5,422</text>
+      <text x={bl2.x + bl2.w / 2} y="285" text-anchor="middle">best line: MSE 22.2</text>
+      <text class="small" x={sx(bl1, 0.5) - 6} y={bl1.y - 8} text-anchor="end">price</text>
+      <text class="small" x={sx(bl2, 0.5) - 6} y={bl2.y - 8} text-anchor="end">price</text>
+    </svg>
+  </Figure>
+
+  <h3>One number for “how much better”</h3>
+  <p>
+    Compare the two errors with one ratio. The model’s error divided by the baseline’s error says what fraction of the
+    lazy guess’s error is <em>left</em>. One minus that is the fraction the model removed:
+  </p>
+  <Math block tex="\text{skill} = 1 - \frac{\text{model error}}{\text{baseline error}} = 1 - \frac{22.2}{5{,}422} = 0.996" />
+  <p>
+    Read it as “the model removes 99.6% of the error you would make by guessing the average”. Three things to know:
+  </p>
+  <ul>
+    <li><strong>1 (100%)</strong> means a perfect model. <strong>0</strong> means no better than the baseline.</li>
+    <li><strong>Below 0</strong> means worse than guessing the average. That is a bug or a badly broken model.</li>
+    <li>
+      When the error is mean squared error and the baseline is the mean, this number has a famous name,
+      <Term id="r-squared">R²</Term> (“R-squared”). You will meet it properly in the
+      <a href="/ai/notes/ml/linear-regression/#interpret">linear regression note</a>. It is nothing more than
+      “improvement over the mean baseline”.
+    </li>
+  </ul>
+
+  <h3>Why the average, and not some other number?</h3>
+  <p>
+    If you must guess one number for everyone, which number is best depends on how mistakes are scored. There are
+    two common ways. <strong>Mean squared error</strong> squares each miss and averages, as before. <strong>Mean
+    absolute error</strong> (<span class="term">MAE</span>) just averages the sizes of the misses, ignoring whether
+    each was too high or too low: misses of −20 and +10 give (20 + 10) / 2 = 15. Try four guesses on the three house
+    prices, scored both ways:
+  </p>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Guess for every house</th><th>Mean squared error</th><th>Mean absolute error</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>250</td><td>7,300</td><td>76.7</td></tr>
+        <tr><td><strong>293.3 (the mean)</strong></td><td><strong>5,422</strong> (smallest)</td><td>62.2</td></tr>
+        <tr><td><strong>300 (the median)</strong></td><td>5,467</td><td><strong>60.0</strong> (smallest)</td></tr>
+        <tr><td>350</td><td>8,633</td><td>76.7</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Squared error punishes big misses heavily, so the best single guess is pulled toward the far-away prices: that is
+    the <strong>mean</strong>. Absolute error treats every unit of miss the same, so the best single guess is the
+    middle value: the <strong>median</strong>. So the right baseline matches the metric: mean for squared error,
+    median for absolute error. This is also why a single huge price in the data drags a mean-based model around while
+    a median barely moves.
+  </p>
+
+  <h3>The usual baselines</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Task</th><th>Baseline</th><th>Why it is the right one</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Predict a number, scored by squared error</td><td>The training mean</td><td>The best single guess under squared error, as above.</td></tr>
+        <tr><td>Predict a number, scored by absolute error</td><td>The training median</td><td>The best single guess under absolute error.</td></tr>
+        <tr><td>Pick a category</td><td>The most common class (the “majority class”)</td><td>The best single guess when you score by accuracy.</td></tr>
+        <tr><td>Predict tomorrow from the past (a time series)</td><td>“Same as yesterday”, or same as this day last week</td><td>Hard to beat for things that change slowly, such as weather or daily sales.</td></tr>
+        <tr><td>Any task with a model already running</td><td>The current production model</td><td>A new model must beat what is already there, not just the lazy guess.</td></tr>
+        <tr><td>Any task</td><td>A simple rule a person would write, such as “flag emails containing ‘lottery’”</td><td>If machine learning cannot beat the obvious rule, it is not worth its cost.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Always compare against the <em>strongest</em> simple baseline, not the weakest. Guessing zero for every patient
+    is technically a baseline, and any model beats it by miles, which proves nothing. The code below shows exactly
+    this trap.
+  </p>
+
+  <h3>Code: the three houses</h3>
+  <CodeBlock code={baselineHandCode} />
+
+  <h3>Code: a real dataset, three baselines and a model</h3>
+  <p>
+    The diabetes dataset has 442 patients. For each one there are 10 measurements (age, body mass index, blood
+    pressure and six blood tests) and a score for how much the disease progressed one year later, between 25 and 346.
+    The code splits off 89 patients as a test set, scores three baselines and a linear model on them, and reports the
+    skill.
+  </p>
+  <CodeBlock code={baselineDiabetesCode} />
+  <p>How to read the output:</p>
+  <ul>
+    <li>
+      <strong>The mean baseline is the bar to clear.</strong> Guessing 151.6 for everyone gives a mean squared error of
+      5,135, a typical miss of about 72 points.
+    </li>
+    <li>
+      <strong>The median wins on absolute error and loses on squared error</strong>, exactly as in the house table.
+      The theory shows up even on real data.
+    </li>
+    <li>
+      <strong>The zero baseline is the trap.</strong> Against an error of 28,913, the model looks like a miracle. It
+      is not; zero is just a silly guess.
+    </li>
+    <li>
+      <strong>The model removes about a third of the baseline’s error</strong> (skill 33%), cutting the typical miss
+      from about 72 to about 59 points. That is real but modest, and saying so honestly is what an interviewer wants
+      to hear.
+    </li>
+    <li>
+      <strong>The baseline’s guess comes from the training answers</strong> (<code>y_train.mean()</code>), never the
+      test answers. Using the test answers would let the baseline peek at the exam, the same cheating the test set
+      exists to prevent.
+    </li>
+  </ul>
+  <p>scikit-learn ships the lazy guess as a model of its own, so it slots into any pipeline:</p>
+  <CodeBlock code={baselineDummyCode} />
+
+  <h3>Code: when the baseline is already “95% accurate”</h3>
+  <p>
+    For categories the trap is sharper. When one class is rare, always guessing the common one already scores a high
+    accuracy while doing nothing useful:
+  </p>
+  <CodeBlock code={baselineSpamCode} />
+  <p>
+    So “our spam filter is 95% accurate” means nothing until you know the majority-class baseline is also about 95%.
+    Week 3 covers the metrics that look at the rare class directly, called <Term id="precision-recall">precision and recall</Term>.
+  </p>
+
+  <Source
+    kind="read"
+    href="https://scikit-learn.org/stable/modules/model_evaluation.html#dummy-estimators"
+    title="scikit-learn user guide: Dummy estimators"
+    meta="A short section on DummyRegressor and DummyClassifier and their strategies. Five minutes."
+  />
+  <Callout kind="say">
+    <p>
+      “Before training anything I build the simplest baseline: the training mean for regression, the majority class for
+      classification, or ‘same as yesterday’ for a time series. I report the model as an improvement over that
+      baseline, because a raw error number means nothing on its own. For mean squared error against the mean baseline,
+      that improvement is exactly R². And I compare against the strongest simple baseline, not a straw man.”
     </p>
   </Callout>
 
@@ -762,6 +1074,18 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
   <QA q="What is a baseline and why do you build one first?">
     <p>The simplest reference predictor, such as the training mean or the majority class. Without it you cannot tell whether a model’s score is good; the gain over the baseline is the real measure of what the model learned.</p>
   </QA>
+  <QA q="Three apartments rent for 10, 12 and 20 (thousand a year). Compute the mean baseline and its mean squared error, and the median baseline and its mean absolute error.">
+    <p>
+      Mean = 14. Errors −4, −2, +6; squared 16, 4, 36; MSE = 56/3 ≈ 18.7. Median = 12. Absolute errors 2, 0, 8;
+      MAE = 10/3 ≈ 3.3. (The mean’s MAE would be 12/3 = 4, worse; the median’s MSE would be 68/3 ≈ 22.7, worse.)
+    </p>
+  </QA>
+  <QA q="A model has test MSE 400; the mean baseline has 500. What is its skill? Another model has MSE 550. What does that tell you?">
+    <p>
+      Skill = 1 − 400/500 = 0.2: it removes 20% of the baseline’s error. The second model has skill 1 − 550/500 = −0.1,
+      worse than guessing the average: something is broken (a bug, a leak in reverse, a bad feature scale), not merely weak.
+    </p>
+  </QA>
   <QA q="What is the difference between the loss and the metric?">
     <p>The loss is the smooth quantity the optimizer minimizes (MSE, cross-entropy). The metric is what the task cares about and what you report (accuracy, F1, revenue), often not differentiable. You optimize the loss and monitor the metric.</p>
   </QA>
@@ -839,7 +1163,7 @@ plt.show()
 # That is why gradient descent works so cleanly for it: roll downhill and you reach the bottom.`}
     />
   </QA>
-  <QA q="12. On the diabetes dataset, compare three baselines on the test set: predict the mean, predict the median, predict zero. Then fit LinearRegression and report how much of the gap it closes.">
+  <QA q="12. On the diabetes dataset, compare three baselines on the test set: predict the mean, predict the median, predict zero. Then fit LinearRegression and report how much of the gap it closes. (Read the Baselines section first; this is a shorter version of its code.)">
     <CodeBlock
       code={`import numpy as np
 from sklearn.datasets import load_diabetes
@@ -857,6 +1181,12 @@ model = LinearRegression().fit(Xtr, ytr)
 m = mse(yte, model.predict(Xte))
 print(f"linear regression MSE: {m:8.0f}")
 print(f"improvement over mean baseline: {1 - m / mse(yte, np.full_like(yte, ytr.mean())):.0%}")
+#   mean baseline MSE:     5135
+# median baseline MSE:     5360
+#   zero baseline MSE:    28913
+# linear regression MSE:     3424
+# improvement over mean baseline: 33%
+# "The gap" is the distance from the baseline's error (5135) down to a perfect 0. The model closes a third of it.
 # Always report the improvement over the baseline, not the raw number: raw MSE means nothing on its own.`}
     />
   </QA>
@@ -919,6 +1249,18 @@ print(len(tr), len(va), len(te))     # 70 15 15
     <p>
       <strong>Skipping the baseline.</strong> “92% accuracy” is meaningless until you know that always guessing the
       majority class gets 91%.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Beating a straw-man baseline.</strong> “Ten times better than predicting zero” proves nothing. Compare
+      against the strongest simple guess: the mean, the majority class, yesterday’s value, or the current model.
+    </p>
+  </Callout>
+  <Callout kind="pitfall">
+    <p>
+      <strong>Computing the baseline from the test answers.</strong> The baseline’s guess (the mean, the majority
+      class) comes from the training set, like everything else the model is allowed to know.
     </p>
   </Callout>
   <Callout kind="pitfall">
@@ -986,6 +1328,7 @@ print(len(tr), len(va), len(te))     # 70 15 15
       <li>Supervised (regression: number; classification: category), unsupervised (clusters, PCA), self-supervised (next token = LLM pretraining), reinforcement (rewards).</li>
       <li>Parameters learned; hyperparameters chosen and tuned on validation. Loss optimized; metric reported. Training sets θ; inference uses θ. Epoch = full pass; step = one update.</li>
       <li>Workflow: metric → split → baseline → train → evaluate held-out → iterate one change → deploy and monitor.</li>
+      <li>Baseline = laziest sensible guess, from training data: mean (squared error), median (absolute error), majority class, “same as yesterday”, current model. Skill = 1 − model error / baseline error; with MSE and the mean that is R². Three houses: baseline MSE 5,422 vs best line 22.2. Diabetes: 5,135 vs 3,424, skill 33%.</li>
       <li>AI ⊃ ML ⊃ DL ⊃ LLMs. Same four parts everywhere. Classical ML still wins on tables.</li>
     </ul>
   </Callout>
