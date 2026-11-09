@@ -1,12 +1,12 @@
 ---
-import Note from '../../../layouts/Note.astro';
-import CodeBlock from '../../../components/CodeBlock.astro';
-import Callout from '../../../components/Callout.astro';
-import QA from '../../../components/QA.astro';
-import Figure from '../../../components/Figure.astro';
-import Math from '../../../components/Math.astro';
-import Source from '../../../components/Source.astro';
-import Term from '../../../components/Term.astro';
+import Note from '../../../../layouts/Note.astro';
+import CodeBlock from '../../../../components/CodeBlock.astro';
+import Callout from '../../../../components/Callout.astro';
+import QA from '../../../../components/QA.astro';
+import Figure from '../../../../components/Figure.astro';
+import Math from '../../../../components/Math.astro';
+import Source from '../../../../components/Source.astro';
+import Term from '../../../../components/Term.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -156,7 +156,7 @@ for d in [3, 30, 300, 768]:
     is, how far apart the two points are, and whether the two arrows point the same way. They rank things differently.
     Every system that searches by meaning, from “find documents like this question” to recommendations, ends with one
     line of code that picks one of the three, and picking without knowing why is how people ship search that returns
-    long documents instead of relevant ones. Tomorrow’s <a href="/notes/ml/feature-scaling-encoding/">feature scaling
+    long documents instead of relevant ones. Tomorrow’s <a href="/ai/notes/ml/feature-scaling-encoding/">feature scaling
     note</a> needs the distance half of this, and “how big is this vector?” comes back in week 3 as a way to keep a
     model’s weights small.
   </p>
@@ -302,7 +302,7 @@ for d in [3, 30, 300, 768]:
     If “small” is measured with L1, the best weights tend to land on a corner of the diamond, which means some weights
     become exactly zero and the model becomes <span class="term">sparse</span>: it ignores some features entirely. If
     “small” is measured with L2, the circle has no corners, so all weights shrink towards zero smoothly but rarely
-    become exactly zero. The <a href="/notes/ml/regularization/">regularization note</a> draws the full picture; the
+    become exactly zero. The <a href="/ai/notes/ml/regularization/">regularization note</a> draws the full picture; the
     shape of the ball is the half you need now.
   </p>
   <Source
@@ -362,7 +362,7 @@ for d in [3, 30, 300, 768]:
   </p>
   <p>
     One identity ties distance to the dot product and is worth being able to derive on a whiteboard. Expand the
-    squared distance with the dot product rules from the <a href="/notes/math/vectors-dot-product/">vectors note</a>:
+    squared distance with the dot product rules from the <a href="/ai/notes/math/vectors-dot-product/">vectors note</a>:
   </p>
   <Math block tex="\lVert\mathbf{a} - \mathbf{b}\rVert^2 = (\mathbf{a} - \mathbf{b})\cdot(\mathbf{a} - \mathbf{b}) = \lVert\mathbf{a}\rVert^2 - 2\,\mathbf{a}\cdot\mathbf{b} + \lVert\mathbf{b}\rVert^2" />
   <p>
@@ -403,7 +403,7 @@ for d in [3, 30, 300, 768]:
   </Callout>
   <p>
     <span class="term">Cosine similarity</span> is the dot product with both lengths divided out, which by the
-    geometry of the <a href="/notes/math/vectors-dot-product/#geometry">previous note</a> is the cosine of the angle
+    geometry of the <a href="/ai/notes/math/vectors-dot-product/#geometry">previous note</a> is the cosine of the angle
     between the vectors:
   </p>
   <Math block tex="\cos\theta = \frac{\mathbf{a}\cdot\mathbf{b}}{\lVert\mathbf{a}\rVert\,\lVert\mathbf{b}\rVert}" />
@@ -589,7 +589,7 @@ for d in [3, 30, 300, 768]:
     <em>root mean square</em> of the entries, which is <Math tex="\lVert\mathbf{x}\rVert_2 / \sqrt{d}" />; so RMSNorm,
     used inside most recent language models, is L2 normalization scaled by <Math tex="\sqrt{d}" />, followed by a
     learned per-entry gain. Standardization is the odd one out: it is per column, not per vector, and it belongs to
-    the <a href="/notes/ml/feature-scaling-encoding/">feature scaling note</a>, which is next in the reading order.
+    the <a href="/ai/notes/ml/feature-scaling-encoding/">feature scaling note</a>, which is next in the reading order.
   </p>
   <p>
     The habit to build: whenever someone says “normalize”, ask “which axis?”. Per vector (a row) or per feature (a
@@ -695,7 +695,7 @@ for d in [3, 30, 300, 768]:
   />
   <Callout kind="note" label="Reading the code">
     <p>
-      Every <code>np.</code> call is a link to the <a href="/numpy/">NumPy reference</a>. The ones that matter most
+      Every <code>np.</code> call is a link to the <a href="/ai/numpy/">NumPy reference</a>. The ones that matter most
       here are <code>np.linalg.norm</code> with its <code>axis</code> and <code>keepdims</code> arguments.
     </p>
   </Callout>
@@ -1043,7 +1043,7 @@ print("ok")
     <li>
       <a href="https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html" target="_blank" rel="noopener noreferrer">NumPy, linalg.norm</a>
       and <a href="https://scikit-learn.org/stable/modules/generated/sklearn.metrics.pairwise.cosine_similarity.html" target="_blank" rel="noopener noreferrer">scikit-learn, cosine_similarity</a>
-      (documentation), and the site’s <a href="/numpy/">NumPy reference</a>.
+      (documentation), and the site’s <a href="/ai/numpy/">NumPy reference</a>.
     </li>
     <li>
       <a href="https://en.wikipedia.org/wiki/Curse_of_dimensionality" target="_blank" rel="noopener noreferrer">Wikipedia, Curse of dimensionality</a>,

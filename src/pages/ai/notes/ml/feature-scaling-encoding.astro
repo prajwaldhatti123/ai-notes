@@ -1,12 +1,12 @@
 ---
-import Note from '../../../layouts/Note.astro';
-import CodeBlock from '../../../components/CodeBlock.astro';
-import Callout from '../../../components/Callout.astro';
-import QA from '../../../components/QA.astro';
-import Figure from '../../../components/Figure.astro';
-import Math from '../../../components/Math.astro';
-import Source from '../../../components/Source.astro';
-import Term from '../../../components/Term.astro';
+import Note from '../../../../layouts/Note.astro';
+import CodeBlock from '../../../../components/CodeBlock.astro';
+import Callout from '../../../../components/Callout.astro';
+import QA from '../../../../components/QA.astro';
+import Figure from '../../../../components/Figure.astro';
+import Math from '../../../../components/Math.astro';
+import Source from '../../../../components/Source.astro';
+import Term from '../../../../components/Term.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -251,7 +251,7 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
     <Math tex="d(A, C) = \sqrt{30^2 + 100^2} \approx 104" />. The model says C, thirty years older, is ten times
     closer to A than B is. Income’s large numbers swamped age. Standardize both (say age has a spread of 10 years and
     income a spread of 10,000) and <Math tex="d(A, B) \approx 0.14" />, <Math tex="d(A, C) \approx 3.0" />: B is
-    closest, as it should be. The <a href="/notes/math/norms-distance-cosine/">norms note</a> made this point about
+    closest, as it should be. The <a href="/ai/notes/math/norms-distance-cosine/">norms note</a> made this point about
     distance; this is where it bites.
   </p>
   <p>
@@ -285,7 +285,7 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
     (<Term id="regularization">regularization</Term>), using the L1 or L2 norm from the norms note. Such a penalty
     charges for the size of each weight, equally. A feature measured in millimetres needs a weight a thousand times smaller than the same feature
     in metres to have the same effect, so the penalty hits them differently for no reason. Scaling makes the penalty
-    fair. The same scaling makes coefficients comparable, as the <a href="/notes/ml/linear-regression/#interpret">linear
+    fair. The same scaling makes coefficients comparable, as the <a href="/ai/notes/ml/linear-regression/#interpret">linear
     regression note</a> showed.
   </p>
   <p>And the models that do <em>not</em> care, which interviewers love to ask about:</p>
@@ -382,7 +382,7 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
     <strong>Log transform.</strong> Replace <Math tex="x" /> by <Math tex="\log(1 + x)" /> (the <Math tex="1 +" />
     handles zeros) for columns that span orders of magnitude and pile up near zero: income, prices, counts,
     populations, word frequencies. It is not a rescaling but a reshaping: it turns a long right tail into something
-    closer to a bell, which linear models fit much better. The <a href="/notes/math/functions-exponents-logs/">logarithms
+    closer to a bell, which linear models fit much better. The <a href="/ai/notes/math/functions-exponents-logs/">logarithms
     note</a> explained why multiplicative quantities belong on a log scale; here is the picture.
   </p>
   <Figure n={3} caption="An income column before and after a log transform. Left: most values are small and a few are enormous, so any linear scaling crushes the bulk into a corner. Right: after log(1 + x) the distribution is roughly symmetric and every scaler behaves.">
@@ -551,7 +551,7 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
     <li>
       <strong>The dummy variable trap.</strong> The <Math tex="k" /> columns always sum to 1, which is the intercept’s
       constant column. For a linear model with an intercept that is perfect collinearity: <Math tex="X^\top X" /> is
-      singular and the coefficients are not unique (the <a href="/notes/ml/linear-regression/#closed-form">normal
+      singular and the coefficients are not unique (the <a href="/ai/notes/ml/linear-regression/#closed-form">normal
       equation</a> fails). Drop one column; the dropped category becomes the <em>reference</em>, and each remaining
       coefficient reads as “difference from the reference”. Regularized models and trees do not need the drop.
     </li>
@@ -629,7 +629,7 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
     model. Categories that behave similarly end up with similar vectors, so the model generalizes across them; rare
     categories borrow strength from their neighbours. This is a one-hot encoding followed by a weight matrix, learned
     end to end (a one-hot row times the table picks out one row, as the
-    <a href="/notes/math/matrices-and-shapes/#later">matrices note</a> observed). It needs a
+    <a href="/ai/notes/math/matrices-and-shapes/#later">matrices note</a> observed). It needs a
     <Term id="neural-network">neural network</Term> and enough data, and it is the native way deep models handle
     categories: user IDs in recommenders, and tokens in language models.
   </p>
@@ -720,7 +720,7 @@ print("test mean, right way:", scaler_train.transform(test).mean().round(2))   #
   />
   <Callout kind="note" label="Reading the code">
     <p>
-      Every <code>np.</code> call is a link to the <a href="/numpy/">NumPy reference</a>; the scikit-learn objects
+      Every <code>np.</code> call is a link to the <a href="/ai/numpy/">NumPy reference</a>; the scikit-learn objects
       (<code>StandardScaler</code>, <code>OneHotEncoder</code>, <code>Pipeline</code>) are linked to their own
       documentation in the sources above.
     </p>

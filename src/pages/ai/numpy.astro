@@ -1,8 +1,8 @@
 ---
-import Base from '../layouts/Base.astro';
-import CodeBlock from '../components/CodeBlock.astro';
-import Callout from '../components/Callout.astro';
-import { numpyGroups, numpyEntries } from '../data/numpy';
+import Base from '../../layouts/Base.astro';
+import CodeBlock from '../../components/CodeBlock.astro';
+import Callout from '../../components/Callout.astro';
+import { numpyGroups, numpyEntries } from '../../data/numpy';
 
 const entriesOf = (groupId: string) => numpyEntries.filter((e) => e.group === groupId);
 ---

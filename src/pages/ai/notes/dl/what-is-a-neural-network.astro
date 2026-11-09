@@ -1,12 +1,12 @@
 ---
-import Note from '../../../layouts/Note.astro';
-import CodeBlock from '../../../components/CodeBlock.astro';
-import Callout from '../../../components/Callout.astro';
-import QA from '../../../components/QA.astro';
-import Figure from '../../../components/Figure.astro';
-import Math from '../../../components/Math.astro';
-import Source from '../../../components/Source.astro';
-import Term from '../../../components/Term.astro';
+import Note from '../../../../layouts/Note.astro';
+import CodeBlock from '../../../../components/CodeBlock.astro';
+import Callout from '../../../../components/Callout.astro';
+import QA from '../../../../components/QA.astro';
+import Figure from '../../../../components/Figure.astro';
+import Math from '../../../../components/Math.astro';
+import Source from '../../../../components/Source.astro';
+import Term from '../../../../components/Term.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -624,9 +624,9 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
     meta="Short paper. Read section 2 for the definition and Figure 1 for the comparison with ReLU. Skip the rest for now."
   />
   <p>
-    One more activation deserves a mention here, although it gets <a href="/notes/dl/softmax-cross-entropy/">its own
+    One more activation deserves a mention here, although it gets <a href="/ai/notes/dl/softmax-cross-entropy/">its own
     note</a> later this week: <span class="term">softmax</span>, the scores-to-percentages recipe from the
-    <a href="/notes/math/functions-exponents-logs/#scores">logarithms note</a>. It is used on the <em>output</em> layer
+    <a href="/ai/notes/math/functions-exponents-logs/#scores">logarithms note</a>. It is used on the <em>output</em> layer
     when the network must choose among many options, and it turns a list of scores into percentages that add up to
     100%. A language model’s final step is a softmax over every token in its vocabulary: “the next token is ‘the’
     with 31%, ‘a’ with 12%, …”.
@@ -1017,7 +1017,7 @@ print(sum(p.numel() for p in model.parameters()))   # 26`;
   <CodeBlock code={xorCode} />
   <h3>The network of Fig. 4 in PyTorch (a preview of week 6)</h3>
   <p>
-    PyTorch is the library the deep-learning track uses from <a href="/notes/dl/pytorch-essentials/">week 6</a>. Read
+    PyTorch is the library the deep-learning track uses from <a href="/ai/notes/dl/pytorch-essentials/">week 6</a>. Read
     this block as a preview: it does exactly what the NumPy block above does, with the shapes handled for you.
   </p>
   <CodeBlock code={torchCode} />

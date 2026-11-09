@@ -13,4 +13,4 @@ const entry = glossaryById[id];
 if (!entry) throw new Error(`Term "${id}" is not in src/data/glossary.ts`);
 ---
 
-<a class="term-link" href={`/glossary/#${entry.id}`} data-tip={entry.plain}><slot />{' '}<span class="term-mark" aria-hidden="true">?</span></a>
+<a class="term-link" href={`/ai/glossary/#${entry.id}`} data-tip={entry.plain}><slot />{' '}<span class="term-mark" aria-hidden="true">?</span></a>

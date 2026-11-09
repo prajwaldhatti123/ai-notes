@@ -1,0 +1,11 @@
+{
+  "redirects": [
+    { "source": "/notes/:path*", "destination": "/ai/notes/:path*", "permanent": true },
+    { "source": "/notes", "destination": "/ai/notes/", "permanent": true },
+    { "source": "/roadmap/:path*", "destination": "/ai/roadmap/", "permanent": true },
+    { "source": "/practice/:path*", "destination": "/ai/practice/", "permanent": true },
+    { "source": "/projects/:path*", "destination": "/ai/projects/", "permanent": true },
+    { "source": "/numpy/:path*", "destination": "/ai/numpy/", "permanent": true },
+    { "source": "/glossary/:path*", "destination": "/ai/glossary/", "permanent": true }
+  ]
+}

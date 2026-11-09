@@ -5,15 +5,16 @@ import { tracks, noteHref } from '../data/roadmap';
 
 const path = Astro.url.pathname;
 const current = (href: string) => (path === href ? 'page' : undefined);
-const activeTrack = tracks.find((t) => path.startsWith(`/notes/${t.id}/`))?.id ?? tracks[0].id;
+const activeTrack = tracks.find((t) => path.startsWith(`/ai/notes/${t.id}/`))?.id ?? tracks[0].id;
 const main = [
-  { href: '/', label: 'Home' },
-  { href: '/notes/', label: 'All notes' },
-  { href: '/roadmap/', label: 'Roadmap' },
-  { href: '/practice/', label: 'Practice' },
-  { href: '/projects/', label: 'Projects' },
-  { href: '/numpy/', label: 'NumPy reference' },
-  { href: '/glossary/', label: 'Glossary' },
+  { href: '/', label: 'All notebooks' },
+  { href: '/ai/', label: 'AI home' },
+  { href: '/ai/notes/', label: 'All notes' },
+  { href: '/ai/roadmap/', label: 'Roadmap' },
+  { href: '/ai/practice/', label: 'Practice' },
+  { href: '/ai/projects/', label: 'Projects' },
+  { href: '/ai/numpy/', label: 'NumPy reference' },
+  { href: '/ai/glossary/', label: 'Glossary' },
 ];
 ---
 

@@ -40,7 +40,7 @@ if (lang === 'python') {
       // np.* and rng.*: whole names only.
       if (ident.test(before) || ident.test(after)) continue;
     }
-    decorations.push({ start, end, tagName: 'a', properties: { href: `/numpy/#${numpyLinks[key]}`, class: 'np' } });
+    decorations.push({ start, end, tagName: 'a', properties: { href: `/ai/numpy/#${numpyLinks[key]}`, class: 'np' } });
   }
 }
 

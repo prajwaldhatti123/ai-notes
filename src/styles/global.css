@@ -1272,3 +1272,90 @@ pre.astro-code a.np:focus-visible {
   color: var(--ink-soft);
   font-family: var(--mono);
 }
+
+/* ---------- Library (the shelf of notebooks at /) ---------- */
+
+.site-title a {
+  color: inherit;
+  text-decoration: none;
+}
+.site-title a:hover {
+  color: var(--red);
+}
+.site-crumb {
+  font-weight: 500;
+  color: var(--ink-soft) !important;
+}
+.site-crumb-sep {
+  margin: 0 0.4em;
+  color: var(--ink-faint);
+  font-weight: 400;
+}
+
+@media (min-width: 64rem) {
+  .library .site-main {
+    margin-left: 0;
+  }
+}
+
+.shelf {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-3) 0;
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+}
+
+.notebook {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  height: 100%;
+  padding: var(--space-2) var(--space-2) var(--space-2) calc(var(--space-2) + 0.6rem);
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 0 var(--rule), 0 6px 14px -10px rgba(0, 0, 0, 0.35);
+  color: var(--ink);
+  text-decoration: none;
+}
+/* The coloured spine on the left edge, like a notebook's binding. */
+.notebook::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0.45rem;
+  background: var(--spine, var(--red));
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+a.notebook:hover {
+  border-color: var(--ink-faint);
+  transform: translateY(-1px);
+}
+a.notebook:hover h2 {
+  color: var(--red);
+}
+.notebook h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+.notebook p {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--ink-soft);
+}
+.notebook .notebook-meta {
+  margin-top: auto;
+  padding-top: var(--space-1);
+  font-size: 0.85rem;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+.notebook.soon {
+  opacity: 0.7;
+  border-style: dashed;
+  box-shadow: none;
+}

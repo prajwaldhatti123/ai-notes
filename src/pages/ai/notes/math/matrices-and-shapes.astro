@@ -1,12 +1,12 @@
 ---
-import Note from '../../../layouts/Note.astro';
-import CodeBlock from '../../../components/CodeBlock.astro';
-import Callout from '../../../components/Callout.astro';
-import QA from '../../../components/QA.astro';
-import Figure from '../../../components/Figure.astro';
-import Math from '../../../components/Math.astro';
-import Source from '../../../components/Source.astro';
-import Term from '../../../components/Term.astro';
+import Note from '../../../../layouts/Note.astro';
+import CodeBlock from '../../../../components/CodeBlock.astro';
+import Callout from '../../../../components/Callout.astro';
+import QA from '../../../../components/QA.astro';
+import Figure from '../../../../components/Figure.astro';
+import Math from '../../../../components/Math.astro';
+import Source from '../../../../components/Source.astro';
+import Term from '../../../../components/Term.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -168,7 +168,7 @@ except ValueError as e:
   <p>
     Your data is a table: one row per house, one column per feature. Your model’s weights are a list, one per
     feature. “Predict every house at once” is the table times the list, and that is a matrix-vector product. The
-    <a href="/notes/ml/linear-regression/">linear regression note</a> already used this, with <code>X @ w</code>; this
+    <a href="/ai/notes/ml/linear-regression/">linear regression note</a> already used this, with <code>X @ w</code>; this
     note is where you learn exactly what that line does and when it fails. Later, every piece of a
     <Term id="neural-network">neural network</Term> is a matrix multiplication followed by something simple, the
     number everyone quotes for a model, its parameter count, is the sizes of its matrices added up, and the error you
@@ -187,7 +187,7 @@ except ValueError as e:
     <p>
       Matrices as tables, the matrix-vector and matrix-matrix products, the shape rule, transpose, batches,
       broadcasting and the cost of a multiply. No determinants, no inverses, no row reduction, no rank beyond the word
-      itself. If an interview mentions eigenvectors or SVD, the <a href="/notes/math/eigen-svd-intuition/">week 4 note</a>
+      itself. If an interview mentions eigenvectors or SVD, the <a href="/ai/notes/math/eigen-svd-intuition/">week 4 note</a>
       has exactly as much as you need.
     </p>
   </Callout>
@@ -281,7 +281,7 @@ except ValueError as e:
     </li>
     <li>
       <strong>A weight matrix</strong> <Math tex="W" />: one row per output the model computes, one column per input
-      feature. The two walk scores from the <a href="/notes/math/vectors-dot-product/#many">vectors note</a> make a
+      feature. The two walk scores from the <a href="/ai/notes/math/vectors-dot-product/#many">vectors note</a> make a
       <Math tex="2 \times 3" /> weight matrix.
     </li>
     <li>
@@ -782,7 +782,7 @@ except ValueError as e:
   <p>
     The last row is the one that bites. To subtract a per-row mean of shape <code>(4,)</code> from a <code>(4, 2)</code>
     matrix you must first make it <code>(4, 1)</code> with <code>means[:, None]</code> or <code>keepdims=True</code>.
-    Standardising features in the <a href="/notes/ml/feature-scaling-encoding/">feature scaling note</a> does exactly
+    Standardising features in the <a href="/ai/notes/ml/feature-scaling-encoding/">feature scaling note</a> does exactly
     this kind of thing, and so does a normalisation step inside every language model.
   </p>
   <Source
@@ -820,7 +820,7 @@ except ValueError as e:
   <Callout kind="note" label="Reading the code">
     <p>
       Every <code>np.</code> call, and <code>@</code>, <code>.T</code>, <code>.shape</code> and <code>[:, None]</code>,
-      is a link to the <a href="/numpy/">NumPy reference</a>, which explains it in plain words with its own example.
+      is a link to the <a href="/ai/numpy/">NumPy reference</a>, which explains it in plain words with its own example.
     </p>
   </Callout>
 
@@ -1150,7 +1150,7 @@ print(S.shape, S[i, j])`}
     <li>
       <a href="https://numpy.org/doc/stable/user/basics.broadcasting.html" target="_blank" rel="noopener noreferrer">NumPy, Broadcasting</a>
       and <a href="https://numpy.org/doc/stable/reference/generated/numpy.matmul.html" target="_blank" rel="noopener noreferrer">numpy.matmul</a>
-      (documentation), and the site’s own <a href="/numpy/">NumPy reference</a>.
+      (documentation), and the site’s own <a href="/ai/numpy/">NumPy reference</a>.
     </li>
     <li>
       <a href="https://mml-book.github.io/" target="_blank" rel="noopener noreferrer">Deisenroth, Faisal and Ong, <em>Mathematics for Machine Learning</em></a>,

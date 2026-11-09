@@ -1,12 +1,12 @@
 ---
-import Note from '../../../layouts/Note.astro';
-import CodeBlock from '../../../components/CodeBlock.astro';
-import Callout from '../../../components/Callout.astro';
-import QA from '../../../components/QA.astro';
-import Figure from '../../../components/Figure.astro';
-import Math from '../../../components/Math.astro';
-import Source from '../../../components/Source.astro';
-import Term from '../../../components/Term.astro';
+import Note from '../../../../layouts/Note.astro';
+import CodeBlock from '../../../../components/CodeBlock.astro';
+import Callout from '../../../../components/Callout.astro';
+import QA from '../../../../components/QA.astro';
+import Figure from '../../../../components/Figure.astro';
+import Math from '../../../../components/Math.astro';
+import Source from '../../../../components/Source.astro';
+import Term from '../../../../components/Term.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -155,7 +155,7 @@ print(1 - 0.01, log_loss(0.01))`;
 >
   <h2 id="why">Why this note matters</h2>
   <p>
-    The <a href="/notes/ml/what-is-machine-learning/">previous note</a> ended with a model, three houses, and a
+    The <a href="/ai/notes/ml/what-is-machine-learning/">previous note</a> ended with a model, three houses, and a
     <strong>loss</strong>: one number that says how wrong the model’s guesses are. For guessing a price, the loss was
     the average of the squared errors. But a great deal of machine learning is not about guessing a number. It is
     about guessing <em>how likely</em> something is: that this email is spam, that the next word is “the”, that this
@@ -646,7 +646,7 @@ print(1 - 0.01, log_loss(0.01))`;
     can compute, average and take slopes of, and a product is not. Almost every model is trained by making this sum
     of logs as large as possible, which is the same as making the product as large as possible. In week 3 the product
     gets a name, the <Term id="likelihood">likelihood</Term>, and the
-    <a href="/notes/math/maximum-likelihood/">maximum likelihood note</a> builds on exactly this calculation.
+    <a href="/ai/notes/math/maximum-likelihood/">maximum likelihood note</a> builds on exactly this calculation.
   </p>
   <p>
     <strong>Reason 2: tiny numbers stay representable.</strong> Multiply a thousand probabilities of 0.001 and the
@@ -732,7 +732,7 @@ print(1 - 0.01, log_loss(0.01))`;
   <p>
     where <Math tex="\sum_j" /> just means “add up over all the scores”. This recipe is so common that it has a name,
     <span class="term">softmax</span>, and the raw scores are called <span class="term">logits</span>. You do not need
-    either word yet; the <a href="/notes/dl/softmax-cross-entropy/">softmax note</a> in week 5 tells the full story.
+    either word yet; the <a href="/ai/notes/dl/softmax-cross-entropy/">softmax note</a> in week 5 tells the full story.
     Here the point is only to see <Math tex="e^x" /> doing the job Fig. 2 promised.
   </p>
   <p>
@@ -783,7 +783,7 @@ print(1 - 0.01, log_loss(0.01))`;
         <tr><th>Function</th><th>Shape</th><th>Key facts</th><th>Where you will meet it</th></tr>
       </thead>
       <tbody>
-        <tr><td><Math tex="wx + b" /></td><td>straight line</td><td>slope <Math tex="w" />, crosses the y-axis at <Math tex="b" /></td><td>the house-price model; <a href="/notes/ml/linear-regression/">linear regression</a>; every layer of a <Term id="neural-network">neural network</Term> before its bend</td></tr>
+        <tr><td><Math tex="wx + b" /></td><td>straight line</td><td>slope <Math tex="w" />, crosses the y-axis at <Math tex="b" /></td><td>the house-price model; <a href="/ai/notes/ml/linear-regression/">linear regression</a>; every layer of a <Term id="neural-network">neural network</Term> before its bend</td></tr>
         <tr><td><Math tex="x^2" /></td><td>U shape</td><td>never negative, minimum at 0, grows fast</td><td>mean squared error; penalties on big parameters (<Term id="regularization">regularization</Term>, week 3)</td></tr>
         <tr><td><Math tex="e^x" /></td><td>hockey stick up</td><td>always positive, increasing, slope equals value</td><td>scores to percentages (<a href="#scores">above</a>); the bell curve (week 3)</td></tr>
         <tr><td><Math tex="\log x" /></td><td>steep then flat</td><td>only for <Math tex="x > 0" />, zero at 1, negative below 1</td><td>the log loss; measuring information (week 4)</td></tr>
@@ -818,7 +818,7 @@ print(1 - 0.01, log_loss(0.01))`;
   <Callout kind="note" label="Reading the code">
     <p>
       Every <code>np.</code> function in these blocks is a link. Click <code>np.log</code> or <code>np.exp</code> to
-      open its entry on the <a href="/numpy/">NumPy reference page</a>, which explains it in plain words with its own
+      open its entry on the <a href="/ai/numpy/">NumPy reference page</a>, which explains it in plain words with its own
       example and output.
     </p>
   </Callout>
@@ -1183,7 +1183,7 @@ plt.show()
   </Callout>
 
   <h2 id="sources">All sources</h2>
-  <p>Everything linked above, in the order to use it, plus one reference for later. Every <code>np.</code> function used on this page is explained on the <a href="/numpy/">NumPy reference</a>.</p>
+  <p>Everything linked above, in the order to use it, plus one reference for later. Every <code>np.</code> function used on this page is explained on the <a href="/ai/numpy/">NumPy reference</a>.</p>
   <ol>
     <li>
       <a href="https://www.khanacademy.org/math/algebra/x2f8bb11595b61c86:functions" target="_blank" rel="noopener noreferrer">Khan Academy, Functions</a>

@@ -1,8 +1,8 @@
 ---
-import Base from '../layouts/Base.astro';
-import Callout from '../components/Callout.astro';
-import { glossary } from '../data/glossary';
-import { tracks } from '../data/roadmap';
+import Base from '../../layouts/Base.astro';
+import Callout from '../../components/Callout.astro';
+import { glossary } from '../../data/glossary';
+import { tracks } from '../../data/roadmap';
 
 const sorted = [...glossary].sort((a, b) => a.term.localeCompare(b.term));
 const noteOf = (path?: string) => {
@@ -10,7 +10,7 @@ const noteOf = (path?: string) => {
   const [trackId, slug] = path.split('/');
   const track = tracks.find((t) => t.id === trackId);
   const note = track?.notes.find((n) => n.slug === slug);
-  return track && note ? { track, note, href: `/notes/${track.id}/${note.slug}/` } : undefined;
+  return track && note ? { track, note, href: `/ai/notes/${track.id}/${note.slug}/` } : undefined;
 };
 const letters = Array.from(new Set(sorted.map((g) => g.term[0].toUpperCase())));
 ---

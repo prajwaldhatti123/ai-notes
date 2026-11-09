@@ -1,0 +1,92 @@
+---
+import Base from '../../layouts/Base.astro';
+import Timeline from '../../components/Timeline.astro';
+import { tracks, totalNotes, totalWeeks } from '../../data/roadmap';
+
+const ready = tracks.flatMap((t) => t.notes).filter((n) => n.ready).length;
+---
+
+<Base title="Home">
+  <div class="prose">
+    <p class="eyebrow">A {totalWeeks}-week path · {totalNotes} notes · 5 projects</p>
+    <h1>AI Engineer Notes</h1>
+    <p class="lede">
+      From “what is a vector?” to designing LLM systems in an interview. Every idea is explained simply first, then
+      precisely, then in words you can say out loud, and then practised until it sticks.
+    </p>
+
+    <p>
+      These notes assume no AI background and no more math than school algebra. Each one starts with an everyday
+      explanation, shows the idea as a picture, then gives the exact technical terms, the math and the code. It ends
+      with a model interview answer, practice questions and a revision card.
+    </p>
+    <p>
+      Start with the <a href="/ai/roadmap/">roadmap</a> to see what to study each week, use the
+      <a href="/ai/practice/">practice page</a> for the drills, and check the <a href="/ai/projects/">projects</a> you will
+      build alongside. {ready} of {totalNotes} <a href="/ai/notes/">notes</a> are written so far. Two reference pages sit
+      beside the notes: the <a href="/ai/glossary/">glossary</a>, one plain sentence per technical word, and the
+      <a href="/ai/numpy/">NumPy reference</a>, one entry per function the code uses.
+    </p>
+
+    <h2>How these notes are written</h2>
+    <p>
+      Good explanations follow a few rules that teachers have known for a long time, and every note here is held to
+      them. They are listed so you can hold the notes to them too: if a note breaks one, that is a bug.
+    </p>
+    <ol>
+      <li>
+        <strong>Nothing is used before it is taught.</strong> The notes are read in a fixed
+        <a href="/ai/roadmap/">order</a>, and a note may only use words that an earlier note explained. When one must
+        mention a later idea, the word is dotted-underlined and links to the glossary, with its one-line meaning on
+        hover.
+      </li>
+      <li>
+        <strong>Concrete before abstract.</strong> Every idea starts with an everyday situation and small numbers
+        (three houses, a coin, a recipe), then gets its picture, then its name, then its symbol. Experts tend to
+        start with the symbol because it feels clear to them; it is not clear to a beginner, and we never do it.
+      </li>
+      <li>
+        <strong>Plain words first in every section, not just the introduction.</strong> Each section opens with a
+        “plain words” box that a bright fourteen-year-old could follow, and only then uses the exact terms.
+      </li>
+      <li>
+        <strong>Ideas return in spirals.</strong> You meet the log loss as a forecaster’s score in week 1, as a
+        formula in week 2, as maximum likelihood in week 3 and as cross-entropy in week 4. Each visit adds one layer.
+      </li>
+      <li>
+        <strong>Worked examples, then your own.</strong> Every note works its numbers in full before asking you to,
+        then gives about a dozen questions and sixteen problems, hand and code, with hidden solutions.
+      </li>
+      <li>
+        <strong>Only what an AI interview needs.</strong> Each topic earns its place by one of two tests: interviews
+        ask it, or a later note needs it. The rest is left out on purpose and named in a “what you can skip” note.
+      </li>
+    </ol>
+
+    <Timeline />
+
+    <h2>The nine tracks</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Track</th><th>When</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          {
+            tracks.map((track) => (
+              <tr>
+                <td>
+                  <a href={`/ai/notes/#${track.id}`}>
+                    {track.number}. {track.title}
+                  </a>
+                </td>
+                <td>{track.weeks}</td>
+                <td>{track.notes.length}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</Base>

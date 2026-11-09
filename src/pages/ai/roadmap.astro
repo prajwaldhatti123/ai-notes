@@ -1,10 +1,10 @@
 ---
-import Base from '../layouts/Base.astro';
-import Timeline from '../components/Timeline.astro';
-import TrackNotes from '../components/TrackNotes.astro';
-import Callout from '../components/Callout.astro';
-import { tracks, notesForWeek, totalWeeks, noteHref } from '../data/roadmap';
-import { weeklyPractice } from '../data/practice';
+import Base from '../../layouts/Base.astro';
+import Timeline from '../../components/Timeline.astro';
+import TrackNotes from '../../components/TrackNotes.astro';
+import Callout from '../../components/Callout.astro';
+import { tracks, notesForWeek, totalWeeks, noteHref } from '../../data/roadmap';
+import { weeklyPractice } from '../../data/practice';
 
 const weeks = Array.from({ length: totalWeeks }, (_, i) => i + 1);
 const themeOf = (week: number) => weeklyPractice.find((w) => w.week === week)?.theme ?? '';
@@ -33,7 +33,7 @@ const themeOf = (week: number) => weeklyPractice.find((w) => w.week === week)?.t
         Math, statistics and machine learning are each a lifetime of study. Here, every topic has to earn its place by
         one of two tests: an AI engineer interview asks about it, or a later note needs it. Anything that passes
         neither test is left out on purpose, and the
-        <a href="/notes/#math">math track</a> ends with a note listing what you may safely skip.
+        <a href="/ai/notes/#math">math track</a> ends with a note listing what you may safely skip.
       </p>
     </Callout>
 
@@ -44,7 +44,7 @@ const themeOf = (week: number) => weeklyPractice.find((w) => w.week === week)?.t
       Studying math alone is dry and studying ML without it is confusing. So each week pairs the two: the math note
       gives you the tool, and the ML note of the same week uses it immediately. Vectors and dot products appear on
       Monday, linear regression uses them on Tuesday. Derivatives arrive in week 2 and gradient descent spends them the
-      same week. By week 5 the <a href="/notes/dl/what-is-a-neural-network/">neural network note</a> reads easily,
+      same week. By week 5 the <a href="/ai/notes/dl/what-is-a-neural-network/">neural network note</a> reads easily,
       because every symbol in it has already done a job.
     </p>
 
@@ -53,8 +53,8 @@ const themeOf = (week: number) => weeklyPractice.find((w) => w.week === week)?.t
       The order matters twice over. Read the notes in the order the week-by-week table below gives, because each note
       only uses words that earlier notes explained; and meet each idea three times, in three forms, because that is
       what makes it stick. If a word stops you, hover over it (dotted underline) or open the
-      <a href="/glossary/">glossary</a>; if a line of code stops you, click the <code>np.</code> call to open the
-      <a href="/numpy/">NumPy reference</a>.
+      <a href="/ai/glossary/">glossary</a>; if a line of code stops you, click the <code>np.</code> call to open the
+      <a href="/ai/numpy/">NumPy reference</a>.
     </p>
     <ol>
       <li><strong>Watch or read the source</strong> for the topic (the lecture or chapter linked inside the note).</li>
@@ -71,8 +71,8 @@ const themeOf = (week: number) => weeklyPractice.find((w) => w.week === week)?.t
         </thead>
         <tbody>
           <tr><td>Monday to Friday</td><td>One or two notes a day with their practice drills. In weeks 1–4, alternate a math note and an ML note.</td></tr>
-          <tr><td>Saturday</td><td>Project work only. Build the milestone listed for that week on the <a href="/practice/">practice page</a>.</td></tr>
-          <tr><td>Sunday</td><td>Revision cards and practice questions for the whole week, plus a timed drill from the <a href="/practice/">practice page</a>. Then rest.</td></tr>
+          <tr><td>Saturday</td><td>Project work only. Build the milestone listed for that week on the <a href="/ai/practice/">practice page</a>.</td></tr>
+          <tr><td>Sunday</td><td>Revision cards and practice questions for the whole week, plus a timed drill from the <a href="/ai/practice/">practice page</a>. Then rest.</td></tr>
         </tbody>
       </table>
     </div>
@@ -89,7 +89,7 @@ const themeOf = (week: number) => weeklyPractice.find((w) => w.week === week)?.t
       Each row is one week, and the notes are listed <strong>in the order to read them</strong>. In weeks 1–4 that order
       alternates between the ML and the math track on purpose: the ML note raises a question and the next math note
       answers it, so no note uses a word that an earlier one has not explained. The full practice for the week is on the
-      <a href="/practice/">practice page</a>.
+      <a href="/ai/practice/">practice page</a>.
     </p>
     <div class="table-wrap">
       <table class="schedule">
@@ -136,7 +136,7 @@ const themeOf = (week: number) => weeklyPractice.find((w) => w.week === week)?.t
           </p>
           {track.project && (
             <p>
-              <strong>Build.</strong> <a href="/projects/">{track.project}</a>
+              <strong>Build.</strong> <a href="/ai/projects/">{track.project}</a>
             </p>
           )}
           <p>

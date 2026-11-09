@@ -1,12 +1,12 @@
 ---
-import Note from '../../../layouts/Note.astro';
-import CodeBlock from '../../../components/CodeBlock.astro';
-import Callout from '../../../components/Callout.astro';
-import QA from '../../../components/QA.astro';
-import Figure from '../../../components/Figure.astro';
-import Math from '../../../components/Math.astro';
-import Source from '../../../components/Source.astro';
-import Term from '../../../components/Term.astro';
+import Note from '../../../../layouts/Note.astro';
+import CodeBlock from '../../../../components/CodeBlock.astro';
+import Callout from '../../../../components/Callout.astro';
+import QA from '../../../../components/QA.astro';
+import Figure from '../../../../components/Figure.astro';
+import Math from '../../../../components/Math.astro';
+import Source from '../../../../components/Source.astro';
+import Term from '../../../../components/Term.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -150,7 +150,7 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
 >
   <h2 id="why">Why this note matters</h2>
   <p>
-    The house-price model from the <a href="/notes/ml/what-is-machine-learning/">first ML note</a> had one feature,
+    The house-price model from the <a href="/ai/notes/ml/what-is-machine-learning/">first ML note</a> had one feature,
     size, and one weight. Real houses have many features: size, number of rooms, age, distance to the station. The
     model’s guess becomes “size times its weight, plus rooms times its weight, plus age times its weight…”. That
     pattern, multiply matching pairs and add them up, is the <strong>dot product</strong>, and it is the single most
@@ -163,14 +163,14 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
   <ul>
     <li>“Write a model’s prediction from many features as a single expression.”</li>
     <li>“What does the dot product between two <Term id="embedding">embeddings</Term> tell you?”</li>
-    <li>“What is the difference between the dot product and cosine similarity?” (Finished in the <a href="/notes/math/norms-distance-cosine/">norms note</a>.)</li>
+    <li>“What is the difference between the dot product and cosine similarity?” (Finished in the <a href="/ai/notes/math/norms-distance-cosine/">norms note</a>.)</li>
     <li>“Why is the <Term id="attention">attention</Term> score a dot product, and what does a large value mean?” (Week 8; the dot-product half is here.)</li>
     <li>“What shape is this array, and why did the multiplication fail?”</li>
   </ul>
   <Callout kind="note" label="The scope rule">
     <p>
       Vectors, their two operations, the dot product and its geometric meaning, and length. No cross products, no
-      abstract vector spaces, no proofs. Matrices get the <a href="/notes/math/matrices-and-shapes/">next note</a>;
+      abstract vector spaces, no proofs. Matrices get the <a href="/ai/notes/math/matrices-and-shapes/">next note</a>;
       norms and cosine similarity the one after.
     </p>
   </Callout>
@@ -330,7 +330,7 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
     Subtraction is addition of a flipped vector, and it has a useful picture: <Math tex="\mathbf{a} - \mathbf{b}" /> is
     the arrow <em>from</em> the tip of <Math tex="\mathbf{b}" /> <em>to</em> the tip of <Math tex="\mathbf{a}" />. So
     the difference between two points is the arrow between them, which is why “distance” in the
-    <a href="/notes/math/norms-distance-cosine/">norms note</a> will start from <Math tex="\mathbf{a} - \mathbf{b}" />.
+    <a href="/ai/notes/math/norms-distance-cosine/">norms note</a> will start from <Math tex="\mathbf{a} - \mathbf{b}" />.
   </p>
   <Source
     kind="watch"
@@ -450,7 +450,7 @@ print(W.shape, x.shape, (W @ x).shape)   # (2, 3) (3,) (2,)`;
     aligned <em>or</em> because one of them is simply long. Two of the word vectors from <a href="#embeddings">the
     embeddings section</a> can have a big dot product just because one has big numbers in it. When you only care about direction, you divide the lengths out, and what remains is
     <Math tex="\cos\theta" /> itself: <span class="term">cosine similarity</span>. The
-    <a href="/notes/math/norms-distance-cosine/">norms note</a> is about exactly when to use which.
+    <a href="/ai/notes/math/norms-distance-cosine/">norms note</a> is about exactly when to use which.
   </p>
   <Source
     kind="watch"

@@ -1,7 +1,7 @@
 ---
-import Base from '../../layouts/Base.astro';
-import TrackNotes from '../../components/TrackNotes.astro';
-import { tracks, totalNotes } from '../../data/roadmap';
+import Base from '../../../layouts/Base.astro';
+import TrackNotes from '../../../components/TrackNotes.astro';
+import { tracks, totalNotes } from '../../../data/roadmap';
 
 const ready = tracks.flatMap((t) => t.notes).filter((n) => n.ready).length;
 ---
@@ -12,12 +12,12 @@ const ready = tracks.flatMap((t) => t.notes).filter((n) => n.ready).length;
     <h1>Notes</h1>
     <p class="lede">
       Every note by subject. Math and ML are studied together in weeks 1–4; the week badge tells you which notes go
-      together, and the <a href="/roadmap/">roadmap</a> gives the exact reading order.
+      together, and the <a href="/ai/roadmap/">roadmap</a> gives the exact reading order.
     </p>
     <p>
-      Two reference pages support every note: the <a href="/glossary/">glossary</a> (one plain sentence per technical
+      Two reference pages support every note: the <a href="/ai/glossary/">glossary</a> (one plain sentence per technical
       word, linked from the notes wherever a word appears before the note that teaches it) and the
-      <a href="/numpy/">NumPy reference</a> (one entry per function used in the code, linked from every code block).
+      <a href="/ai/numpy/">NumPy reference</a> (one entry per function used in the code, linked from every code block).
     </p>
     {
       tracks.map((track) => (

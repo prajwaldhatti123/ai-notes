@@ -1,12 +1,12 @@
 ---
-import Note from '../../../layouts/Note.astro';
-import CodeBlock from '../../../components/CodeBlock.astro';
-import Callout from '../../../components/Callout.astro';
-import QA from '../../../components/QA.astro';
-import Figure from '../../../components/Figure.astro';
-import Math from '../../../components/Math.astro';
-import Source from '../../../components/Source.astro';
-import Term from '../../../components/Term.astro';
+import Note from '../../../../layouts/Note.astro';
+import CodeBlock from '../../../../components/CodeBlock.astro';
+import Callout from '../../../../components/Callout.astro';
+import QA from '../../../../components/QA.astro';
+import Figure from '../../../../components/Figure.astro';
+import Math from '../../../../components/Math.astro';
+import Source from '../../../../components/Source.astro';
+import Term from '../../../../components/Term.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -216,7 +216,7 @@ plt.show()
       With one feature the model is a line: price = slope × size + intercept. With two features it becomes a flat
       sheet floating over a table of (size, age) pairs. With ten features you cannot draw it, but the formula is the
       same: multiply each feature by its own weight, add them all up, add the intercept. That is a dot product plus a
-      number, which you met in the <a href="/notes/math/vectors-dot-product/">vectors note</a>. Linear regression is
+      number, which you met in the <a href="/ai/notes/math/vectors-dot-product/">vectors note</a>. Linear regression is
       the dot product used as a predictor.
     </p>
   </Callout>
@@ -237,8 +237,8 @@ plt.show()
     <Math tex="b" />. For a whole dataset, stack the examples as rows of a table (a matrix) <Math tex="X" /> of shape
     <Math tex="n \times (d+1)" /> whose first column is all ones, and every prediction at once is one matrix-vector
     product: every row of <Math tex="X" /> dotted with <Math tex="\boldsymbol{\theta}" />, the “many dot products at
-    once” idea from the <a href="/notes/math/vectors-dot-product/#many">end of the vectors note</a>. (The
-    <a href="/notes/math/matrices-and-shapes/">matrices note</a>, next in the reading order, does the bookkeeping of
+    once” idea from the <a href="/ai/notes/math/vectors-dot-product/#many">end of the vectors note</a>. (The
+    <a href="/ai/notes/math/matrices-and-shapes/">matrices note</a>, next in the reading order, does the bookkeeping of
     shapes properly.)
   </p>
   <Math block tex={String.raw`\hat{\mathbf{y}} = X\boldsymbol{\theta} \qquad \text{for the houses: } \begin{pmatrix} 1 & 1 \\ 1 & 1.5 \\ 1 & 2 \end{pmatrix}\begin{pmatrix} b \\ w \end{pmatrix} = \begin{pmatrix} b + w \\ b + 1.5w \\ b + 2w \end{pmatrix}`} />
@@ -285,7 +285,7 @@ plt.show()
   <p>The <span class="term">mean squared error</span> over <Math tex="n" /> examples is</p>
   <Math block tex="L(\mathbf{w}, b) = \frac{1}{n}\sum_{i=1}^{n}\big(y_i - (\mathbf{w}\cdot\mathbf{x}_i + b)\big)^2 = \frac{1}{n}\lVert\mathbf{y} - X\boldsymbol{\theta}\rVert^2" />
   <p>
-    The second form uses the <a href="/notes/math/norms-distance-cosine/">L2 norm</a>: the MSE is the squared
+    The second form uses the <a href="/ai/notes/math/norms-distance-cosine/">L2 norm</a>: the MSE is the squared
     Euclidean distance between the vector of true values and the vector of predictions, divided by
     <Math tex="n" />. The quantities <Math tex="r_i = y_i - \hat{y}_i" /> are the <span class="term">residuals</span>,
     and the loss is their mean square. Four reasons squared error is the default, each of which an interviewer may
@@ -305,13 +305,13 @@ plt.show()
     <li>
       <strong>It is what “most likely” gives you under bell-curve noise.</strong> If the truth is a line plus random
       wobble shaped like a bell curve, then the line that makes the observed prices most probable is exactly the
-      least-squares line. The <a href="/notes/math/maximum-likelihood/">maximum likelihood note</a> in week 3 derives
+      least-squares line. The <a href="/ai/notes/math/maximum-likelihood/">maximum likelihood note</a> in week 3 derives
       this; it is the deep reason behind the choice.
     </li>
     <li>
       <strong>It penalizes large errors heavily.</strong> An error of 10 costs 100; two errors of 5 cost 50. If big
       misses are much worse than small ones in your application, this is right. If your data has outliers you do not
-      trust, it is wrong, and you switch to absolute error or a hybrid; the <a href="/notes/ml/loss-functions/">loss
+      trust, it is wrong, and you switch to absolute error or a hybrid; the <a href="/ai/notes/ml/loss-functions/">loss
       functions note</a> next week compares them.
     </li>
   </ul>
@@ -381,12 +381,12 @@ plt.show()
     So the best line is <Math tex="\hat{y} = 180x + 23.3" />, with predictions 203.3, 293.3, 383.3 and MSE
     <Math tex="(3.33^2 + 6.67^2 + 3.33^2)/3 = 22.2" />. No search was needed; the formula went straight to the bottom
     of the bowl. The reason the formula is true is that the derivative of the loss is zero at the minimum; the
-    <a href="/notes/math/partial-derivatives-gradient/">gradient note</a> next week gives you the tools to derive it
+    <a href="/ai/notes/math/partial-derivatives-gradient/">gradient note</a> next week gives you the tools to derive it
     yourself in ten lines.
   </p>
   <p>
     For many features, the same “find where the bowl is flat” step produces the <span class="term">normal
-    equation</span>. Two matrix moves appear in it that the <a href="/notes/math/matrices-and-shapes/">matrices
+    equation</span>. Two matrix moves appear in it that the <a href="/ai/notes/math/matrices-and-shapes/">matrices
     note</a> (next in the reading order) makes precise, so here is the one-line version of each: <Math tex="X^\top" />,
     the <em>transpose</em>, is the table flipped so its rows become columns; and a superscript <Math tex="-1" /> on a
     square matrix means its <em>inverse</em>, the matrix that undoes it, the way multiplying by <Math tex="1/5" />
@@ -498,7 +498,7 @@ plt.show()
     <a href="#code">code</a> shows. Two things to notice now and study properly next week: the learning rate matters
     (too small and it crawls, too large and it overshoots and diverges), and the two parameters move at very
     different speeds here because <Math tex="x" /> and the constant 1 have different scales. That second problem is
-    why the <a href="/notes/ml/feature-scaling-encoding/">feature scaling note</a> exists.
+    why the <a href="/ai/notes/ml/feature-scaling-encoding/">feature scaling note</a> exists.
   </p>
   <Source
     kind="read"
@@ -694,7 +694,7 @@ plt.show()
     <li><strong>Polynomial features.</strong> Add <Math tex="x^2, x^3, \dots" />. Powerful and dangerous: high degrees overfit violently (the wiggly curve from the last note). Degree 2 or 3 is usually the limit.</li>
     <li><strong>Log transforms.</strong> Use <Math tex="\log x" /> for features that span orders of magnitude (income, population), or predict <Math tex="\log y" /> when the target is positive and skewed (prices, counts). A coefficient on a log feature reads as “effect per percent change”, which is often the natural scale.</li>
     <li><strong>Interactions.</strong> Add <Math tex="x_1 x_2" /> to let the effect of one feature depend on another: the value of an extra bedroom depends on the size of the house.</li>
-    <li><strong>One-hot encoding.</strong> Turn a category (city) into several 0/1 features so the model can give each city its own offset. The <a href="/notes/ml/feature-scaling-encoding/">next note</a> covers how.</li>
+    <li><strong>One-hot encoding.</strong> Turn a category (city) into several 0/1 features so the model can give each city its own offset. The <a href="/ai/notes/ml/feature-scaling-encoding/">next note</a> covers how.</li>
   </ul>
   <p>
     This is also the bridge to <Term id="neural-network">neural networks</Term> (week 5). A network is “linear
@@ -734,7 +734,7 @@ plt.show()
   />
   <Callout kind="note" label="Reading the code">
     <p>
-      Every <code>np.</code> call is a link to the <a href="/numpy/">NumPy reference</a>. The two that matter most here
+      Every <code>np.</code> call is a link to the <a href="/ai/numpy/">NumPy reference</a>. The two that matter most here
       are <code>np.linalg.lstsq</code> and <code>np.column_stack</code>; scikit-learn’s <code>fit</code> and
       <code>predict</code> were introduced in the first ML note.
     </p>

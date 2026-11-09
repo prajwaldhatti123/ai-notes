@@ -295,7 +295,7 @@ export const tracks: Track[] = [
   },
 ];
 
-export const noteHref = (track: Track, note: Note) => `/notes/${track.id}/${note.slug}/`;
+export const noteHref = (track: Track, note: Note) => `/ai/notes/${track.id}/${note.slug}/`;
 
 export const totalNotes = tracks.reduce((n, t) => n + t.notes.length, 0);
 

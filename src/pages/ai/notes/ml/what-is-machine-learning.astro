@@ -1,12 +1,12 @@
 ---
-import Note from '../../../layouts/Note.astro';
-import CodeBlock from '../../../components/CodeBlock.astro';
-import Callout from '../../../components/Callout.astro';
-import QA from '../../../components/QA.astro';
-import Figure from '../../../components/Figure.astro';
-import Math from '../../../components/Math.astro';
-import Source from '../../../components/Source.astro';
-import Term from '../../../components/Term.astro';
+import Note from '../../../../layouts/Note.astro';
+import CodeBlock from '../../../../components/CodeBlock.astro';
+import Callout from '../../../../components/Callout.astro';
+import QA from '../../../../components/QA.astro';
+import Figure from '../../../../components/Figure.astro';
+import Math from '../../../../components/Math.astro';
+import Source from '../../../../components/Source.astro';
+import Term from '../../../../components/Term.astro';
 
 const sections = [
   { id: 'why', label: 'Why this note matters' },
@@ -124,9 +124,9 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
       This is the first note of the whole path, and it assumes nothing: no math beyond school arithmetic, no AI
       vocabulary. It introduces the dozen words that every later note is built from (model, parameters, loss, training
       and friends), each with an everyday picture first and the exact term second. Every note after this one is
-      written so that it only uses words taught before it, in <a href="/roadmap/">reading order</a>. When a note must
+      written so that it only uses words taught before it, in <a href="/ai/roadmap/">reading order</a>. When a note must
       mention a later word early, the word is marked like <Term id="softmax">this</Term>: hover for a one-line
-      meaning, or click to reach the <a href="/glossary/">glossary</a>.
+      meaning, or click to reach the <a href="/ai/glossary/">glossary</a>.
     </p>
   </Callout>
   <p>
@@ -234,7 +234,7 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
     <strong>Data.</strong> A set of examples, each with features and, for supervised learning, a label. Here each
     example is one house: the feature is its size, the label is the price it sold for. The data is usually written
     as a matrix <Math tex="X" /> with one row per example (the data matrix from the
-    <a href="/notes/math/matrices-and-shapes/">matrices note</a>) and a vector <Math tex="\mathbf{y}" /> of labels.
+    <a href="/ai/notes/math/matrices-and-shapes/">matrices note</a>) and a vector <Math tex="\mathbf{y}" /> of labels.
     Data is the part people underestimate: in practice, more and cleaner data beats a cleverer model far more often
     than the other way round.
   </p>
@@ -331,7 +331,7 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
     Gradient descent will do exactly this reasoning with calculus instead of intuition, and the
     <a href="#code">code section</a> does it with brute force. The best line of all turns out to be
     <Math tex="w = 180,\ b \approx 23.3" />, with a loss of about 22.2; you will derive that in the
-    <a href="/notes/ml/linear-regression/">linear regression note</a>.
+    <a href="/ai/notes/ml/linear-regression/">linear regression note</a>.
   </p>
   <p>
     Notice what “learning” meant here. Nothing mystical: a model shape, a score, and a search over the knobs. The
@@ -380,14 +380,14 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
     zero by memorizing the examples, like the wiggly curve, has <span class="term">overfit</span>: it learned the
     noise along with the pattern. A model too simple to capture the pattern at all has
     <span class="term">underfit</span>. The whole craft of ML sits between those two failures, and the
-    <a href="/notes/ml/overfitting-bias-variance/">overfitting note</a> next week gives it a full treatment.
+    <a href="/ai/notes/ml/overfitting-bias-variance/">overfitting note</a> next week gives it a full treatment.
   </p>
   <p>
     The practical rule follows immediately. Before you train anything, split the data: a <strong>training set</strong>
     the model learns from and a <strong>test set</strong> it never sees until the very end, when you measure it once.
     Most projects add a third <strong>validation set</strong> for making choices during development, so that the test
     set stays untouched. Any number you report from data the model trained on is not evidence of anything.
-    The <a href="/notes/ml/data-splits-cross-validation/">data splits note</a> in week 3 has the details and the
+    The <a href="/ai/notes/ml/data-splits-cross-validation/">data splits note</a> in week 3 has the details and the
     traps.
   </p>
   <Source
@@ -565,7 +565,7 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
     </li>
   </ol>
   <p>
-    This is also the structure of <a href="/projects/#ml-from-scratch">Project 0</a> and of every project after it.
+    This is also the structure of <a href="/ai/projects/#ml-from-scratch">Project 0</a> and of every project after it.
     Projects that follow this shape produce numbers you can defend; projects that skip the baseline and the split
     produce numbers nobody should believe, including you.
   </p>
@@ -683,7 +683,7 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
   <Callout kind="note" label="Reading the code">
     <p>
       Every <code>np.</code> call in a code block on this site is a link. Click it to open that function’s entry on
-      the <a href="/numpy/">NumPy reference page</a>, which explains it in plain words with a small example and its
+      the <a href="/ai/numpy/">NumPy reference page</a>, which explains it in plain words with a small example and its
       output. You do not need to know NumPy in advance; look things up as they appear.
     </p>
   </Callout>
@@ -698,7 +698,7 @@ print("test  MSE:", mean_squared_error(y_test,  model.predict(X_test)))    # abo
   <ul>
     <li><strong>Data.</strong> About 40 GB of web text. Each training example is a window of 1,024 tokens, and the label at each position is simply the next token. No human labelled anything: self-supervised.</li>
     <li><strong>Model.</strong> A particular kind of neural network called a <Term id="transformer">transformer</Term>, with 124 million parameters (small) up to 1.5 billion (large). A function from a token sequence to a probability for each possible next token, with knobs.</li>
-    <li><strong>Loss.</strong> The <Term id="log-loss">log loss</Term>: minus the logarithm of the probability the model gave to the token that actually came next, averaged over all positions. The <a href="/notes/math/functions-exponents-logs/">next note</a> builds it; week 4 gives it its grown-up name, <Term id="cross-entropy">cross-entropy</Term>.</li>
+    <li><strong>Loss.</strong> The <Term id="log-loss">log loss</Term>: minus the logarithm of the probability the model gave to the token that actually came next, averaged over all positions. The <a href="/ai/notes/math/functions-exponents-logs/">next note</a> builds it; week 4 gives it its grown-up name, <Term id="cross-entropy">cross-entropy</Term>.</li>
     <li><strong>Optimizer.</strong> A polished variant of gradient descent called <Term id="adam">Adam</Term> (week 6), run for hundreds of thousands of steps, each on a batch of sequences.</li>
     <li><strong>Hyperparameters.</strong> Number of layers, width, learning rate, batch size, how many tokens the model sees at once. Chosen by people, before training, and reported in the paper.</li>
     <li><strong>Inference.</strong> Run the trained model on a prompt, get a probability for each next token, pick one, append it, repeat. That is “generation”.</li>
