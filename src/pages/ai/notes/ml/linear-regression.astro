@@ -527,37 +527,73 @@ print(residuals[-3:].round(2))
     gave.
   </p>
 
-  <h3 id="normal-step-3">Step 3: the same equations written with X</h3>
+  <h3 id="normal-step-3">Step 3: how the matrix formula is found</h3>
   <p>
-    Recall the data table <Math tex="X" /> from the model section. It has a column of ones and a column of sizes, and
-    <Math tex="\mathbf{y}" /> holds the prices:
+    Nobody started by deciding to “multiply by <Math tex="X^\top" />”. People wrote down the two facts from Step 1
+    and looked for a short way to write them that works for any number of features. The matrix formula is that
+    short way. Here is how you get there, one move at a time.
   </p>
-  <Math block tex={String.raw`X = \begin{pmatrix} 1 & 1 \\ 1 & 1.5 \\ 1 & 2 \end{pmatrix} \qquad \mathbf{y} = \begin{pmatrix} 200 \\ 300 \\ 380 \end{pmatrix}`} />
   <p>
-    Each number in the two equations is a <a href="/ai/notes/math/vectors-dot-product/">dot product</a> of two of these
-    columns:
+    <strong>Move 1: put the data in vectors.</strong> Each house has a 1 (it multiplies <Math tex="b" />) and a size
+    (it multiplies <Math tex="w" />). Put those two lists side by side as the two columns of a table called
+    <Math tex="X" />. Put the prices in a vector <Math tex="\mathbf{y}" /> and the two unknowns in a vector
+    <Math tex="\boldsymbol{\theta}" />:
   </p>
-  <ul>
-    <li>3 = ones · ones, 4.5 = ones · sizes, 7.25 = sizes · sizes.</li>
-    <li>880 = ones · prices, 1410 = sizes · prices.</li>
-  </ul>
+  <Math block tex={String.raw`X = \begin{pmatrix} 1 & 1 \\ 1 & 1.5 \\ 1 & 2 \end{pmatrix} \qquad \mathbf{y} = \begin{pmatrix} 200 \\ 300 \\ 380 \end{pmatrix} \qquad \boldsymbol{\theta} = \begin{pmatrix} b \\ w \end{pmatrix}`} />
   <p>
-    Matrix notation has a short name for each of these two groups. <Math tex="X^\top X" /> (read “X transpose X”) is
-    the table of every column of <Math tex="X" /> dotted with every column of <Math tex="X" />. <Math tex="X^\top \mathbf{y}" /> is the list of every column of <Math tex="X" /> dotted with <Math tex="\mathbf{y}" />. For the
-    houses:
+    <strong>Move 2: write all the predictions at once.</strong> The prediction for one house is
+    <Math tex="b \times 1 + w \times \text{size}" />. That is the <a href="/ai/notes/math/vectors-dot-product/">dot
+    product</a> of the house’s row of <Math tex="X" /> with <Math tex="\boldsymbol{\theta}" />. Doing it for every row
+    is written <Math tex="X\boldsymbol{\theta}" /> (“every row of <Math tex="X" /> dotted with
+    <Math tex="\boldsymbol{\theta}" />”, as at the <a href="/ai/notes/math/vectors-dot-product/#many">end of the
+    vectors note</a>):
   </p>
-  <Math block tex={String.raw`X^\top X = \begin{pmatrix} 3 & 4.5 \\ 4.5 & 7.25 \end{pmatrix} \qquad X^\top \mathbf{y} = \begin{pmatrix} 880 \\ 1410 \end{pmatrix}`} />
+  <Math block tex={String.raw`X\boldsymbol{\theta} = \begin{pmatrix} b + 1w \\ b + 1.5w \\ b + 2w \end{pmatrix}`} />
   <p>
-    The <Math tex="\top" /> is the <em>transpose</em>: <Math tex="X" /> turned on its side, so its columns become rows.
-    That is all it does here. Writing the columns as rows lets one matrix product dot every column with every column
-    at once. The <a href="/ai/notes/math/matrices-and-shapes/">matrices note</a>, next in the reading order, covers
-    transposes and matrix products properly. With these two names, the two equations from Step 2 become one line:
+    <strong>Move 3: write all the residuals at once.</strong> A residual is price minus prediction, so all three
+    residuals are the vector <Math tex="\mathbf{r} = \mathbf{y} - X\boldsymbol{\theta}" />. For the best line,
+    <Math tex="\mathbf{r} = (-3.33,\ 6.67,\ -3.33)" />.
   </p>
-  <Math block tex={String.raw`(X^\top X)\,\boldsymbol{\theta} = X^\top \mathbf{y} \qquad \text{where } \boldsymbol{\theta} = \begin{pmatrix} b \\ w \end{pmatrix}`} />
   <p>
-    Multiply it out and you get back <Math tex="3b + 4.5w = 880" /> and <Math tex="4.5b + 7.25w = 1410" />. This line is
-    the normal equation. The <Math tex="b" /> comes first in <Math tex="\boldsymbol{\theta}" /> because the ones column
-    comes first in <Math tex="X" />.
+    <strong>Move 4: write the two facts as dot products.</strong> Look at Step 1 again. “The residuals add up to
+    zero” is the same as (1, 1, 1) · <Math tex="\mathbf{r}" /> = 0, because multiplying each residual by 1 and adding
+    is just adding. “Each residual times its size adds up to zero” is (1, 1.5, 2) · <Math tex="\mathbf{r}" /> = 0.
+    Those two vectors are exactly the two columns of <Math tex="X" />. So both facts say one thing:
+  </p>
+  <Callout kind="note" label="The key fact">
+    <p>At the best line, every column of <Math tex="X" /> dotted with the residuals gives zero.</p>
+  </Callout>
+  <p>
+    <strong>Move 5: this is where <Math tex="X^\top" /> comes from.</strong> We already have a short way to write
+    “every <em>row</em> dotted with a vector”: <Math tex="X\boldsymbol{\theta}" />. We want every <em>column</em>
+    dotted with <Math tex="\mathbf{r}" />. So turn <Math tex="X" /> on its side, making its columns into rows. That
+    turned table is called the <em>transpose</em>, written <Math tex="X^\top" />:
+  </p>
+  <Math block tex={String.raw`X^\top = \begin{pmatrix} 1 & 1 & 1 \\ 1 & 1.5 & 2 \end{pmatrix}`} />
+  <p>
+    Now “every row of <Math tex="X^\top" /> dotted with <Math tex="\mathbf{r}" />” is the two facts, and it is
+    written <Math tex="X^\top \mathbf{r}" />. Check it with the best line:
+  </p>
+  <Math block tex={String.raw`X^\top \mathbf{r} = \begin{pmatrix} 1(-3.33) + 1(6.67) + 1(-3.33) \\ 1(-3.33) + 1.5(6.67) + 2(-3.33) \end{pmatrix} = \begin{pmatrix} 0 \\ 0 \end{pmatrix}`} />
+  <p>
+    So the transpose is not a trick someone pulled out of the air. It is the shortest way to write “check every
+    column against the residuals”.
+  </p>
+  <p>
+    <strong>Move 6: put in what <Math tex="\mathbf{r}" /> is and tidy up.</strong> Replace <Math tex="\mathbf{r}" />
+    with <Math tex="\mathbf{y} - X\boldsymbol{\theta}" /> from Move 3. Then multiply out the bracket, the same way
+    <Math tex="a(c - d) = ac - ad" /> for numbers (this works for matrices too), and move one part to the other side:
+  </p>
+  <Math block tex={String.raw`\begin{aligned} X^\top(\mathbf{y} - X\boldsymbol{\theta}) &= \mathbf{0} \\ X^\top\mathbf{y} - X^\top X\boldsymbol{\theta} &= \mathbf{0} \\ X^\top X\,\boldsymbol{\theta} &= X^\top\mathbf{y} \end{aligned}`} />
+  <p>
+    The last line is the <span class="term">normal equation</span>. It is not new. Work out the two pieces for the
+    houses and you get the two equations from Step 2 again:
+  </p>
+  <Math block tex={String.raw`X^\top X = \begin{pmatrix} 3 & 4.5 \\ 4.5 & 7.25 \end{pmatrix} \qquad X^\top \mathbf{y} = \begin{pmatrix} 880 \\ 1410 \end{pmatrix} \qquad \text{so} \quad \begin{aligned} 3b + 4.5w &= 880 \\ 4.5b + 7.25w &= 1410 \end{aligned}`} />
+  <p>
+    Each number is a dot product of two columns: 3 = ones · ones, 4.5 = ones · sizes, 7.25 = sizes · sizes,
+    880 = ones · prices, 1410 = sizes · prices. The <a href="/ai/notes/math/matrices-and-shapes/">matrices note</a>,
+    next in the reading order, covers transposes and matrix products in general.
   </p>
 
   <h3 id="normal-step-4">Step 4: solve it, and the −1</h3>
@@ -914,7 +950,7 @@ print(residuals[-3:].round(2))
     ["np.ones_like(x)", "An array of ones the same length as x: the column that carries the intercept b.", "numpy/like"],
     ["np.column_stack([a, b])", "Glues 1-D arrays side by side as the columns of a table.", "numpy/stack"],
     ["X.T", "The transpose: X turned on its side, so its columns become rows (Step 3 of the normal equation).", "numpy/T"],
-    ["A @ B", "Matrix multiplication, the “every row times the vector” operation from the model section.", "numpy/matmul"],
+    ["A @ B", "Matrix multiplication: every row of A dotted with every column of B. X @ theta gives every prediction at once.", "numpy/matmul"],
     ["np.linalg.solve(A, v)", "Solves the equations “A times the unknowns equals v” and returns the unknowns.", "numpy/linalg-solve"],
     ["np.linalg.inv(A)", "The inverse of a square matrix, the −1 in the normal equation.", "numpy/linalg-inv"],
     ["np.linalg.lstsq(X, y, rcond=None)", "Least squares in one call. It returns four things (weights, leftover error, rank, singular values); we name all four and use the first.", "numpy/linalg-lstsq"],
