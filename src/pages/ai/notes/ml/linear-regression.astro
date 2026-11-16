@@ -72,28 +72,44 @@ y = np.array([200.0, 300.0, 380.0])    # prices (thousands)
 # Simple linear regression: the two formulas from the closed-form section.
 w = np.sum((x - x.mean()) * (y - y.mean())) / np.sum((x - x.mean()) ** 2)
 b = y.mean() - w * x.mean()
-print(w, b)                            # 180.0 23.333
+print(w, b)
+# prints 180.0 23.333333333333314
 
-# The same answer from the normal equation, which also works for many
-# features.
-ones = np.ones_like(x)                 # [1. 1. 1.]
-# the data table with a ones column: shape (3, 2)
+# The data table X: a ones column, then the sizes. Shape (3, 2).
+ones = np.ones_like(x)
 X = np.column_stack([ones, x])
-theta = np.linalg.inv(X.T @ X) @ X.T @ y
-# b first, because the ones column is first
-print(theta)
-# prints [ 23.333 180. ]
 
-# In practice never invert by hand; lstsq is more stable and copes with
-# redundant columns.
+# Left side of the two equations: every column of X dotted with every column.
+XtX = X.T @ X
+print(XtX)
+# prints [[3.   4.5 ]
+#         [4.5  7.25]]
+
+# Right side: every column of X dotted with the prices.
+Xty = X.T @ y
+print(Xty)
+# prints [ 880. 1410.]
+
+# Solve the two equations. b comes first, because the ones column is first.
+theta = np.linalg.solve(XtX, Xty)
+print(theta)
+# prints [ 23.33333333 180.        ]
+
+# The same answer written exactly like the formula, with the inverse.
+theta_inv = np.linalg.inv(XtX) @ Xty
+print(theta_inv)
+# prints [ 23.33333333 180.        ]
+
+# lstsq does all the steps in one call and copes with redundant columns.
 theta2, residuals, rank, singular_values = np.linalg.lstsq(X, y, rcond=None)
-print(theta2)                          # [ 23.333 180. ]  the same answer
+print(theta2)
+# prints [ 23.33333333 180.        ]
 
 predictions = X @ theta                # every prediction at once
 mse = np.mean((predictions - y) ** 2)
 # the smallest MSE any line can reach on these points
 print(mse)
-# prints 22.222`;
+# prints 22.222222222222346`;
 
 const gdCode = `import numpy as np
 
@@ -457,16 +473,120 @@ print(residuals[-3:].round(2))
     yourself in ten lines.
   </p>
   <p>
-    For many features, the same “find where the bowl is flat” step produces the <span class="term">normal
-    equation</span>. Two matrix moves appear in it that the <a href="/ai/notes/math/matrices-and-shapes/">matrices
-    note</a> (next in the reading order) makes precise, so here is the one-line version of each: <Math tex="X^\top" />,
-    the <em>transpose</em>, is the table flipped so its rows become columns; and a superscript <Math tex="-1" /> on a
-    square matrix means its <em>inverse</em>, the matrix that undoes it, the way multiplying by <Math tex="1/5" />
-    undoes multiplying by 5 (in code, <code>np.linalg.inv</code>). With <Math tex="X" /> the
-    <Math tex="n \times (d+1)" /> data matrix (ones column included) and <Math tex="\mathbf{y}" /> the
-    <Math tex="n" /> targets:
+    The two formulas above only work for one feature. With several features (size, age, number of rooms) you need
+    the <span class="term">normal equation</span>, <Math tex="\boldsymbol{\theta} = (X^\top X)^{-1} X^\top \mathbf{y}" />.
+    It looks hard because it is written in matrices, but it says something simple. Below we build it from the three
+    houses in four steps, so that every symbol in it ends up being a number you have already seen.
+  </p>
+
+  <h3 id="normal-step-1">Step 1: two facts that are true only for the best line</h3>
+  <p>
+    The residuals of the best line in Fig. 1 are −3.33, +6.67 and −3.33. Two sums made from them are zero.
+  </p>
+  <ul>
+    <li>
+      <strong>The residuals add up to zero:</strong> −3.33 + 6.67 − 3.33 = 0. Suppose they added up to a positive
+      number instead. Then the line would be too low overall, and moving it up (a bigger <Math tex="b" />) would
+      lower the MSE. So it would not be the best line.
+    </li>
+    <li>
+      <strong>Each residual times its size also adds up to zero:</strong> 1 × (−3.33) + 1.5 × 6.67 + 2 × (−3.33)
+      = −3.33 + 10 − 6.67 = 0. Suppose this sum were positive instead. Then the line would be too low mainly at the
+      big houses, and tilting it steeper (a bigger <Math tex="w" />) would lower the MSE.
+    </li>
+  </ul>
+  <p>
+    Now try a line that is not the best one. Move the best line up by 10, to <Math tex="b = 33.33" />. The residuals
+    become −13.33, −3.33 and −13.33. They add up to −30, not zero, and the MSE goes up from 22.2 to 122.2.
+  </p>
+  <p>
+    So the best line is the one that makes both sums zero. This is the “bottom of the bowl” from Fig. 2 written as
+    arithmetic: at the bottom, no small move of <Math tex="b" /> or <Math tex="w" /> can lower the MSE. (The
+    <a href="/ai/notes/math/partial-derivatives-gradient/">gradient note</a> next week shows that these two sums are
+    the slopes of the bowl, up to a constant.)
+  </p>
+
+  <h3 id="normal-step-2">Step 2: write the two facts as two equations</h3>
+  <p>
+    Each residual is the price minus the prediction, <Math tex="y_i - (b + w x_i)" />. Put that into the two sums
+    and collect the numbers. For the houses you get two ordinary equations in <Math tex="b" /> and <Math tex="w" />:
+  </p>
+  <Math block tex={String.raw`\begin{aligned} 3\,b + 4.5\,w &= 880 \\ 4.5\,b + 7.25\,w &= 1410 \end{aligned}`} />
+  <p>Every number here is a simple sum over the three houses:</p>
+  <ul>
+    <li>3: the number of houses (1 + 1 + 1).</li>
+    <li>4.5: the sum of the sizes, 1 + 1.5 + 2.</li>
+    <li>7.25: the sum of the sizes squared, 1 + 2.25 + 4.</li>
+    <li>880: the sum of the prices, 200 + 300 + 380.</li>
+    <li>1410: the sum of size × price, 1 × 200 + 1.5 × 300 + 2 × 380 = 200 + 450 + 760.</li>
+  </ul>
+  <p>
+    Solve them the way you would at school. The first equation gives <Math tex="b = (880 - 4.5w)/3" />. Put that
+    into the second: <Math tex="1320 - 6.75w + 7.25w = 1410" />, so <Math tex="0.5w = 90" /> and
+    <Math tex="w = 180" />. Then <Math tex="b = (880 - 810)/3 = 23.33" />. This is the same line the two formulas
+    gave.
+  </p>
+
+  <h3 id="normal-step-3">Step 3: the same equations written with X</h3>
+  <p>
+    Recall the data table <Math tex="X" /> from the model section. It has a column of ones and a column of sizes, and
+    <Math tex="\mathbf{y}" /> holds the prices:
+  </p>
+  <Math block tex={String.raw`X = \begin{pmatrix} 1 & 1 \\ 1 & 1.5 \\ 1 & 2 \end{pmatrix} \qquad \mathbf{y} = \begin{pmatrix} 200 \\ 300 \\ 380 \end{pmatrix}`} />
+  <p>
+    Each number in the two equations is a <a href="/ai/notes/math/vectors-dot-product/">dot product</a> of two of these
+    columns:
+  </p>
+  <ul>
+    <li>3 = ones · ones, 4.5 = ones · sizes, 7.25 = sizes · sizes.</li>
+    <li>880 = ones · prices, 1410 = sizes · prices.</li>
+  </ul>
+  <p>
+    Matrix notation has a short name for each of these two groups. <Math tex="X^\top X" /> (read “X transpose X”) is
+    the table of every column of <Math tex="X" /> dotted with every column of <Math tex="X" />. <Math tex="X^\top \mathbf{y}" /> is the list of every column of <Math tex="X" /> dotted with <Math tex="\mathbf{y}" />. For the
+    houses:
+  </p>
+  <Math block tex={String.raw`X^\top X = \begin{pmatrix} 3 & 4.5 \\ 4.5 & 7.25 \end{pmatrix} \qquad X^\top \mathbf{y} = \begin{pmatrix} 880 \\ 1410 \end{pmatrix}`} />
+  <p>
+    The <Math tex="\top" /> is the <em>transpose</em>: <Math tex="X" /> turned on its side, so its columns become rows.
+    That is all it does here. Writing the columns as rows lets one matrix product dot every column with every column
+    at once. The <a href="/ai/notes/math/matrices-and-shapes/">matrices note</a>, next in the reading order, covers
+    transposes and matrix products properly. With these two names, the two equations from Step 2 become one line:
+  </p>
+  <Math block tex={String.raw`(X^\top X)\,\boldsymbol{\theta} = X^\top \mathbf{y} \qquad \text{where } \boldsymbol{\theta} = \begin{pmatrix} b \\ w \end{pmatrix}`} />
+  <p>
+    Multiply it out and you get back <Math tex="3b + 4.5w = 880" /> and <Math tex="4.5b + 7.25w = 1410" />. This line is
+    the normal equation. The <Math tex="b" /> comes first in <Math tex="\boldsymbol{\theta}" /> because the ones column
+    comes first in <Math tex="X" />.
+  </p>
+
+  <h3 id="normal-step-4">Step 4: solve it, and the −1</h3>
+  <p>
+    With plain numbers, you solve <Math tex="5\theta = 10" /> by dividing both sides by 5: <Math tex="\theta = 5^{-1} \times 10 = 2" />. You cannot divide by a matrix, but you can multiply by its <em>inverse</em>. The inverse of a
+    square matrix <Math tex="A" />, written <Math tex="A^{-1}" />, is the matrix that undoes multiplying by
+    <Math tex="A" />, just as <Math tex="5^{-1} = 1/5" /> undoes multiplying by 5. Multiplying both sides of the
+    normal equation by <Math tex="(X^\top X)^{-1}" /> leaves <Math tex="\boldsymbol{\theta}" /> alone:
   </p>
   <Math block tex="\boldsymbol{\theta} = (X^\top X)^{-1} X^\top \mathbf{y}" />
+  <p>
+    This is the formula you started with. In words, read from the right:
+  </p>
+  <ol>
+    <li><Math tex="X^\top \mathbf{y}" />: dot every column of <Math tex="X" /> with the prices. For the houses, 880 and 1410.</li>
+    <li><Math tex="X^\top X" />: dot every column of <Math tex="X" /> with every column. For the houses, the 2 × 2 table of 3, 4.5, 4.5 and 7.25.</li>
+    <li><Math tex="(X^\top X)^{-1}" />: use that table to solve the equations. For the houses, <Math tex="b = 23.33" /> and <Math tex="w = 180" />.</li>
+  </ol>
+  <p>
+    With <Math tex="d" /> features nothing new happens. <Math tex="X" /> has <Math tex="d + 1" /> columns (the ones
+    plus one per feature). Each column gives one fact like the two in Step 1, “this column dotted with the residuals
+    is zero”. That makes <Math tex="d + 1" /> equations in <Math tex="d + 1" /> unknowns, and
+    <Math tex="X^\top X" /> is a <Math tex="(d+1) \times (d+1)" /> table however many houses there are (Fig. 3). The
+    computer solves them; in code that is <code>np.linalg.solve(X.T @ X, X.T @ y)</code>.
+  </p>
+  <p>
+    The name comes from the same facts. A dot product of zero means two vectors are perpendicular, and an old word for
+    perpendicular is “normal”. Each equation says a column of <Math tex="X" /> is perpendicular to the residuals.
+  </p>
   <Figure n={3} caption="Shapes in the normal equation for n examples and d features (plus the ones column). XᵀX is a small square matrix, (d+1) × (d+1), whatever n is; inverting it costs about (d+1)³ operations.">
     <svg viewBox="0 0 760 240" role="img" aria-label="Rectangles showing the shapes of X transpose, X, their product, its inverse, X transpose y and theta">
       <g class="sketch">
@@ -495,7 +615,7 @@ print(residuals[-3:].round(2))
       <text class="small" x="370" y="120" text-anchor="middle">·</text>
     </svg>
   </Figure>
-  <p>Read it with the shape rule. <Math tex="X^\top X" /> is <Math tex="(d+1) \times (d+1)" />, a small square matrix however many examples you have; <Math tex="X^\top\mathbf{y}" /> is a <Math tex="(d+1)" />-vector; the inverse times the vector is the <Math tex="(d+1)" /> parameters. For the houses, <Math tex="d = 1" />, so it is a 2 × 2 inverse, and the <a href="#code">code</a> shows it giving the same 23.33 and 180. Three practical notes:</p>
+  <p>Three practical points about using it:</p>
   <ul>
     <li>
       <strong>Cost.</strong> Forming <Math tex="X^\top X" /> is about <Math tex="n d^2" /> operations and inverting it
@@ -793,8 +913,9 @@ print(residuals[-3:].round(2))
     ["x.mean(), np.sum(...), np.mean(...)", "The average of an array, the total of an array, and the average again written as a function.", "numpy/mean"],
     ["np.ones_like(x)", "An array of ones the same length as x: the column that carries the intercept b.", "numpy/like"],
     ["np.column_stack([a, b])", "Glues 1-D arrays side by side as the columns of a table.", "numpy/stack"],
-    ["X.T", "The transpose: the table flipped so rows become columns, as in the normal equation.", "numpy/T"],
+    ["X.T", "The transpose: X turned on its side, so its columns become rows (Step 3 of the normal equation).", "numpy/T"],
     ["A @ B", "Matrix multiplication, the “every row times the vector” operation from the model section.", "numpy/matmul"],
+    ["np.linalg.solve(A, v)", "Solves the equations “A times the unknowns equals v” and returns the unknowns.", "numpy/linalg-solve"],
     ["np.linalg.inv(A)", "The inverse of a square matrix, the −1 in the normal equation.", "numpy/linalg-inv"],
     ["np.linalg.lstsq(X, y, rcond=None)", "Least squares in one call. It returns four things (weights, leftover error, rank, singular values); we name all four and use the first.", "numpy/linalg-lstsq"],
   ]} />
